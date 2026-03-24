@@ -2,7 +2,7 @@
 
 An R package for parsing [ISCN](https://www.karger.com/iscn) karyotype strings into structured binary features. Designed for analysis of myeloid neoplasm-related chromosomal aberrations.
 
-**Version**: 0.1.0
+**Version**: 0.2.0
 
 ## Installation
 

@@ -126,7 +126,7 @@ Add rows to `rules_table()` in `R/rules.R`: `flag_name` (output column), `regex`
 
 ## Testing
 
-350 assertions (sections 1–25) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification, monosomy/trisomy detection, complex/monosomal flags, preprocessing, idem expansion, `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `issues` list-column, ID column detection, deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, `apply_preprocess_to_rows()`, trailing narrative (3-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, and edge cases.
+360 assertions (sections 1–25) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification, monosomy/trisomy detection, complex/monosomal flags, preprocessing, idem expansion, `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `issues` list-column, ID column detection, deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, `apply_preprocess_to_rows()`, trailing narrative (3-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, and edge cases.
 
 Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbose = FALSE)`.
 

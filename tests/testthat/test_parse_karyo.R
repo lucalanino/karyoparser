@@ -947,7 +947,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.1.0")
+  expect_equal(attr(r, "karyoparser_version"), "0.2.0")
 })
 
 test_that(".return='data.frame' returns data.frame", {
@@ -1100,9 +1100,9 @@ test_that("preprocess_karyo: decodes &amp; entity", {
   expect_equal(preprocess_karyo("46,XX &amp; notes"), "46,XX & notes")
 })
 
-test_that("preprocess_karyo: strips leading .// prefix", {
-  expect_equal(preprocess_karyo(".//46,XX"), "46,XX")
-  expect_equal(preprocess_karyo("..//46,XX"), "46,XX")
+test_that("preprocess_karyo: does NOT strip leading .// prefix (structural issue, not dirty artifact)", {
+  expect_equal(preprocess_karyo(".//46,XX"), ".//46,XX")
+  expect_equal(preprocess_karyo("..//46,XX"), "..//46,XX")
 })
 
 test_that("preprocess_karyo: strips leading dot before digit", {
@@ -1214,7 +1214,6 @@ test_that(".dirty_patterns contains all expected keys", {
     names(karyoparser:::.dirty_patterns),
     c(
       "html_entities",
-      "leading_dotslash",
       "leading_dot",
       "fish_notation",
       "trailing_narrative",
@@ -1227,8 +1226,9 @@ test_that(".dirty_patterns contains all expected keys", {
 
 test_that("preprocess_karyo() output is consistent with .dirty_patterns fix rules", {
   expect_equal(preprocess_karyo("&lt;46&gt;,XX"), "<46>,XX")
-  expect_equal(preprocess_karyo(".//46,XX"), "46,XX")
   expect_equal(preprocess_karyo(".46,XY,+21[10] .Note"), "46,XY,+21[10]")
+  # .// prefix is NOT stripped by preprocess_karyo() — it is a structural issue
+  expect_equal(preprocess_karyo(".//46,XX"), ".//46,XX")
 })
 
 # 23d. missing_sex_comma ------------------------------------------------------
@@ -1458,6 +1458,56 @@ test_that("on_issues='stop': raises error on chimeric row", {
     parse_karyo("46,XX[15]//46,XY[5]", on_issues = "stop", verbose = FALSE),
     "chimeric"
   )
+})
+
+# 24i. zero_host_chimera -------------------------------------------------------
+
+test_that("check_karyo detects zero_host_chimera", {
+  issues <- check_karyo(".//46,XX[10]")
+  expect_true("zero_host_chimera" %in% issues$issue_type)
+})
+
+test_that("check_karyo zero_host_chimera detail mentions donor/host", {
+  issues <- check_karyo(".//46,XX[10]")
+  row <- issues[issues$issue_type == "zero_host_chimera", ]
+  expect_true(grepl("host|donor|chimera", row$issue_detail, ignore.case = TRUE))
+})
+
+test_that("check_karyo: multiple leading dots also detected as zero_host_chimera", {
+  issues <- check_karyo("..//46,XY[5]")
+  expect_true("zero_host_chimera" %in% issues$issue_type)
+})
+
+test_that("check_karyo: normal karyotype does not trigger zero_host_chimera", {
+  issues <- check_karyo("46,XX[20]")
+  expect_false("zero_host_chimera" %in% issues$issue_type)
+})
+
+test_that("parse_karyo: zero_host_chimera returns NA", {
+  r <- pk(".//46,XX[10]")
+  expect_true(is.na(r$ploidy_category))
+})
+
+test_that("parse_karyo: zero_host_chimera issues list-column contains zero_host_chimera", {
+  r <- pk(".//46,XX[10]")
+  expect_true("zero_host_chimera" %in% r$issues[[1]]$issue_type)
+})
+
+test_that("parse_karyo: zero_host_chimera NA even with on_issues='fix'", {
+  r <- parse_karyo(".//46,XX[10]", on_issues = "fix", verbose = FALSE)
+  expect_true(is.na(r$ploidy_category))
+})
+
+test_that("parse_karyo: zero_host_chimera with other dirty patterns still returns NA", {
+  # Trailing narrative present alongside .// — other dirty fix runs but row is still NA
+  r <- parse_karyo(".//46,XX[10] .Female karyotype", on_issues = "fix", verbose = FALSE)
+  expect_true(is.na(r$ploidy_category))
+})
+
+test_that("parse_karyo: clean row in same batch unaffected by zero_host_chimera row", {
+  r <- pk(c("46,XX[20]", ".//46,XY[10]"))
+  expect_equal(r$normal_karyotype[1], 1L)
+  expect_true(is.na(r$ploidy_category[2]))
 })
 
 # =============================================================================

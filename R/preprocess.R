@@ -16,14 +16,6 @@
     ),
     detail = "Contains HTML entities (&lt;, &gt;, or &amp;)"
   ),
-  leading_dotslash = list(
-    detect = "^[.]+//",
-    use_trimmed = TRUE,
-    fix = list(
-      list(pattern = "^[.]+//", replacement = "")
-    ),
-    detail = "String starts with './/'"
-  ),
   leading_dot = list(
     detect = "^[.]+(?=\\d)",
     use_trimmed = TRUE,
@@ -110,14 +102,17 @@
 #' Rules applied in order:
 #' 1. Trim leading/trailing whitespace and collapse newlines/tabs
 #' 2. Decode HTML entities (`&lt;` → `<`, `&gt;` → `>`, `&amp;` → `&`)
-#' 3. Strip leading `.//` (and variants like `..//`)
-#' 4. Strip leading dot(s) before a digit (e.g. `.46,XX` → `46,XX`)
-#' 5. Strip FISH/nuc ish suffix after last clone bracket (e.g. `[12] .nuc ish(...)`)
-#' 6. Strip trailing narrative: `] .text` → `]`; space-dot-capital mid-string
-#' 7. Collapse mid-string line-wrap artifacts (`, .der(...)` → `,der(...)`; `, .+8` → `,+8`)
-#' 8. Insert missing comma after sex chromosome complement (`46,XX der(...)` → `46,XX,der(...)`)
-#' 9. Remove space between count and `mar` token (`+1~4 mar` → `+1~4mar`)
-#' 10. Trim again
+#' 3. Strip leading dot(s) before a digit (e.g. `.46,XX` → `46,XX`)
+#' 4. Strip FISH/nuc ish suffix after last clone bracket (e.g. `[12] .nuc ish(...)`)
+#' 5. Strip trailing narrative: `] .text` → `]`; space-dot-capital mid-string
+#' 6. Collapse mid-string line-wrap artifacts (`, .der(...)` → `,der(...)`; `, .+8` → `,+8`)
+#' 7. Insert missing comma after sex chromosome complement (`46,XX der(...)` → `46,XX,der(...)`)
+#' 8. Remove space between count and `mar` token (`+1~4 mar` → `+1~4mar`)
+#' 9. Trim again
+#'
+#' Note: strings starting with `.//` (zero-host chimeras) are not modified here —
+#' they are detected as `zero_host_chimera` structural issues by `check_karyo()`
+#' and returned as NA by `parse_karyo()`.
 #'
 #' @param x Character vector of raw karyotype strings.
 #' @return Character vector of cleaned karyotype strings (same length as `x`).
@@ -145,8 +140,9 @@ preprocess_karyo <- function(x) {
 #'
 #' Detected issue types:
 #' - `html_entities`: contains `&lt;`, `&gt;`, or `&amp;`
-#' - `leading_dotslash`: string starts with `.//` (after trimming)
 #' - `leading_dot`: string starts with dot(s) before a digit
+#' - `zero_host_chimera`: string starts with `.//` — donor-only chimera with no
+#'   host metaphases; not fixable, always returned as NA by `parse_karyo()`
 #' - `fish_notation`: FISH/nuc ish suffix after last clone bracket
 #' - `trailing_narrative`: bracket followed by dot (`] .text`) OR
 #'   space-dot-capital pattern (` .Text`, no bracket required)
@@ -183,6 +179,19 @@ flag_unpreprocessed <- function(x) {
           issue_detail = dp$detail
         )
       }
+    }
+
+    # Structural pre-normalization check: zero-host chimera (.// prefix).
+    # Must run on raw/trimmed string before normalize_iscn() strips leading dots.
+    # Not in .dirty_patterns because it is not fixable by preprocess_karyo().
+    if (stringr::str_detect(s_trim, "^[.]+//")) {
+      n_issues <- n_issues + 1L
+      issue_list[[n_issues]] <- tibble::tibble(
+        row_index = i,
+        karyotype = truncate_str(s),
+        issue_type = "zero_host_chimera",
+        issue_detail = "String starts with './/': donor-only chimera with no host metaphases"
+      )
     }
   }
 
