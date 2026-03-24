@@ -354,7 +354,7 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
   out$ploidy_category <- NA_character_
   other_cols <- setdiff(
     all_output_cols,
-    c("original_karyotype", "normalized_karyotype", "ploidy_category", "issues")
+    c("original_karyotype", "normalized_karyotype", "ploidy_category")
   )
   for (nm in other_cols) {
     out[[nm]] <- rep(NA_integer_, n)
@@ -484,7 +484,8 @@ parse_karyo <- function(
     "complex_karyotype",
     "monosomal_karyotype",
     "mixed_ploidy",
-    "issues"
+    "fixable_error",
+    "unfixable_error"
   )
 
   empty_result <- function() {
@@ -493,16 +494,10 @@ parse_karyo <- function(
     out$ploidy_category <- character()
     for (nm in setdiff(
       all_output_cols,
-      c(
-        "original_karyotype",
-        "normalized_karyotype",
-        "ploidy_category",
-        "issues"
-      )
+      c("original_karyotype", "normalized_karyotype", "ploidy_category")
     )) {
       out[[nm]] <- integer()
     }
-    out$issues <- list()
     attr(out, "karyoparser_version") <- .karyoparser_version
     if (.return == "tibble") out else as.data.frame(out)
   }
@@ -524,14 +519,12 @@ parse_karyo <- function(
   }
   original_vec <- raw_vec
 
-  DIRTY_TYPES <- names(.dirty_patterns)
+  DIRTY_TYPES <- names(Filter(function(p) length(p$fix) > 0, .dirty_patterns))
 
   if (length(raw_vec) > 0) {
-    if (isTRUE(verbose)) {
-      message(sprintf("Checking %d karyotype(s)...", length(raw_vec)))
-    }
-    all_issues <- check_karyo(raw_vec)
+    all_issues <- collect_issues(raw_vec)
     n_total_vec <- length(raw_vec)
+    n_initial_issue_rows <- length(unique(all_issues$row_index))
 
     # "stop": error immediately on any issue, before any fixing is attempted
     if (on_issues == "stop" && nrow(all_issues) > 0) {
@@ -540,8 +533,8 @@ parse_karyo <- function(
         dplyr::arrange(dplyr::desc(n))
       stop(
         sprintf(
-          "%d of %d karyotype(s) have issues (%s). Use on_issues='fix' or 'warn'.",
-          length(unique(all_issues$row_index)),
+          "%d of %d karyotype(s) have issues (%s). Use on_issues='fix' or 'warn', or call check_karyo() for details.",
+          n_initial_issue_rows,
           n_total_vec,
           paste(
             paste0(issue_counts$issue_type, ": ", issue_counts$n),
@@ -563,7 +556,7 @@ parse_karyo <- function(
 
       if (n_dirty > 0) {
         raw_vec <- apply_preprocess_to_rows(raw_vec, dirty_row_indices)
-        rechecked <- check_karyo(raw_vec[dirty_row_indices])
+        rechecked <- collect_issues(raw_vec[dirty_row_indices])
         if (nrow(rechecked) > 0) {
           rechecked$row_index <- dirty_row_indices[rechecked$row_index]
         }
@@ -578,20 +571,6 @@ parse_karyo <- function(
         ]
         all_issues <- dplyr::bind_rows(non_dirty_issues, rechecked) |>
           dplyr::arrange(row_index)
-        n_cleaned <- n_dirty - length(still_dirty_indices)
-        if (isTRUE(verbose) && n_cleaned > 0) {
-          message(sprintf(
-            "Cleaned %d of %d dirty row(s) with preprocess_karyo().",
-            n_cleaned,
-            n_dirty
-          ))
-        }
-        if (isTRUE(verbose) && length(still_dirty_indices) > 0) {
-          message(sprintf(
-            "%d dirty row(s) could not be cleaned and will be returned as NA.",
-            length(still_dirty_indices)
-          ))
-        }
       }
 
       # Step 2: truncate chimeric rows to the first clone before '//'.
@@ -609,7 +588,7 @@ parse_karyo <- function(
           "//.*$",
           ""
         )
-        rechimeric <- check_karyo(raw_vec[chimeric_row_indices])
+        rechimeric <- collect_issues(raw_vec[chimeric_row_indices])
         if (nrow(rechimeric) > 0) {
           rechimeric$row_index <- chimeric_row_indices[rechimeric$row_index]
         }
@@ -619,43 +598,39 @@ parse_karyo <- function(
         ]
         all_issues <- dplyr::bind_rows(all_issues, rechimeric) |>
           dplyr::arrange(row_index)
-        n_truncated <- n_chimeric - length(unique(rechimeric$row_index))
-        if (isTRUE(verbose) && n_truncated > 0) {
-          message(sprintf(
-            "Truncated %d chimeric karyotype(s) to first clone before '//'.",
-            n_truncated
-          ))
-        }
-        if (isTRUE(verbose) && nrow(rechimeric) > 0) {
-          message(sprintf(
-            "%d chimeric row(s) still have issues after truncation and will be returned as NA.",
-            length(unique(rechimeric$row_index))
-          ))
-        }
       }
     }
     # "warn": all issue rows pass through unchanged -> become NA below
 
-    # Report remaining issues (residuals from "fix", or all issues under "warn")
-    issue_row_indices <- unique(all_issues$row_index)
-    if (length(issue_row_indices) > 0) {
-      issue_counts <- all_issues |>
-        dplyr::count(issue_type, name = "n") |>
-        dplyr::arrange(dplyr::desc(n))
-      if (isTRUE(verbose)) {
+    issue_row_indices   <- unique(all_issues$row_index)
+    fixable_row_indices <- unique(
+      all_issues$row_index[all_issues$issue_type %in% .fixable_issue_types]
+    )
+    unfixable_row_indices <- unique(
+      all_issues$row_index[!all_issues$issue_type %in% .fixable_issue_types]
+    )
+
+    if (isTRUE(verbose)) {
+      n_final_issues <- length(issue_row_indices)
+      n_fixed        <- n_initial_issue_rows - n_final_issues
+      if (n_initial_issue_rows == 0) {
+        message(sprintf("Parsed %d karyotype(s).", n_total_vec))
+      } else if (on_issues == "fix") {
+        parts <- character(0)
+        if (n_fixed > 0)        parts <- c(parts, sprintf("%d fixed", n_fixed))
+        if (n_final_issues > 0) parts <- c(parts, sprintf("%d as NA", n_final_issues))
         message(sprintf(
-          "%d of %d karyotype(s) have issues (%s).\n  Use check_karyo() for details.",
-          length(issue_row_indices),
+          "Parsed %d/%d karyotype(s). %s.",
+          n_total_vec - n_final_issues,
           n_total_vec,
-          paste(
-            paste0(issue_counts$issue_type, ": ", issue_counts$n),
-            collapse = ", "
-          )
+          paste(parts, collapse = ", ")
         ))
-      }
-    } else {
-      if (isTRUE(verbose)) {
-        message(sprintf("All %d karyotype(s) passed checks.", n_total_vec))
+      } else {
+        message(sprintf(
+          "%d of %d karyotype(s) had issues and were returned as NA.",
+          n_final_issues,
+          n_total_vec
+        ))
       }
     }
   } else {
@@ -665,7 +640,9 @@ parse_karyo <- function(
       issue_type = character(),
       issue_detail = character()
     )
-    issue_row_indices <- integer(0)
+    issue_row_indices     <- integer(0)
+    fixable_row_indices   <- integer(0)
+    unfixable_row_indices <- integer(0)
   }
 
   # Ingest --------------------------------------------------------------------
@@ -769,15 +746,8 @@ parse_karyo <- function(
       # All rows had issues - return blank rows with issues attached
       out <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
       out$.pk_row_id <- issue_rows_df$.pk_row_id
-      # Attach issues list-column
-      issues_split <- split(
-        all_issues[, c("issue_type", "issue_detail")],
-        all_issues$row_index
-      )
-      out$issues <- lapply(out$.pk_row_id, function(rid) {
-        key <- as.character(rid)
-        if (key %in% names(issues_split)) issues_split[[key]] else NULL
-      })
+      out$fixable_error   <- as.integer(out$.pk_row_id %in% fixable_row_indices)
+      out$unfixable_error <- as.integer(out$.pk_row_id %in% unfixable_row_indices)
       if (!is.null(id_values)) {
         out[[id_col_name]] <- id_values[out$.pk_row_id]
         out <- out |> dplyr::relocate(dplyr::all_of(id_col_name), .before = 1)
@@ -990,19 +960,9 @@ parse_karyo <- function(
     out <- valid_out
   }
 
-  # Attach issues list-column --------------------------------------------------
-  if (nrow(all_issues) > 0) {
-    issues_split <- split(
-      all_issues[, c("issue_type", "issue_detail")],
-      all_issues$row_index
-    )
-    out$issues <- lapply(out$.pk_row_id, function(rid) {
-      key <- as.character(rid)
-      if (key %in% names(issues_split)) issues_split[[key]] else NULL
-    })
-  } else {
-    out$issues <- vector("list", nrow(out))
-  }
+  # Error flag columns ---------------------------------------------------------
+  out$fixable_error   <- as.integer(out$.pk_row_id %in% fixable_row_indices)
+  out$unfixable_error <- as.integer(out$.pk_row_id %in% unfixable_row_indices)
 
   # Attach ID column if available ---------------------------------------------
   if (!is.null(id_values)) {

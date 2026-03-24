@@ -1,9 +1,10 @@
-# Single source of truth for all dirty-marker patterns.
+# Single source of truth for all pre-normalization issue patterns.
 # Both preprocess_karyo() and flag_unpreprocessed() loop over this list.
 # Each entry:
 #   detect      - character vector; fires if ANY element matches (via str_detect)
 #   use_trimmed - if TRUE, detect against trimws(s) rather than raw s
 #   fix         - list of list(pattern, replacement) applied in order via str_replace_all
+#               - empty list means the issue is detected but NOT fixable by preprocess_karyo()
 #   detail      - human-readable description used in issue reports
 .dirty_patterns <- list(
   html_entities = list(
@@ -90,7 +91,30 @@
       )
     ),
     detail = "Space between count and 'mar' token (e.g. '+1~4 mar' should be '+1~4mar')"
+  ),
+  # Detected here rather than validate_karyotypes() because normalize_iscn() strips
+  # leading punctuation and would destroy the signal before structural checks run.
+  zero_host_chimera = list(
+    detect = "^[.]+//",
+    use_trimmed = TRUE,
+    fix = list(),
+    detail = "String starts with './/': donor-only chimera with no host metaphases"
   )
+)
+
+# Issue types resolvable by parse_karyo() under on_issues="fix".
+# Defined here (after .dirty_patterns) so load order is guaranteed.
+.fixable_issue_types <- c(
+  names(Filter(function(p) length(p$fix) > 0, .dirty_patterns)),
+  "chimeric_separator"
+)
+
+# Complete fixed schema of all detectable issue types, in display order.
+.all_issue_types <- c(
+  names(.dirty_patterns),
+  "empty", "no_chromosome_count", "chimeric_separator", "updated_iscn",
+  "unbalanced_parentheses", "unbalanced_brackets",
+  "no_sex_complement", "invalid_idem", "unparseable_bracket"
 )
 
 #' Clean Dirty ISCN Karyotype Strings
@@ -110,9 +134,8 @@
 #' 8. Remove space between count and `mar` token (`+1~4 mar` → `+1~4mar`)
 #' 9. Trim again
 #'
-#' Note: strings starting with `.//` (zero-host chimeras) are not modified here —
-#' they are detected as `zero_host_chimera` structural issues by `check_karyo()`
-#' and returned as NA by `parse_karyo()`.
+#' Note: `zero_host_chimera` strings (`.//` prefix) are detected but not modified —
+#' their `fix` list is empty, so the loop skips them.
 #'
 #' @param x Character vector of raw karyotype strings.
 #' @return Character vector of cleaned karyotype strings (same length as `x`).
@@ -135,14 +158,16 @@ preprocess_karyo <- function(x) {
 
 #' Flag Unpreprocessed ISCN Strings
 #'
-#' Detects dirty markers in karyotype strings that `normalize_iscn()` cannot
-#' fix. Called internally by `check_karyo()`.
+#' Detects pre-normalization issues in raw karyotype strings: dirty markers
+#' that `preprocess_karyo()` can fix, and structural issues that must be caught
+#' before `normalize_iscn()` destroys the signal. Called internally by
+#' `check_karyo()`.
 #'
 #' Detected issue types:
 #' - `html_entities`: contains `&lt;`, `&gt;`, or `&amp;`
 #' - `leading_dot`: string starts with dot(s) before a digit
 #' - `zero_host_chimera`: string starts with `.//` — donor-only chimera with no
-#'   host metaphases; not fixable, always returned as NA by `parse_karyo()`
+#'   host metaphases; has `fix = list()` so `preprocess_karyo()` skips it; always NA
 #' - `fish_notation`: FISH/nuc ish suffix after last clone bracket
 #' - `trailing_narrative`: bracket followed by dot (`] .text`) OR
 #'   space-dot-capital pattern (` .Text`, no bracket required)
@@ -179,19 +204,6 @@ flag_unpreprocessed <- function(x) {
           issue_detail = dp$detail
         )
       }
-    }
-
-    # Structural pre-normalization check: zero-host chimera (.// prefix).
-    # Must run on raw/trimmed string before normalize_iscn() strips leading dots.
-    # Not in .dirty_patterns because it is not fixable by preprocess_karyo().
-    if (stringr::str_detect(s_trim, "^[.]+//")) {
-      n_issues <- n_issues + 1L
-      issue_list[[n_issues]] <- tibble::tibble(
-        row_index = i,
-        karyotype = truncate_str(s),
-        issue_type = "zero_host_chimera",
-        issue_detail = "String starts with './/': donor-only chimera with no host metaphases"
-      )
     }
   }
 

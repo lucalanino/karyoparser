@@ -28,8 +28,8 @@ utils::globalVariables(c(
   "is_cp",
   "is_mono_tri",
   "is_range_karyotype",
-  "issues",
-  "issue_type",
+  "fixable_error",
+  "unfixable_error",
   "max_count",
   "mixed_ploidy",
   "monosomal_karyotype",
@@ -65,3 +65,4 @@ utils::globalVariables(c(
   "XXXX",
   "XXXXY"
 )
+

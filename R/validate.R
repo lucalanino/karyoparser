@@ -1,15 +1,10 @@
-#' Check Karyotype Strings for Issues
-#'
-#' Runs both dirty-marker detection and structural validation on raw karyotype
-#' strings. Returns a tibble of all issues found, suitable for inspection before
-#' parsing with `parse_karyo()`.
+#' Collect issues from karyotype strings (long format, internal use)
 #'
 #' @param x Character vector of karyotype strings.
-#' @return A tibble with columns: `row_index`, `karyotype` (truncated to 40
-#'   chars), `issue_type`, `issue_detail`. Each issue generates one row;
-#'   multiple issues on the same input row appear as separate rows.
-#' @export
-check_karyo <- function(x) {
+#' @return Long-format tibble with columns: row_index, karyotype (truncated),
+#'   issue_type, issue_detail. Only rows with issues are returned.
+#' @keywords internal
+collect_issues <- function(x) {
   if (length(x) == 0) {
     return(tibble::tibble(
       row_index = integer(),
@@ -23,6 +18,95 @@ check_karyo <- function(x) {
   struct_issues <- validate_karyotypes(normalized)
   dplyr::bind_rows(dirty_issues, struct_issues) |>
     dplyr::arrange(row_index)
+}
+
+#' Check Karyotype Strings for Issues
+#'
+#' Checks raw karyotype strings for formatting artifacts and structural errors.
+#' Returns a wide-format tibble with one row per input string: each possible
+#' issue type is a column (`0`/`1`), plus summary `fixable` and `unfixable`
+#' columns.
+#'
+#' Fixable issues (resolvable by `parse_karyo()` under `on_issues = "fix"`):
+#' dirty markers (`html_entities`, `leading_dot`, `fish_notation`,
+#' `trailing_narrative`, `midstring_linewrap`, `missing_sex_comma`, `mar_space`)
+#' and `chimeric_separator`.
+#'
+#' Unfixable issues (always returned as NA by `parse_karyo()`):
+#' `zero_host_chimera`, `empty`, `no_chromosome_count`, `updated_iscn`,
+#' `unbalanced_parentheses`, `unbalanced_brackets`, `no_sex_complement`,
+#' `invalid_idem`, `unparseable_bracket`.
+#'
+#' @param x Character vector of karyotype strings.
+#' @param verbose Logical. If `TRUE`, prints a summary of issues to the console
+#'   and returns the tibble invisibly. Default `FALSE`.
+#' @return A tibble with `length(x)` rows. Columns: `row_index`, `karyotype`
+#'   (full input string), one integer column per issue type (see
+#'   `.all_issue_types`), `fixable`, `unfixable`.
+#' @export
+check_karyo <- function(x, verbose = FALSE) {
+  n <- length(x)
+  all_cols <- c("row_index", "karyotype", .all_issue_types, "fixable", "unfixable")
+
+  if (n == 0) {
+    out <- tibble::tibble(row_index = integer(), karyotype = character())
+    for (nm in c(.all_issue_types, "fixable", "unfixable")) out[[nm]] <- integer()
+    return(out[, all_cols])
+  }
+
+  long <- collect_issues(x)
+
+  # Build wide matrix: n rows x issue-type columns
+  out <- tibble::tibble(row_index = seq_len(n), karyotype = as.character(x))
+  for (nm in .all_issue_types) {
+    rows_with_type <- long$row_index[long$issue_type == nm]
+    out[[nm]] <- as.integer(seq_len(n) %in% rows_with_type)
+  }
+
+  fixable_cols   <- intersect(.fixable_issue_types, .all_issue_types)
+  unfixable_cols <- setdiff(.all_issue_types, .fixable_issue_types)
+  out$fixable   <- as.integer(rowSums(out[, fixable_cols,   drop = FALSE]) > 0)
+  out$unfixable <- as.integer(rowSums(out[, unfixable_cols, drop = FALSE]) > 0)
+
+  if (isTRUE(verbose)) {
+    n_issues <- sum(out$fixable | out$unfixable)
+    n_clean  <- n - n_issues
+    cat(sprintf("Checked:   %d karyotype(s)\n", n))
+    cat(sprintf("Clean:     %d (%.1f%%)\n", n_clean, 100 * n_clean / n))
+    cat(sprintf("Issues:    %d (%.1f%%)\n", n_issues, 100 * n_issues / n))
+    if (n_issues > 0) {
+      fix_counts <- vapply(
+        fixable_cols,
+        function(col) sum(out[[col]]),
+        integer(1)
+      )
+      fix_counts <- fix_counts[fix_counts > 0]
+      unfix_counts <- vapply(
+        unfixable_cols,
+        function(col) sum(out[[col]]),
+        integer(1)
+      )
+      unfix_counts <- unfix_counts[unfix_counts > 0]
+      n_fix_rows   <- sum(out$fixable   & !out$unfixable)
+      n_unfix_rows <- sum(out$unfixable)
+      if (length(fix_counts) > 0) {
+        cat(sprintf(
+          "  Fixable (%d row(s)):   %s\n",
+          n_fix_rows,
+          paste(names(fix_counts), fix_counts, sep = ": ", collapse = ", ")
+        ))
+      }
+      if (length(unfix_counts) > 0) {
+        cat(sprintf(
+          "  Unfixable (%d row(s)): %s\n",
+          n_unfix_rows,
+          paste(names(unfix_counts), unfix_counts, sep = ": ", collapse = ", ")
+        ))
+      }
+    }
+    return(invisible(out))
+  }
+  out
 }
 
 #' Validate Karyotype Strings
@@ -178,47 +262,3 @@ validate_karyotypes <- function(karyotypes) {
   dplyr::bind_rows(issue_list[seq_len(n_issues)])
 }
 
-#' Print Issue Report
-#' @param issues Tibble returned by check_karyo()
-#' @param total Total number of karyotypes checked
-#' @keywords internal
-print_issue_report <- function(issues, total) {
-  n_issues <- length(unique(issues$row_index))
-  n_valid <- total - n_issues
-
-  cat("\n")
-  cat("Karyotype Issue Report\n")
-  cat("======================\n")
-  cat(sprintf("Checked: %d karyotypes\n", total))
-  cat(sprintf("Clean:   %d (%.1f%%)\n", n_valid, 100 * n_valid / total))
-  cat(sprintf("Issues:  %d (%.1f%%)\n", n_issues, 100 * n_issues / total))
-
-  if (nrow(issues) > 0) {
-    cat("\nIssues found:\n")
-
-    # Group by issue type for cleaner output
-    by_type <- issues |>
-      dplyr::group_by(issue_type) |>
-      dplyr::summarise(
-        count = dplyr::n(),
-        rows = paste(unique(row_index), collapse = ", "),
-        .groups = "drop"
-      )
-
-    for (j in seq_len(nrow(by_type))) {
-      cat(sprintf(
-        "  - %s (%d): rows %s\n",
-        by_type$issue_type[j],
-        by_type$count[j],
-        by_type$rows[j]
-      ))
-    }
-
-    cat("\nDetailed issues:\n")
-    print(issues, n = min(20, nrow(issues)))
-    if (nrow(issues) > 20) {
-      cat(sprintf("  ... and %d more issues\n", nrow(issues) - 20))
-    }
-  }
-  cat("\n")
-}
