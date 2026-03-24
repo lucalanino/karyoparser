@@ -1,0 +1,22 @@
+Package: karyoparser
+Title: Parse ISCN Karyotype Strings
+Version: 0.1.0
+Authors@R:
+    person("Luca", "Lanino", role = c("aut", "cre"), email = "luca@lanino.me")
+Description: Parses ISCN (International System for Human Cytogenomic
+    Nomenclature) karyotype strings into structured binary features for
+    analysis. Focused on myeloid neoplasm-related chromosomal aberrations.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends: R (>= 4.1.0)
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Imports:
+    dplyr,
+    purrr,
+    stringr,
+    tibble,
+    tidyr

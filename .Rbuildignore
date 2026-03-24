@@ -1,0 +1,7 @@
+^LICENSE\.md$
+^CLAUDE\.md$
+^legacy$
+^\.vscode$
+^\.claude$
+^[.]?air[.]toml$
+^dev-data$

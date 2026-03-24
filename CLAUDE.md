@@ -1,0 +1,143 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+R package (`karyoparser`) for parsing ISCN karyotype strings into structured binary features. Focused on myeloid neoplasm-related chromosomal aberrations. Installable via `devtools::install_github("lucalanino/karyo-parser")`.
+
+## Versioning
+
+Scheme: `major.minor.patch` (semantic versioning). Current pre-release series: `0.x.y`. First production release will be `1.0.0`.
+
+| Component | When to bump | Examples |
+|---|---|---|
+| `patch` | Bug fixes, internal refactors, test additions, doc-only changes | `0.1.0` → `0.1.1` |
+| `minor` | New exported function, new aberration rule, new parameter, behavior change | `0.1.0` → `0.2.0` |
+| `major` | Breaking API change (renamed/removed parameter or column, changed return structure) | `0.x.y` → `1.0.0` |
+
+No bump needed for: formatting-only commits, CI/tooling changes, README edits.
+
+Three places to update:
+1. `Version:` field in `DESCRIPTION`
+2. `**Version**:` line in `README.md`
+3. Version assertion in `tests/testthat/test_parse_karyo.R`
+
+The `.karyoparser_version` constant in `R/parse_karyo-package.R` is derived from `DESCRIPTION` automatically — no manual update needed there.
+
+## After any user-facing change
+
+Run in order:
+1. `devtools::document()` — regenerate man/ pages
+2. `pkgdown::build_site()` — rebuild docs/ website
+3. `devtools::check()` — confirm 0 errors/warnings/notes
+4. Bump version in `DESCRIPTION` and `README.md`, then commit and push
+
+## Development Commands
+
+```bash
+# Run tests
+Rscript -e 'devtools::test()'
+
+# Run a single test file
+Rscript -e 'testthat::test_file("tests/testthat/test_parse_karyo.R")'
+
+# Regenerate NAMESPACE and man/ pages after changing @export or roxygen docs
+Rscript -e 'devtools::document()'
+
+# Full R CMD check (0 errors/warnings/notes expected)
+Rscript -e 'devtools::check()'
+
+# Load package in dev mode (without installing)
+Rscript -e 'devtools::load_all()'
+
+# Format R source files with air
+air format .
+```
+
+## Architecture
+
+Package source is split across multiple files in `R/`. A legacy standalone `source()`-able script is in `legacy/parse_karyo.R` (build-ignored).
+
+| File | Contents |
+|---|---|
+| `R/parse_karyo-package.R` | `"_PACKAGE"`, `globalVariables()`, `.karyoparser_version`, `.sex_complements` |
+| `R/rules.R` | `rules_table()` |
+| `R/preprocess.R` | `.dirty_patterns` (constant), `preprocess_karyo()`, `flag_unpreprocessed()` (internal), `apply_preprocess_to_rows()` (internal), `normalize_iscn()` (internal) |
+| `R/validate.R` | `check_karyo()`, `validate_karyotypes()` (internal), `print_issue_report()` (internal) |
+| `R/ploidy.R` | `ploidy_from_count()` (internal), `ploidy_category()` (internal), `extract_clone_data()` (internal) |
+| `R/helpers.R` | `strip_bands()`, `normalize_token()` |
+| `R/parse_karyo.R` | `parse_karyo()` + internal pipeline helpers |
+
+### Exported API
+
+- **`parse_karyo()`** — Main entry point. Accepts character vector or data.frame. Returns tibble with binary aberration flags, ploidy, monosomy/trisomy columns, derived flags (complex, monosomal, mixed ploidy), and `issues` list-column. Uses `on_issues` (`"fix"` / `"warn"` / `"stop"`). Default `"fix"` auto-applies `preprocess_karyo()` to dirty rows and truncates chimeric rows to the first clone before `//`, printing a summary of what was fixed. `"warn"` returns NA for all issue rows. `"stop"` errors immediately. Structural errors (no chromosome count, unbalanced brackets, `Updated ISCN`) are always NA regardless.
+- **`check_karyo()`** — Unified pre-parse check combining dirty-marker detection and structural validation. Returns tibble of all issues. Called automatically by `parse_karyo()`.
+- **`rules_table()`** — Regex rules defining which aberrations to detect. Priority system (100 > 95 > 90 > 85 > 60-80) resolves overlapping matches.
+- **`preprocess_karyo()`** — Dirty-data cleaning: strips trailing narrative text, HTML entities, leading `.//` prefix, leading dot-digit. Run before `parse_karyo()`.
+
+### Internal pipeline helpers (in `R/parse_karyo.R`, unexported)
+
+- `build_sample_meta()` — Bracket parsing, ploidy classification, normal karyotype detection.
+- `build_clone_tokens()` — Clone splitting, token expansion, normalization.
+- `match_rules()` — Regex matching via pre-allocated logical matrix with priority-based deduplication.
+- `compute_aneuploidy()` — Monosomy/trisomy flag detection.
+- `compute_comma_counts()` — Idem-aware comma-based aberration counting.
+- `compute_unique_counts()` — Unique aberration counting (for complex flag).
+- `blank_rows()` — Vectorized NA-row generation for invalid inputs.
+
+### Other internal helpers (unexported)
+
+- `strip_bands()`, `normalize_token()` (in `R/helpers.R`)
+- `flag_unpreprocessed()`, `apply_preprocess_to_rows()`, `normalize_iscn()` (in `R/preprocess.R`)
+- `validate_karyotypes()`, `print_issue_report()` (in `R/validate.R`)
+- `ploidy_from_count()`, `ploidy_category()`, `extract_clone_data()` (in `R/ploidy.R`)
+
+### Key design details
+
+- **`.pk_row_id`**: Internal row-tracking column, deliberately named to avoid collision with user data columns like `sample_id`. Dropped before output.
+- **`.sex_complements`**: Package-level constant listing valid sex chromosome complements. Used in both validation and parsing.
+- **Priority-based rule matching**: A logical matrix (tokens × rules) is built with one `str_detect` call per rule. For each token, the highest-priority matching rule is selected via `which.max`. Ties across tokens sharing the same `aberr_norm` within a clone are resolved by `slice_head` after sorting by priority desc.
+- **Idem expansion**: For `comma_count_aberrations`, clones with "idem" inherit the stemline's (clone 1) aberration count. Both "idem" and "sl" are excluded from unique aberration counts used for `complex_karyotype`.
+- **Monosomal karyotype**: Requires ≥2 autosomal monosomies OR ≥1 autosomal monosomy + ≥1 structural aberration where `counts_for_monosomal=TRUE`. Sex chromosome monosomies and `marker_chromosome` don't qualify.
+- **Ploidy gaps**: 34-39 and 47-50 map to "other" intentionally (not classified as hypo/hyperdiploid).
+- **Composite karyotypes**: For ploidy, only clones with ≥5 metaphases are eligible (when brackets exist). Most abnormal clone (furthest from 46) determines classification.
+- **Deduplication**: When input contains duplicate karyotype strings, only unique strings are parsed; results are joined back to all rows. Zero overhead when no duplicates exist.
+
+### `parse_karyo()` pipeline flow
+
+```
+Input → raw_vec extraction →
+  [Guard: check_karyo()] →
+    If "fix": apply_preprocess_to_rows() on dirty rows → re-check → update raw_vec →
+    If "fix": strip "//…" from chimeric rows → re-check → update raw_vec →
+    Remaining issues: "stop"→error | else→message →
+  normalize_iscn(raw_vec) →
+  Filter issue rows → [Dedup] → Parse unique:
+    build_sample_meta → build_clone_tokens →
+    match_rules / compute_aneuploidy / compute_comma_counts / compute_unique_counts →
+    Assembly (monosomal/complex inline) →
+  [Join back if deduped] → Recombine issue rows → Attach issues list-column → Output
+```
+
+### Adding new aberration rules
+
+Add rows to `rules_table()` in `R/rules.R`: `flag_name` (output column), `regex`, `category`, `priority`, `counts_for_monosomal`. Run `devtools::document()` after.
+
+## Testing
+
+350 assertions (sections 1–25) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification, monosomy/trisomy detection, complex/monosomal flags, preprocessing, idem expansion, `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `issues` list-column, ID column detection, deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, `apply_preprocess_to_rows()`, trailing narrative (3-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, and edge cases.
+
+Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbose = FALSE)`.
+
+## TODO — Next Session
+
+- **Review full test suite**: Go through all 350 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
+- **`check_karyo()` fixability summary**: Add an optional summary to `check_karyo()` output (or a companion function) that tells the user how many detected issues are auto-fixable by `preprocess_karyo()` vs. structural (unfixable). Useful for users deciding whether to run `on_issues="fix"` or inspect manually first.
+
+## TODO - Future Discussions
+
+- **CI workflow**: `usethis::use_github_actions("check-standard")` adds automated R CMD check on every push. Free tier (2,000 min/month) may be limiting for a private repo on a free GitHub plan — revisit if plan changes.
+- **Spell check**: `usethis::use_spell_check()` adds spell checking of roxygen docs and README to the test suite.
+- **pkgdown site**: `usethis::use_pkgdown()` generates a documentation website from roxygen docs, hostable via GitHub Pages.
+- **Discuss: per-clone export option**: Option to split composite karyotypes into one row per clone in the output, instead of one row per ISCN string. Discuss API design, how derived flags (complex, monosomal) behave per-clone vs. per-karyotype, and whether this is a parameter on `parse_karyo()` or a post-processing helper. Each clone row should include a `clone_abundance` column (percentage of total metaphases belonging to that clone, derived from bracket counts).
