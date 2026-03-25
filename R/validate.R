@@ -23,9 +23,10 @@ collect_issues <- function(x) {
 #' Check Karyotype Strings for Issues
 #'
 #' Checks raw karyotype strings for formatting artifacts and structural errors.
-#' Returns a wide-format tibble with one row per input string: each possible
-#' issue type is a column (`0`/`1`), plus summary `fixable` and `unfixable`
-#' columns.
+#' Always prints a count of karyotypes being checked and a summary of fixable
+#' and unfixable issues (or "All clean." if none). Returns a wide-format tibble
+#' with one row per input string: each possible issue type is a column
+#' (`0`/`1`), plus summary `fixable` and `unfixable` columns.
 #'
 #' Fixable issues (resolvable by `parse_karyo()` under `on_issues = "fix"`):
 #' dirty markers (`html_entities`, `leading_dot`, `fish_notation`,
@@ -37,14 +38,22 @@ collect_issues <- function(x) {
 #' `unbalanced_parentheses`, `unbalanced_brackets`, `no_sex_complement`,
 #' `invalid_idem`, `unparseable_bracket`.
 #'
-#' @param x Character vector of karyotype strings.
-#' @param verbose Logical. If `TRUE`, prints a summary of issues to the console
+#' @param x Character vector of karyotype strings. Data frames are not
+#'   accepted; extract the column first (e.g. `check_karyo(df$karyotype)`).
+#' @param verbose Logical. If `TRUE`, also prints a per-issue-type breakdown
 #'   and returns the tibble invisibly. Default `FALSE`.
 #' @return A tibble with `length(x)` rows. Columns: `row_index`, `karyotype`
 #'   (full input string), one integer column per issue type (see
 #'   `.all_issue_types`), `fixable`, `unfixable`.
 #' @export
 check_karyo <- function(x, verbose = FALSE) {
+  if (is.data.frame(x)) {
+    stop(
+      "`x` must be a character vector, not a data frame. ",
+      "Extract the column first: check_karyo(df$karyotype)"
+    )
+  }
+
   n <- length(x)
   all_cols <- c(
     "row_index",
@@ -62,6 +71,8 @@ check_karyo <- function(x, verbose = FALSE) {
     return(out[, all_cols])
   }
 
+  message("Checking ", n, " karyotype(s)...")
+
   long <- collect_issues(x)
 
   # Build wide matrix: n rows x issue-type columns
@@ -76,41 +87,32 @@ check_karyo <- function(x, verbose = FALSE) {
   out$fixable <- as.integer(rowSums(out[, fixable_cols, drop = FALSE]) > 0)
   out$unfixable <- as.integer(rowSums(out[, unfixable_cols, drop = FALSE]) > 0)
 
+  n_fix_rows <- sum(out$fixable & !out$unfixable)
+  n_unfix_rows <- sum(out$unfixable)
+
+  if (n_fix_rows == 0 && n_unfix_rows == 0) {
+    message("All clean.")
+  } else {
+    message("  Fixable:   ", n_fix_rows)
+    message("  Unfixable: ", n_unfix_rows)
+  }
+
   if (isTRUE(verbose)) {
-    n_issues <- sum(out$fixable | out$unfixable)
-    n_clean <- n - n_issues
-    cat(sprintf("Checked:   %d karyotype(s)\n", n))
-    cat(sprintf("Clean:     %d (%.1f%%)\n", n_clean, 100 * n_clean / n))
-    cat(sprintf("Issues:    %d (%.1f%%)\n", n_issues, 100 * n_issues / n))
-    if (n_issues > 0) {
-      fix_counts <- vapply(
-        fixable_cols,
-        function(col) sum(out[[col]]),
-        integer(1)
+    fix_counts <- vapply(fixable_cols, function(col) sum(out[[col]]), integer(1))
+    fix_counts <- fix_counts[fix_counts > 0]
+    unfix_counts <- vapply(unfixable_cols, function(col) sum(out[[col]]), integer(1))
+    unfix_counts <- unfix_counts[unfix_counts > 0]
+    if (length(fix_counts) > 0) {
+      message(
+        "  Fixable breakdown:   ",
+        paste(names(fix_counts), fix_counts, sep = ": ", collapse = ", ")
       )
-      fix_counts <- fix_counts[fix_counts > 0]
-      unfix_counts <- vapply(
-        unfixable_cols,
-        function(col) sum(out[[col]]),
-        integer(1)
+    }
+    if (length(unfix_counts) > 0) {
+      message(
+        "  Unfixable breakdown: ",
+        paste(names(unfix_counts), unfix_counts, sep = ": ", collapse = ", ")
       )
-      unfix_counts <- unfix_counts[unfix_counts > 0]
-      n_fix_rows <- sum(out$fixable & !out$unfixable)
-      n_unfix_rows <- sum(out$unfixable)
-      if (length(fix_counts) > 0) {
-        cat(sprintf(
-          "  Fixable (%d row(s)):   %s\n",
-          n_fix_rows,
-          paste(names(fix_counts), fix_counts, sep = ": ", collapse = ", ")
-        ))
-      }
-      if (length(unfix_counts) > 0) {
-        cat(sprintf(
-          "  Unfixable (%d row(s)): %s\n",
-          n_unfix_rows,
-          paste(names(unfix_counts), unfix_counts, sep = ": ", collapse = ", ")
-        ))
-      }
     }
     return(invisible(out))
   }
