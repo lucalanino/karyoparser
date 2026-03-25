@@ -29,9 +29,8 @@ The `.karyoparser_version` constant in `R/parse_karyo-package.R` is derived from
 
 Run in order:
 1. `devtools::document()` — regenerate man/ pages
-2. `pkgdown::build_site()` — rebuild docs/ website
-3. `devtools::check()` — confirm 0 errors/warnings/notes
-4. Bump version in `DESCRIPTION` and `README.md`, then commit and push
+2. `devtools::check()` — confirm 0 errors/warnings/notes
+3. Bump version in `DESCRIPTION` and `README.md`, then commit and push
 
 ## Development Commands
 
@@ -148,7 +147,11 @@ Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbo
 
 ## TODO - Future Discussions
 
-- **CI workflow**: `usethis::use_github_actions("check-standard")` adds automated R CMD check on every push. Free tier (2,000 min/month) may be limiting for a private repo on a free GitHub plan — revisit if plan changes.
+- **pkgdown site + GitHub Pages**: Set up a documentation website via `usethis::use_pkgdown()`, hosted on GitHub Pages. Plan:
+  - Trim `README.md` to a lean intro (what it does, install snippet, minimal example) — it becomes the site homepage
+  - Write vignettes in `vignettes/` for full docs: get-started, aberration rules, preprocessing/QC, ploidy
+  - Function reference pages are auto-generated from roxygen docs
+  - **CRITICAL**: Audit `.Rbuildignore` and `.gitignore` before building — `pkgdown::build_site()` can inadvertently pull gitignored files (e.g. `dev-data/`) into `docs/`. Verify nothing sensitive leaks into the built site before pushing.
+- **CI workflow (GitHub Actions)**: `usethis::use_github_actions("check-standard")` runs `R CMD check` automatically on every push across platforms. Also useful as a guard against accidentally committing ignored files or broken states. Note: free tier is 2,000 min/month on private repos (~1,000 pushes at ~2 min/check) — monitor if it becomes a constraint.
 - **Spell check**: `usethis::use_spell_check()` adds spell checking of roxygen docs and README to the test suite.
-- **pkgdown site**: `usethis::use_pkgdown()` generates a documentation website from roxygen docs, hostable via GitHub Pages.
 - **Discuss: per-clone export option**: Option to split composite karyotypes into one row per clone in the output, instead of one row per ISCN string. Discuss API design, how derived flags (complex, monosomal) behave per-clone vs. per-karyotype, and whether this is a parameter on `parse_karyo()` or a post-processing helper. Each clone row should include a `clone_abundance` column (percentage of total metaphases belonging to that clone, derived from bracket counts).
