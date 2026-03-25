@@ -1,9 +1,4 @@
-<table border="0">
-<tr>
-<td><img src="man/figures/logo.png" width="120" alt="karyoparser logo" /></td>
-<td valign="middle"><h1>karyoparser</h1></td>
-</tr>
-</table>
+# karyoparser <img src="man/figures/logo.png" align="right" height="138" alt="karyoparser logo" />
 
 An R package for parsing ISCN karyotype strings into structured binary features. Designed for analysis of myeloid neoplasm-related chromosomal aberrations.
 
