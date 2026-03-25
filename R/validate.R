@@ -98,9 +98,17 @@ check_karyo <- function(x, verbose = FALSE) {
   }
 
   if (isTRUE(verbose)) {
-    fix_counts <- vapply(fixable_cols, function(col) sum(out[[col]]), integer(1))
+    fix_counts <- vapply(
+      fixable_cols,
+      function(col) sum(out[[col]]),
+      integer(1)
+    )
     fix_counts <- fix_counts[fix_counts > 0]
-    unfix_counts <- vapply(unfixable_cols, function(col) sum(out[[col]]), integer(1))
+    unfix_counts <- vapply(
+      unfixable_cols,
+      function(col) sum(out[[col]]),
+      integer(1)
+    )
     unfix_counts <- unfix_counts[unfix_counts > 0]
     if (length(fix_counts) > 0) {
       message(

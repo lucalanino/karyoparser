@@ -615,7 +615,10 @@ test_that("marker_chromosome does NOT count for monosomal", {
 # =============================================================================
 
 test_that("unicode normalization: NBSPs and dashes", {
-  expect_equal(suppressMessages(preprocess_karyo("46,\u00A0XX"))$preprocessed, "46,\u00A0XX") # preprocess_karyo doesn't handle NBSPs
+  expect_equal(
+    suppressMessages(preprocess_karyo("46,\u00A0XX"))$preprocessed,
+    "46,\u00A0XX"
+  ) # preprocess_karyo doesn't handle NBSPs
   # normalize_iscn is internal now, test through parse_karyo
   r <- pk("46,\u00A0XX")
   expect_equal(r$original_karyotype, "46,\u00A0XX")
@@ -1129,14 +1132,18 @@ test_that("standalone t(9;22): specificity within translocation group preserved"
 # =============================================================================
 
 test_that("preprocess_karyo: returns tibble with original/preprocessed/status columns", {
-  result <- suppressMessages(preprocess_karyo("46,XX,t(9;22)(q34;q11)[20] .Clinical note here"))
+  result <- suppressMessages(preprocess_karyo(
+    "46,XX,t(9;22)(q34;q11)[20] .Clinical note here"
+  ))
   expect_true(tibble::is_tibble(result))
   expect_named(result, c("original", "preprocessed", "status"))
 })
 
 test_that("preprocess_karyo: strips trailing narrative after bracket", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX,t(9;22)(q34;q11)[20] .Clinical note here"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX,t(9;22)(q34;q11)[20] .Clinical note here"
+    ))$preprocessed,
     "46,XX,t(9;22)(q34;q11)[20]"
   )
 })
@@ -1150,7 +1157,9 @@ test_that("preprocess_karyo: strips trailing narrative after bracket with no spa
 
 test_that("preprocess_karyo: decodes HTML lt/gt entities", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX,t(9;22)(q34;q11) &lt;AML&gt;"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX,t(9;22)(q34;q11) &lt;AML&gt;"
+    ))$preprocessed,
     "46,XX,t(9;22)(q34;q11) <AML>"
   )
 })
@@ -1183,7 +1192,7 @@ test_that("preprocess_karyo: leaves clean strings unchanged", {
 
 test_that("preprocess_karyo: idempotent on preprocessed column", {
   dirty <- c(".46,XX", ".//47,XY,+21", "46,XX[10] .Note")
-  once  <- suppressMessages(preprocess_karyo(dirty))
+  once <- suppressMessages(preprocess_karyo(dirty))
   twice <- suppressMessages(preprocess_karyo(once$preprocessed))
   expect_equal(once$preprocessed, twice$preprocessed)
 })
@@ -1292,10 +1301,19 @@ test_that(".dirty_patterns contains all expected keys", {
 })
 
 test_that("preprocess_karyo() output is consistent with .dirty_patterns fix rules", {
-  expect_equal(suppressMessages(preprocess_karyo("&lt;46&gt;,XX"))$preprocessed, "<46>,XX")
-  expect_equal(suppressMessages(preprocess_karyo(".46,XY,+21[10] .Note"))$preprocessed, "46,XY,+21[10]")
+  expect_equal(
+    suppressMessages(preprocess_karyo("&lt;46&gt;,XX"))$preprocessed,
+    "<46>,XX"
+  )
+  expect_equal(
+    suppressMessages(preprocess_karyo(".46,XY,+21[10] .Note"))$preprocessed,
+    "46,XY,+21[10]"
+  )
   # .// prefix is NOT stripped by preprocess_karyo() — it is a structural issue
-  expect_equal(suppressMessages(preprocess_karyo(".//46,XX"))$preprocessed, ".//46,XX")
+  expect_equal(
+    suppressMessages(preprocess_karyo(".//46,XX"))$preprocessed,
+    ".//46,XX"
+  )
 })
 
 # 23d. missing_sex_comma ------------------------------------------------------
@@ -1312,7 +1330,9 @@ test_that("missing_sex_comma: not detected for well-formed karyotype", {
 
 test_that("missing_sex_comma: preprocess inserts missing comma", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX der(15;17)(q10;q10),+17[10]"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX der(15;17)(q10;q10),+17[10]"
+    ))$preprocessed,
     "46,XX,der(15;17)(q10;q10),+17[10]"
   )
 })
@@ -1352,32 +1372,43 @@ test_that("preprocess_karyo: anchor strips trailing content after last bracket",
 
 test_that("preprocess_karyo: anchor handles cp bracket", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX,del(5)(q13)[cp10] .Some note"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX,del(5)(q13)[cp10] .Some note"
+    ))$preprocessed,
     "46,XX,del(5)(q13)[cp10]"
   )
 })
 
 test_that("preprocess_karyo: anchor handles range bracket", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46~48,XX[5~20] .Some note"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46~48,XX[5~20] .Some note"
+    ))$preprocessed,
     "46~48,XX[5~20]"
   )
 })
 
 test_that("preprocess_karyo: anchor on no-bracket string leaves unchanged", {
-  expect_equal(suppressMessages(preprocess_karyo("46,XX"))$preprocessed, "46,XX")
+  expect_equal(
+    suppressMessages(preprocess_karyo("46,XX"))$preprocessed,
+    "46,XX"
+  )
 })
 
 test_that("preprocess_karyo: trailing content with its own bracket — rule 3 cleans up remainder", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX[20] .Note with [5] cells"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX[20] .Note with [5] cells"
+    ))$preprocessed,
     "46,XX[20]"
   )
 })
 
 test_that("preprocess_karyo: multi-clone clean string unchanged by anchor", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX,t(9;22)[15]/46,XX[5]"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX,t(9;22)[15]/46,XX[5]"
+    ))$preprocessed,
     "46,XX,t(9;22)[15]/46,XX[5]"
   )
 })
@@ -1386,14 +1417,18 @@ test_that("preprocess_karyo: multi-clone clean string unchanged by anchor", {
 
 test_that("preprocess_karyo: ] ./ separator collapsed to ]/", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX,+mar[cp8] ./46,XX[7]"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX,+mar[cp8] ./46,XX[7]"
+    ))$preprocessed,
     "46,XX,+mar[cp8]/46,XX[7]"
   )
 })
 
 test_that("preprocess_karyo: ] ./ mid-string and trailing narrative both fixed", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX,+mar[4] ./46,XX[11] .Abnormal clone detected"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX,+mar[4] ./46,XX[11] .Abnormal clone detected"
+    ))$preprocessed,
     "46,XX,+mar[4]/46,XX[11]"
   )
 })
@@ -1411,7 +1446,9 @@ test_that("preprocess_karyo: mid-string ', .der()' collapsed", {
 
 test_that("preprocess_karyo: mid-string ', .del()' collapsed", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX,+8, .del(5)(q13q33)[10]/46,XX[5]"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX,+8, .del(5)(q13q33)[10]/46,XX[5]"
+    ))$preprocessed,
     "46,XX,+8,del(5)(q13q33)[10]/46,XX[5]"
   )
 })
@@ -1419,7 +1456,9 @@ test_that("preprocess_karyo: mid-string ', .del()' collapsed", {
 test_that("preprocess_karyo: uppercase after ', .' not collapsed by midstring_linewrap", {
   # ' .Capital' is trailing narrative, not mid-string linewrap
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX[20] .Female karyotype"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX[20] .Female karyotype"
+    ))$preprocessed,
     "46,XX[20]"
   )
 })
@@ -1440,7 +1479,9 @@ test_that("check_karyo: clean karyotype does not trigger chimeric_separator", {
 # 24e. updated_iscn detection ------------------------------------------------
 
 test_that("check_karyo detects updated_iscn as unfixable", {
-  result <- suppressMessages(check_karyo("46,XX,add(9)[3]/46,XY[12] Updated ISCN 45,XY[15]"))
+  result <- suppressMessages(check_karyo(
+    "46,XX,add(9)[3]/46,XY[12] Updated ISCN 45,XY[15]"
+  ))
   expect_equal(result$updated_iscn, 1L)
   expect_equal(result$unfixable, 1L)
 })
@@ -1624,7 +1665,9 @@ test_that("parse_karyo: clean row in same batch unaffected by zero_host_chimera 
 # 25a. fish_notation -----------------------------------------------------------
 
 test_that("fish_notation: detected when nuc ish suffix present", {
-  result <- suppressMessages(check_karyo("[12]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"))
+  result <- suppressMessages(check_karyo(
+    "[12]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"
+  ))
   expect_equal(result$fish_notation, 1L)
 })
 
@@ -1640,14 +1683,18 @@ test_that("fish_notation: not detected for clean karyotype", {
 
 test_that("preprocess_karyo: strips nuc ish suffix after bracket", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX,t(9;22)[15]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX,t(9;22)[15]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"
+    ))$preprocessed,
     "46,XX,t(9;22)[15]/46,XX[3]"
   )
 })
 
 test_that("preprocess_karyo: strips .ish suffix after bracket", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XX,t(9;22)(q34;q11)[15] .ish(BCR-ABL)"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XX,t(9;22)(q34;q11)[15] .ish(BCR-ABL)"
+    ))$preprocessed,
     "46,XX,t(9;22)(q34;q11)[15]"
   )
 })
@@ -1687,7 +1734,9 @@ test_that("midstring_linewrap: detected for ', .+N' artifact", {
 
 test_that("preprocess_karyo: collapses ', .+8' mid-string artifact", {
   expect_equal(
-    suppressMessages(preprocess_karyo("46,XY,del(5)(q13), .+8[10]/46,XY[5]"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "46,XY,del(5)(q13), .+8[10]/46,XY[5]"
+    ))$preprocessed,
     "46,XY,del(5)(q13),+8[10]/46,XY[5]"
   )
 })

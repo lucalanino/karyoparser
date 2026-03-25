@@ -158,9 +158,9 @@ preprocess_karyo <- function(x) {
   }
   if (length(x) == 0) {
     return(tibble::tibble(
-      original     = character(),
+      original = character(),
       preprocessed = character(),
-      status       = character()
+      status = character()
     ))
   }
 
@@ -168,9 +168,11 @@ preprocess_karyo <- function(x) {
   message("Preprocessing ", n, " karyotype(s)...")
 
   # Detect unfixable issues on the raw input before any fixes are applied
-  raw_issues    <- flag_unpreprocessed(x)
+  raw_issues <- flag_unpreprocessed(x)
   unfixable_types <- setdiff(.all_issue_types, .fixable_issue_types)
-  unfixable_rows  <- unique(raw_issues$row_index[raw_issues$issue_type %in% unfixable_types])
+  unfixable_rows <- unique(raw_issues$row_index[
+    raw_issues$issue_type %in% unfixable_types
+  ])
 
   # Apply fixes
   processed <- stringr::str_trim(x)
@@ -178,7 +180,11 @@ preprocess_karyo <- function(x) {
   for (nm in names(.dirty_patterns)) {
     dp <- .dirty_patterns[[nm]]
     for (fx in dp$fix) {
-      processed <- stringr::str_replace_all(processed, fx$pattern, fx$replacement)
+      processed <- stringr::str_replace_all(
+        processed,
+        fx$pattern,
+        fx$replacement
+      )
     }
   }
   processed <- stringr::str_trim(processed)
@@ -194,23 +200,32 @@ preprocess_karyo <- function(x) {
   )
 
   # Summary
-  n_fixed     <- sum(status == "fixed",     na.rm = TRUE)
+  n_fixed <- sum(status == "fixed", na.rm = TRUE)
   n_unfixable <- sum(status == "unfixable", na.rm = TRUE)
 
   if (n_fixed == 0 && n_unfixable == 0) {
     message("  All clean.")
   } else {
     n_clean <- sum(status == "clean", na.rm = TRUE)
-    if (n_fixed > 0)     message("  Fixed:      ", n_fixed)
-    if (n_clean > 0)     message("  Clean:      ", n_clean)
-    if (n_unfixable > 0) message("  Unfixable:  ", n_unfixable,
-                                  "  \u2014 run check_karyo() to investigate")
+    if (n_fixed > 0) {
+      message("  Fixed:      ", n_fixed)
+    }
+    if (n_clean > 0) {
+      message("  Clean:      ", n_clean)
+    }
+    if (n_unfixable > 0) {
+      message(
+        "  Unfixable:  ",
+        n_unfixable,
+        "  \u2014 run check_karyo() to investigate"
+      )
+    }
   }
 
   tibble::tibble(
-    original     = as.character(x),
+    original = as.character(x),
     preprocessed = as.character(processed),
-    status       = status
+    status = status
   )
 }
 
@@ -283,7 +298,9 @@ flag_unpreprocessed <- function(x) {
 #' @return `vec` with `row_indices` elements replaced by cleaned versions.
 #' @keywords internal
 apply_preprocess_to_rows <- function(vec, row_indices) {
-  vec[row_indices] <- suppressMessages(preprocess_karyo(vec[row_indices]))$preprocessed
+  vec[row_indices] <- suppressMessages(preprocess_karyo(vec[
+    row_indices
+  ]))$preprocessed
   vec
 }
 
