@@ -144,7 +144,8 @@ Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbo
 
 ## TODO — Next Session
 
-- **Review full test suite**: Go through all 399 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
+- **Validate preprocess against dev-data**: Run `preprocess_karyo()` and `check_karyo()` on the real dataset in `dev-data/` and verify that the fixable/unfixable counts and cleaned strings match the manually-curated ground truth. This is the first real-world smoke test of the unified `.assess_karyotypes()` pipeline introduced in v0.5.0.
+- **Review full test suite**: Go through all 403 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
 
 ## TODO — Before 1.0 Release
 
