@@ -148,7 +148,8 @@ Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbo
 ## TODO - Future Discussions
 
 - **pkgdown site + GitHub Pages**: Set up a documentation website via `usethis::use_pkgdown()`, hosted on GitHub Pages. Plan:
-  - Trim `README.md` to a lean intro (what it does, install snippet, minimal example) — it becomes the site homepage
+  - Convert `README.md` to `README.Rmd` — source file with executable R code chunks; `devtools::build_readme()` regenerates `README.md` from it. Use `dplyr::select()` or `knitr::kable()` to show curated, narrow output (not the full wide tibble with all flag columns). Never hand-edit `README.md` once `README.Rmd` exists.
+  - Trim the README to a lean intro (what it does, install snippet, one good example) — it becomes the site homepage
   - Write vignettes in `vignettes/` for full docs: get-started, aberration rules, preprocessing/QC, ploidy
   - Function reference pages are auto-generated from roxygen docs
   - **CRITICAL**: Audit `.Rbuildignore` and `.gitignore` before building — `pkgdown::build_site()` can inadvertently pull gitignored files (e.g. `dev-data/`) into `docs/`. Verify nothing sensitive leaks into the built site before pushing.
