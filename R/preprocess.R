@@ -112,9 +112,15 @@
 # Complete fixed schema of all detectable issue types, in display order.
 .all_issue_types <- c(
   names(.dirty_patterns),
-  "empty", "no_chromosome_count", "chimeric_separator", "updated_iscn",
-  "unbalanced_parentheses", "unbalanced_brackets",
-  "no_sex_complement", "invalid_idem", "unparseable_bracket"
+  "empty",
+  "no_chromosome_count",
+  "chimeric_separator",
+  "updated_iscn",
+  "unbalanced_parentheses",
+  "unbalanced_brackets",
+  "no_sex_complement",
+  "invalid_idem",
+  "unparseable_bracket"
 )
 
 #' Clean Dirty ISCN Karyotype Strings

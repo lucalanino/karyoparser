@@ -602,7 +602,7 @@ parse_karyo <- function(
     }
     # "warn": all issue rows pass through unchanged -> become NA below
 
-    issue_row_indices   <- unique(all_issues$row_index)
+    issue_row_indices <- unique(all_issues$row_index)
     fixable_row_indices <- unique(
       all_issues$row_index[all_issues$issue_type %in% .fixable_issue_types]
     )
@@ -612,13 +612,17 @@ parse_karyo <- function(
 
     if (isTRUE(verbose)) {
       n_final_issues <- length(issue_row_indices)
-      n_fixed        <- n_initial_issue_rows - n_final_issues
+      n_fixed <- n_initial_issue_rows - n_final_issues
       if (n_initial_issue_rows == 0) {
         message(sprintf("Parsed %d karyotype(s).", n_total_vec))
       } else if (on_issues == "fix") {
         parts <- character(0)
-        if (n_fixed > 0)        parts <- c(parts, sprintf("%d fixed", n_fixed))
-        if (n_final_issues > 0) parts <- c(parts, sprintf("%d as NA", n_final_issues))
+        if (n_fixed > 0) {
+          parts <- c(parts, sprintf("%d fixed", n_fixed))
+        }
+        if (n_final_issues > 0) {
+          parts <- c(parts, sprintf("%d as NA", n_final_issues))
+        }
         message(sprintf(
           "Parsed %d/%d karyotype(s). %s.",
           n_total_vec - n_final_issues,
@@ -640,8 +644,8 @@ parse_karyo <- function(
       issue_type = character(),
       issue_detail = character()
     )
-    issue_row_indices     <- integer(0)
-    fixable_row_indices   <- integer(0)
+    issue_row_indices <- integer(0)
+    fixable_row_indices <- integer(0)
     unfixable_row_indices <- integer(0)
   }
 
@@ -746,8 +750,10 @@ parse_karyo <- function(
       # All rows had issues - return blank rows with issues attached
       out <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
       out$.pk_row_id <- issue_rows_df$.pk_row_id
-      out$fixable_error   <- as.integer(out$.pk_row_id %in% fixable_row_indices)
-      out$unfixable_error <- as.integer(out$.pk_row_id %in% unfixable_row_indices)
+      out$fixable_error <- as.integer(out$.pk_row_id %in% fixable_row_indices)
+      out$unfixable_error <- as.integer(
+        out$.pk_row_id %in% unfixable_row_indices
+      )
       if (!is.null(id_values)) {
         out[[id_col_name]] <- id_values[out$.pk_row_id]
         out <- out |> dplyr::relocate(dplyr::all_of(id_col_name), .before = 1)
@@ -961,7 +967,7 @@ parse_karyo <- function(
   }
 
   # Error flag columns ---------------------------------------------------------
-  out$fixable_error   <- as.integer(out$.pk_row_id %in% fixable_row_indices)
+  out$fixable_error <- as.integer(out$.pk_row_id %in% fixable_row_indices)
   out$unfixable_error <- as.integer(out$.pk_row_id %in% unfixable_row_indices)
 
   # Attach ID column if available ---------------------------------------------

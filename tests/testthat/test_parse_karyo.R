@@ -675,23 +675,25 @@ test_that("clone without idem uses raw count", {
 test_that("check_karyo: clean input returns one row per string, all zeros", {
   result <- check_karyo(c("46,XX", "47,XY,+21[10]"))
   expect_equal(nrow(result), 2L)
-  expect_equal(result$fixable,   c(0L, 0L))
+  expect_equal(result$fixable, c(0L, 0L))
   expect_equal(result$unfixable, c(0L, 0L))
 })
 
 test_that("check_karyo: column schema matches .all_issue_types", {
   result <- check_karyo("46,XX")
   expected_cols <- c(
-    "row_index", "karyotype",
+    "row_index",
+    "karyotype",
     karyoparser:::.all_issue_types,
-    "fixable", "unfixable"
+    "fixable",
+    "unfixable"
   )
   expect_named(result, expected_cols)
 })
 
 test_that("check_karyo: empty/NA detected as unfixable", {
   result <- check_karyo(c(NA, ""))
-  expect_equal(result$empty,     c(1L, 1L))
+  expect_equal(result$empty, c(1L, 1L))
   expect_equal(result$unfixable, c(1L, 1L))
 })
 
@@ -716,8 +718,8 @@ test_that("check_karyo: unbalanced brackets detected", {
 test_that("check_karyo: dirty markers detected as fixable", {
   result <- check_karyo(".47,XY,+21")
   expect_equal(result$leading_dot, 1L)
-  expect_equal(result$fixable,     1L)
-  expect_equal(result$unfixable,   0L)
+  expect_equal(result$fixable, 1L)
+  expect_equal(result$unfixable, 0L)
 })
 
 test_that("check_karyo: trailing narrative detected as fixable", {
@@ -741,24 +743,24 @@ test_that("check_karyo: one row per input; clean/dirty rows correctly flagged", 
 
 test_that("check_karyo: multiple issues on same row all flagged", {
   result <- check_karyo(".46,XX[10] .note")
-  expect_equal(result$leading_dot,        1L)
+  expect_equal(result$leading_dot, 1L)
   expect_equal(result$trailing_narrative, 1L)
-  expect_equal(result$fixable,            1L)
+  expect_equal(result$fixable, 1L)
 })
 
 test_that("check_karyo: NA input detected as unfixable empty", {
   result <- check_karyo(c("46,XX", NA, "47,XY,+21"))
   expect_equal(nrow(result), 3L)
-  expect_equal(result$empty[2],     1L)
+  expect_equal(result$empty[2], 1L)
   expect_equal(result$unfixable[2], 1L)
-  expect_equal(result$fixable[1],   0L)
-  expect_equal(result$fixable[3],   0L)
+  expect_equal(result$fixable[1], 0L)
+  expect_equal(result$fixable[3], 0L)
 })
 
 test_that("check_karyo: empty vector returns zero-row tibble with full schema", {
   result <- check_karyo(character(0))
   expect_equal(nrow(result), 0L)
-  expect_true("fixable"   %in% names(result))
+  expect_true("fixable" %in% names(result))
   expect_true("unfixable" %in% names(result))
 })
 
@@ -818,14 +820,14 @@ test_that("on_issues: clean input produces no guard message", {
 
 test_that("error columns: clean row has both = 0", {
   r <- pk("46,XX")
-  expect_equal(r$fixable_error,   0L)
+  expect_equal(r$fixable_error, 0L)
   expect_equal(r$unfixable_error, 0L)
 })
 
 test_that("error columns: dirty row under on_issues='warn' has fixable_error=1, unfixable_error=0", {
   r <- pk(c("46,XX", ".47,XY,+21"))
-  expect_equal(r$fixable_error[1],   0L)
-  expect_equal(r$fixable_error[2],   1L)
+  expect_equal(r$fixable_error[1], 0L)
+  expect_equal(r$fixable_error[2], 1L)
   expect_equal(r$unfixable_error[2], 0L)
 })
 
@@ -833,18 +835,18 @@ test_that("error columns: structural error row has unfixable_error=1, fixable_er
   r <- pk(c("46,XX", NA))
   expect_equal(r$unfixable_error[1], 0L)
   expect_equal(r$unfixable_error[2], 1L)
-  expect_equal(r$fixable_error[2],   0L)
+  expect_equal(r$fixable_error[2], 0L)
 })
 
 test_that("error columns: successfully fixed row has both = 0", {
   r <- parse_karyo(c("46,XX", ".47,XY,+21"), on_issues = "fix", verbose = FALSE)
-  expect_equal(r$fixable_error[2],   0L)
+  expect_equal(r$fixable_error[2], 0L)
   expect_equal(r$unfixable_error[2], 0L)
 })
 
 test_that("error columns: present in empty result", {
   r <- pk(character(0))
-  expect_true("fixable_error"   %in% names(r))
+  expect_true("fixable_error" %in% names(r))
   expect_true("unfixable_error" %in% names(r))
 })
 
@@ -852,7 +854,7 @@ test_that("error columns: survive dplyr::filter()", {
   r <- pk(c("46,XX", NA, "47,XY,+8"))
   filtered <- dplyr::filter(r, !is.na(normal_karyotype))
   expect_equal(nrow(filtered), 2L)
-  expect_true("fixable_error"   %in% names(filtered))
+  expect_true("fixable_error" %in% names(filtered))
   expect_true("unfixable_error" %in% names(filtered))
 })
 
@@ -1196,7 +1198,7 @@ test_that("on_issues='fix': successfully cleaned row has both error columns = 0"
     on_issues = "fix",
     verbose = FALSE
   )
-  expect_equal(r$fixable_error[2],   0L)
+  expect_equal(r$fixable_error[2], 0L)
   expect_equal(r$unfixable_error[2], 0L)
 })
 
@@ -1386,7 +1388,7 @@ test_that("preprocess_karyo: uppercase after ', .' not collapsed by midstring_li
 test_that("check_karyo detects chimeric_separator as fixable", {
   result <- check_karyo("46,XX[15]//46,XY[5]")
   expect_equal(result$chimeric_separator, 1L)
-  expect_equal(result$fixable,            1L)
+  expect_equal(result$fixable, 1L)
 })
 
 test_that("check_karyo: clean karyotype does not trigger chimeric_separator", {
@@ -1399,7 +1401,7 @@ test_that("check_karyo: clean karyotype does not trigger chimeric_separator", {
 test_that("check_karyo detects updated_iscn as unfixable", {
   result <- check_karyo("46,XX,add(9)[3]/46,XY[12] Updated ISCN 45,XY[15]")
   expect_equal(result$updated_iscn, 1L)
-  expect_equal(result$unfixable,    1L)
+  expect_equal(result$unfixable, 1L)
 })
 
 test_that("check_karyo updated_iscn is case-insensitive", {
@@ -1426,7 +1428,7 @@ test_that("on_issues='warn': chimeric row returns NA", {
 
 test_that("on_issues='warn': chimeric row has fixable_error=1", {
   r <- parse_karyo("46,XX[15]//46,XY[5]", on_issues = "warn", verbose = FALSE)
-  expect_equal(r$fixable_error,   1L)
+  expect_equal(r$fixable_error, 1L)
   expect_equal(r$unfixable_error, 0L)
 })
 
@@ -1486,8 +1488,8 @@ test_that("on_issues='stop': raises error on chimeric row", {
 test_that("check_karyo detects zero_host_chimera as unfixable", {
   result <- check_karyo(".//46,XX[10]")
   expect_equal(result$zero_host_chimera, 1L)
-  expect_equal(result$unfixable,         1L)
-  expect_equal(result$fixable,           0L)
+  expect_equal(result$unfixable, 1L)
+  expect_equal(result$fixable, 0L)
 })
 
 test_that("check_karyo: multiple leading dots also detected as zero_host_chimera", {
@@ -1508,7 +1510,7 @@ test_that("parse_karyo: zero_host_chimera returns NA", {
 test_that("parse_karyo: zero_host_chimera has unfixable_error=1, fixable_error=0", {
   r <- pk(".//46,XX[10]")
   expect_equal(r$unfixable_error, 1L)
-  expect_equal(r$fixable_error,   0L)
+  expect_equal(r$fixable_error, 0L)
 })
 
 test_that("parse_karyo: zero_host_chimera NA even with on_issues='fix'", {
@@ -1518,14 +1520,18 @@ test_that("parse_karyo: zero_host_chimera NA even with on_issues='fix'", {
 
 test_that("parse_karyo: zero_host_chimera with other dirty patterns still returns NA", {
   # Trailing narrative present alongside .// — other dirty fix runs but row is still NA
-  r <- parse_karyo(".//46,XX[10] .Female karyotype", on_issues = "fix", verbose = FALSE)
+  r <- parse_karyo(
+    ".//46,XX[10] .Female karyotype",
+    on_issues = "fix",
+    verbose = FALSE
+  )
   expect_true(is.na(r$ploidy_category))
 })
 
 test_that("parse_karyo: row with both fixable and unfixable issues has both error columns = 1", {
   # zero_host_chimera (unfixable) + trailing_narrative (fixable) co-occur
   r <- pk(".//46,XX[10] .Female karyotype")
-  expect_equal(r$fixable_error,   1L)
+  expect_equal(r$fixable_error, 1L)
   expect_equal(r$unfixable_error, 1L)
 })
 

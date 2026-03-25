@@ -46,11 +46,19 @@ collect_issues <- function(x) {
 #' @export
 check_karyo <- function(x, verbose = FALSE) {
   n <- length(x)
-  all_cols <- c("row_index", "karyotype", .all_issue_types, "fixable", "unfixable")
+  all_cols <- c(
+    "row_index",
+    "karyotype",
+    .all_issue_types,
+    "fixable",
+    "unfixable"
+  )
 
   if (n == 0) {
     out <- tibble::tibble(row_index = integer(), karyotype = character())
-    for (nm in c(.all_issue_types, "fixable", "unfixable")) out[[nm]] <- integer()
+    for (nm in c(.all_issue_types, "fixable", "unfixable")) {
+      out[[nm]] <- integer()
+    }
     return(out[, all_cols])
   }
 
@@ -63,14 +71,14 @@ check_karyo <- function(x, verbose = FALSE) {
     out[[nm]] <- as.integer(seq_len(n) %in% rows_with_type)
   }
 
-  fixable_cols   <- intersect(.fixable_issue_types, .all_issue_types)
+  fixable_cols <- intersect(.fixable_issue_types, .all_issue_types)
   unfixable_cols <- setdiff(.all_issue_types, .fixable_issue_types)
-  out$fixable   <- as.integer(rowSums(out[, fixable_cols,   drop = FALSE]) > 0)
+  out$fixable <- as.integer(rowSums(out[, fixable_cols, drop = FALSE]) > 0)
   out$unfixable <- as.integer(rowSums(out[, unfixable_cols, drop = FALSE]) > 0)
 
   if (isTRUE(verbose)) {
     n_issues <- sum(out$fixable | out$unfixable)
-    n_clean  <- n - n_issues
+    n_clean <- n - n_issues
     cat(sprintf("Checked:   %d karyotype(s)\n", n))
     cat(sprintf("Clean:     %d (%.1f%%)\n", n_clean, 100 * n_clean / n))
     cat(sprintf("Issues:    %d (%.1f%%)\n", n_issues, 100 * n_issues / n))
@@ -87,7 +95,7 @@ check_karyo <- function(x, verbose = FALSE) {
         integer(1)
       )
       unfix_counts <- unfix_counts[unfix_counts > 0]
-      n_fix_rows   <- sum(out$fixable   & !out$unfixable)
+      n_fix_rows <- sum(out$fixable & !out$unfixable)
       n_unfix_rows <- sum(out$unfixable)
       if (length(fix_counts) > 0) {
         cat(sprintf(
@@ -261,4 +269,3 @@ validate_karyotypes <- function(karyotypes) {
   }
   dplyr::bind_rows(issue_list[seq_len(n_issues)])
 }
-
