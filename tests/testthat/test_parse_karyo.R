@@ -741,7 +741,7 @@ test_that("check_karyo: trailing narrative detected as fixable", {
 })
 
 test_that("check_karyo: html entities detected as fixable", {
-  result <- suppressMessages(check_karyo("46,XX &lt;2n&gt;"))
+  result <- suppressMessages(check_karyo("46,XX,t(9;22)(q34;q11) &lt;AML&gt;"))
   expect_equal(result$html_entities, 1L)
   expect_equal(result$fixable, 1L)
 })
@@ -1003,7 +1003,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.4.0")
+  expect_equal(attr(r, "karyoparser_version"), "0.5.0")
 })
 
 test_that(".return='data.frame' returns data.frame", {
@@ -1210,7 +1210,7 @@ test_that("preprocess_karyo: handles empty vector", {
 })
 
 # =============================================================================
-# 23. on_issues ("fix"/"warn"/"stop"); .dirty_patterns; apply_preprocess_to_rows()
+# 23. on_issues ("fix"/"warn"/"stop"); .dirty_patterns
 # =============================================================================
 
 # 23a. on_issues = "fix" ---------------------------------------------------
@@ -1343,16 +1343,6 @@ test_that("missing_sex_comma: full pipeline via on_issues=fix parses correctly",
   expect_equal(res$ploidy_category, "diploid")
   expect_equal(res$normal_karyotype, 0L)
   expect_equal(res$chromosome_count, 46L)
-})
-
-# 23e. apply_preprocess_to_rows() --------------------------------------------
-
-test_that("apply_preprocess_to_rows() only modifies specified indices", {
-  vec <- c("46,XX", ".47,XY,+21", "46,XY")
-  result <- suppressMessages(karyoparser:::apply_preprocess_to_rows(vec, 2L))
-  expect_equal(result[1], "46,XX")
-  expect_equal(result[2], "47,XY,+21")
-  expect_equal(result[3], "46,XY")
 })
 
 # =============================================================================

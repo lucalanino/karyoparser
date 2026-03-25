@@ -1,3 +1,114 @@
+#' Assess karyotype strings: apply all fixes, classify rows
+#'
+#' Single source of truth for fixable/unfixable classification, shared by
+#' `check_karyo()`, `preprocess_karyo()`, and the `parse_karyo()` guard.
+#'
+#' Detection strategy:
+#' - Dirty issues detected on the RAW string (before fixes), so issue type
+#'   columns report what was actually wrong with the input.
+#' - Structural issues detected on the FULLY-FIXED string (after dirty fixes
+#'   and chimeric truncation), so false positives from dirty-marker
+#'   contamination (e.g. trailing narrative making `no_sex_complement` fire)
+#'   are eliminated.
+#'
+#' @param x Character vector of raw karyotype strings.
+#' @return A named list:
+#'   - `$processed` — fully-fixed character vector (dirty fixed + chimeric truncated)
+#'   - `$reported_issues` — long tibble (row_index, karyotype, issue_type,
+#'     issue_detail) combining dirty issues from raw, chimeric from after dirty
+#'     fix, and structural from after all fixes.
+#'   - `$unfixable_row_indices` — integer: rows with structural issues that
+#'     remain after all fixes.
+#'   - `$dirty_row_indices` — integer: rows that had fixable dirty markers.
+#'   - `$chimeric_row_indices` — integer: rows that had chimeric separator
+#'     (detected after dirty fixes, before truncation).
+#' @keywords internal
+.assess_karyotypes <- function(x) {
+  DIRTY_TYPES <- names(Filter(function(p) length(p$fix) > 0, .dirty_patterns))
+
+  # Step 1: detect dirty-pattern issues on the raw input --------------------
+  dirty_issues <- flag_unpreprocessed(x)
+  dirty_row_indices <- unique(
+    dirty_issues$row_index[dirty_issues$issue_type %in% DIRTY_TYPES]
+  )
+
+  # Step 2: apply dirty fixes → partially_fixed ----------------------------
+  partially_fixed <- stringr::str_trim(x)
+  partially_fixed <- stringr::str_replace_all(partially_fixed, "[\n\r\t]+", " ")
+  for (nm in names(.dirty_patterns)) {
+    dp <- .dirty_patterns[[nm]]
+    for (fx in dp$fix) {
+      partially_fixed <- stringr::str_replace_all(
+        partially_fixed,
+        fx$pattern,
+        fx$replacement
+      )
+    }
+  }
+  partially_fixed <- stringr::str_trim(partially_fixed)
+
+  # Step 3: detect chimeric in partially_fixed (before truncation) ----------
+  # Mirrors validate_karyotypes(): must start with a digit (i.e. pass the
+  # no_chromosome_count guard) and contain '//' after normalization.
+  norm_partial <- normalize_iscn(partially_fixed)
+  chimeric_row_indices <- which(
+    !is.na(norm_partial) &
+      stringr::str_detect(norm_partial, "^\\d") &
+      stringr::str_detect(norm_partial, "//")
+  )
+  chimeric_issues <- if (length(chimeric_row_indices) > 0) {
+    tibble::tibble(
+      row_index = chimeric_row_indices,
+      karyotype = truncate_str(as.character(partially_fixed[
+        chimeric_row_indices
+      ])),
+      issue_type = "chimeric_separator",
+      issue_detail = "Contains '//' chimeric separator (independent cell populations)"
+    )
+  } else {
+    tibble::tibble(
+      row_index = integer(),
+      karyotype = character(),
+      issue_type = character(),
+      issue_detail = character()
+    )
+  }
+
+  # Step 4: truncate chimeric → fully_fixed --------------------------------
+  fully_fixed <- partially_fixed
+  if (length(chimeric_row_indices) > 0) {
+    fully_fixed[chimeric_row_indices] <- stringr::str_replace(
+      fully_fixed[chimeric_row_indices],
+      "//.*$",
+      ""
+    )
+  }
+
+  # Step 5: structural issues REMAINING after all fixes --------------------
+  struct_issues <- validate_karyotypes(normalize_iscn(fully_fixed))
+
+  # Step 6: combine all reported issues and classify -----------------------
+  reported_issues <- dplyr::bind_rows(
+    dirty_issues,
+    chimeric_issues,
+    struct_issues
+  ) |>
+    dplyr::arrange(row_index)
+
+  unfixable_types <- setdiff(.all_issue_types, .fixable_issue_types)
+  unfixable_row_indices <- unique(
+    reported_issues$row_index[reported_issues$issue_type %in% unfixable_types]
+  )
+
+  list(
+    processed = fully_fixed,
+    reported_issues = reported_issues,
+    unfixable_row_indices = unfixable_row_indices,
+    dirty_row_indices = dirty_row_indices,
+    chimeric_row_indices = chimeric_row_indices
+  )
+}
+
 #' Collect issues from karyotype strings (long format, internal use)
 #'
 #' @param x Character vector of karyotype strings.
@@ -73,7 +184,8 @@ check_karyo <- function(x, verbose = FALSE) {
 
   message("Checking ", n, " karyotype(s)...")
 
-  long <- collect_issues(x)
+  assessment <- .assess_karyotypes(x)
+  long <- assessment$reported_issues
 
   # Build wide matrix: n rows x issue-type columns
   out <- tibble::tibble(row_index = seq_len(n), karyotype = as.character(x))
@@ -84,8 +196,11 @@ check_karyo <- function(x, verbose = FALSE) {
 
   fixable_cols <- intersect(.fixable_issue_types, .all_issue_types)
   unfixable_cols <- setdiff(.all_issue_types, .fixable_issue_types)
-  out$fixable <- as.integer(rowSums(out[, fixable_cols, drop = FALSE]) > 0)
-  out$unfixable <- as.integer(rowSums(out[, unfixable_cols, drop = FALSE]) > 0)
+  out$fixable <- as.integer(
+    rowSums(out[, fixable_cols, drop = FALSE]) > 0 &
+      !seq_len(n) %in% assessment$unfixable_row_indices
+  )
+  out$unfixable <- as.integer(seq_len(n) %in% assessment$unfixable_row_indices)
 
   n_fix_rows <- sum(out$fixable & !out$unfixable)
   n_unfix_rows <- sum(out$unfixable)

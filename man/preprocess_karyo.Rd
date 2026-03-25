@@ -7,10 +7,13 @@
 preprocess_karyo(x)
 }
 \arguments{
-\item{x}{Character vector of raw karyotype strings.}
+\item{x}{Character vector of raw karyotype strings. Data frames are not
+accepted; extract the column first (e.g. \code{preprocess_karyo(df$karyotype)}).}
 }
 \value{
-Character vector of cleaned karyotype strings (same length as \code{x}).
+A tibble with columns \code{original} (raw input), \code{preprocessed}
+(cleaned string, or original when status is not \code{"fixed"}), and \code{status}
+(\code{"clean"} / \code{"fixed"} / \code{"unfixable"}).
 }
 \description{
 Strips clinical free text, database artifacts, and HTML entities from raw

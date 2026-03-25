@@ -7,9 +7,10 @@
 check_karyo(x, verbose = FALSE)
 }
 \arguments{
-\item{x}{Character vector of karyotype strings.}
+\item{x}{Character vector of karyotype strings. Data frames are not
+accepted; extract the column first (e.g. \code{check_karyo(df$karyotype)}).}
 
-\item{verbose}{Logical. If \code{TRUE}, prints a summary of issues to the console
+\item{verbose}{Logical. If \code{TRUE}, also prints a per-issue-type breakdown
 and returns the tibble invisibly. Default \code{FALSE}.}
 }
 \value{
@@ -19,9 +20,10 @@ A tibble with \code{length(x)} rows. Columns: \code{row_index}, \code{karyotype}
 }
 \description{
 Checks raw karyotype strings for formatting artifacts and structural errors.
-Returns a wide-format tibble with one row per input string: each possible
-issue type is a column (\code{0}/\code{1}), plus summary \code{fixable} and \code{unfixable}
-columns.
+Always prints a count of karyotypes being checked and a summary of fixable
+and unfixable issues (or "All clean." if none). Returns a wide-format tibble
+with one row per input string: each possible issue type is a column
+(\code{0}/\code{1}), plus summary \code{fixable} and \code{unfixable} columns.
 }
 \details{
 Fixable issues (resolvable by \code{parse_karyo()} under \code{on_issues = "fix"}):

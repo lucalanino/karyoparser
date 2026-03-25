@@ -71,8 +71,8 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 |---|---|
 | `R/parse_karyo-package.R` | `"_PACKAGE"`, `globalVariables()`, `.karyoparser_version`, `.sex_complements` |
 | `R/rules.R` | `rules_table()` |
-| `R/preprocess.R` | `.dirty_patterns` (constant), `preprocess_karyo()`, `flag_unpreprocessed()` (internal), `apply_preprocess_to_rows()` (internal), `normalize_iscn()` (internal) |
-| `R/validate.R` | `check_karyo()`, `validate_karyotypes()` (internal), `collect_issues()` (internal) |
+| `R/preprocess.R` | `.dirty_patterns` (constant), `preprocess_karyo()`, `flag_unpreprocessed()` (internal), `normalize_iscn()` (internal) |
+| `R/validate.R` | `.assess_karyotypes()` (internal), `check_karyo()`, `validate_karyotypes()` (internal), `collect_issues()` (internal) |
 | `R/ploidy.R` | `ploidy_from_count()` (internal), `ploidy_category()` (internal), `extract_clone_data()` (internal) |
 | `R/helpers.R` | `strip_bands()`, `normalize_token()` |
 | `R/parse_karyo.R` | `parse_karyo()` + internal pipeline helpers |
@@ -97,7 +97,7 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 ### Other internal helpers (unexported)
 
 - `strip_bands()`, `normalize_token()` (in `R/helpers.R`)
-- `flag_unpreprocessed()`, `apply_preprocess_to_rows()`, `normalize_iscn()` (in `R/preprocess.R`)
+- `flag_unpreprocessed()`, `normalize_iscn()` (in `R/preprocess.R`)
 - `validate_karyotypes()`, `collect_issues()` (in `R/validate.R`)
 - `ploidy_from_count()`, `ploidy_category()`, `extract_clone_data()` (in `R/ploidy.R`)
 
@@ -120,10 +120,10 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 
 ```
 Input → raw_vec extraction →
-  [Guard: collect_issues()] →
-    If "fix": apply_preprocess_to_rows() on dirty rows → re-check → update raw_vec →
-    If "fix": strip "//…" from chimeric rows → re-check → update raw_vec →
-    Remaining issues: "stop"→error | else→message →
+  [Guard]:
+    "stop": collect_issues(raw_vec) → error if any
+    "fix":  .assess_karyotypes(raw_vec) → raw_vec = $processed; unfixable → NA
+    "warn": collect_issues(raw_vec) → issue rows → NA (no fixing) →
   normalize_iscn(raw_vec) →
   Filter issue rows → [Dedup] → Parse unique:
     build_sample_meta → build_clone_tokens →
@@ -138,13 +138,13 @@ Add rows to `rules_table()` in `R/rules.R`: `flag_name` (output column), `regex`
 
 ## Testing
 
-383 assertions (sections 1–25) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification, monosomy/trisomy detection, complex/monosomal flags, preprocessing, idem expansion, `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `fixable_error`/`unfixable_error` columns, ID column detection, deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, `apply_preprocess_to_rows()`, trailing narrative (3-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, and edge cases.
+399 assertions (sections 1–25) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification, monosomy/trisomy detection, complex/monosomal flags, preprocessing, idem expansion, `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `fixable_error`/`unfixable_error` columns, ID column detection, deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, trailing narrative (3-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, and edge cases.
 
 Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbose = FALSE)`.
 
 ## TODO — Next Session
 
-- **Review full test suite**: Go through all 383 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
+- **Review full test suite**: Go through all 399 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
 
 ## TODO — Before 1.0 Release
 

@@ -519,131 +519,90 @@ parse_karyo <- function(
   }
   original_vec <- raw_vec
 
-  DIRTY_TYPES <- names(Filter(function(p) length(p$fix) > 0, .dirty_patterns))
-
   if (length(raw_vec) > 0) {
-    all_issues <- collect_issues(raw_vec)
     n_total_vec <- length(raw_vec)
-    n_initial_issue_rows <- length(unique(all_issues$row_index))
 
-    # "stop": error immediately on any issue, before any fixing is attempted
-    if (on_issues == "stop" && nrow(all_issues) > 0) {
-      issue_counts <- all_issues |>
-        dplyr::count(issue_type, name = "n") |>
-        dplyr::arrange(dplyr::desc(n))
-      stop(
-        sprintf(
-          "%d of %d karyotype(s) have issues (%s). Use on_issues='fix' or 'warn', or call check_karyo() for details.",
-          n_initial_issue_rows,
-          n_total_vec,
-          paste(
-            paste0(issue_counts$issue_type, ": ", issue_counts$n),
-            collapse = ", "
-          )
-        ),
-        call. = FALSE
-      )
-    }
-
-    if (on_issues == "fix") {
-      # Step 1: clean dirty-marker rows with preprocess_karyo().
-      # Dirty markers are formatting artifacts (leading dots, HTML entities,
-      # missing sex comma, etc.) that preprocess_karyo() can correct.
-      dirty_row_indices <- unique(
-        all_issues$row_index[all_issues$issue_type %in% DIRTY_TYPES]
-      )
-      n_dirty <- length(dirty_row_indices)
-
-      if (n_dirty > 0) {
-        raw_vec <- apply_preprocess_to_rows(raw_vec, dirty_row_indices)
-        rechecked <- collect_issues(raw_vec[dirty_row_indices])
-        if (nrow(rechecked) > 0) {
-          rechecked$row_index <- dirty_row_indices[rechecked$row_index]
-        }
-        still_dirty_indices <- unique(rechecked$row_index)
-        cleaned_row_indices <- setdiff(dirty_row_indices, still_dirty_indices)
-        # Drop all pre-fix issues for fully cleaned rows; add re-check results.
-        non_dirty_issues <- all_issues[
-          !all_issues$issue_type %in% DIRTY_TYPES,
-        ]
-        non_dirty_issues <- non_dirty_issues[
-          !non_dirty_issues$row_index %in% cleaned_row_indices,
-        ]
-        all_issues <- dplyr::bind_rows(non_dirty_issues, rechecked) |>
-          dplyr::arrange(row_index)
-      }
-
-      # Step 2: truncate chimeric rows to the first clone before '//'.
-      # Chimeric karyotypes describe independent cell populations. Truncation
-      # retains only the portion before the first '//' (the dominant clone);
-      # information about secondary clones is discarded.
-      chimeric_row_indices <- unique(
-        all_issues$row_index[all_issues$issue_type == "chimeric_separator"]
-      )
-      n_chimeric <- length(chimeric_row_indices)
-
-      if (n_chimeric > 0) {
-        raw_vec[chimeric_row_indices] <- stringr::str_replace(
-          raw_vec[chimeric_row_indices],
-          "//.*$",
-          ""
+    if (on_issues == "stop") {
+      # Check raw issues and error immediately before any fixing
+      raw_issues <- collect_issues(raw_vec)
+      if (nrow(raw_issues) > 0) {
+        issue_counts <- raw_issues |>
+          dplyr::count(issue_type, name = "n") |>
+          dplyr::arrange(dplyr::desc(n))
+        stop(
+          sprintf(
+            "%d of %d karyotype(s) have issues (%s). Use on_issues='fix' or 'warn', or call check_karyo() for details.",
+            length(unique(raw_issues$row_index)),
+            n_total_vec,
+            paste(
+              paste0(issue_counts$issue_type, ": ", issue_counts$n),
+              collapse = ", "
+            )
+          ),
+          call. = FALSE
         )
-        rechimeric <- collect_issues(raw_vec[chimeric_row_indices])
-        if (nrow(rechimeric) > 0) {
-          rechimeric$row_index <- chimeric_row_indices[rechimeric$row_index]
-        }
-        all_issues <- all_issues[
-          !(all_issues$issue_type == "chimeric_separator" &
-            all_issues$row_index %in% chimeric_row_indices),
-        ]
-        all_issues <- dplyr::bind_rows(all_issues, rechimeric) |>
-          dplyr::arrange(row_index)
       }
-    }
-    # "warn": all issue rows pass through unchanged -> become NA below
+      issue_row_indices <- integer(0)
+      fixable_row_indices <- integer(0)
+      unfixable_row_indices <- integer(0)
+    } else if (on_issues == "fix") {
+      assessment <- .assess_karyotypes(raw_vec)
+      raw_vec <- assessment$processed
+      # All fixable issues have been applied; none remain as "fixable errors".
+      # Only truly broken rows (unfixable after all fixes) become NA.
+      fixable_row_indices <- integer(0)
+      unfixable_row_indices <- assessment$unfixable_row_indices
+      issue_row_indices <- unfixable_row_indices
 
-    issue_row_indices <- unique(all_issues$row_index)
-    fixable_row_indices <- unique(
-      all_issues$row_index[all_issues$issue_type %in% .fixable_issue_types]
-    )
-    unfixable_row_indices <- unique(
-      all_issues$row_index[!all_issues$issue_type %in% .fixable_issue_types]
-    )
+      if (isTRUE(verbose)) {
+        n_fixed <- length(setdiff(
+          union(assessment$dirty_row_indices, assessment$chimeric_row_indices),
+          assessment$unfixable_row_indices
+        ))
+        n_final_issues <- length(unfixable_row_indices)
+        if (n_fixed == 0 && n_final_issues == 0) {
+          message(sprintf("Parsed %d karyotype(s).", n_total_vec))
+        } else {
+          parts <- character(0)
+          if (n_fixed > 0) {
+            parts <- c(parts, sprintf("%d fixed", n_fixed))
+          }
+          if (n_final_issues > 0) {
+            parts <- c(parts, sprintf("%d as NA", n_final_issues))
+          }
+          message(sprintf(
+            "Parsed %d/%d karyotype(s). %s.",
+            n_total_vec - n_final_issues,
+            n_total_vec,
+            paste(parts, collapse = ", ")
+          ))
+        }
+      }
+    } else {
+      # "warn": detect issues on raw, no fixing; all issue rows become NA
+      raw_issues <- collect_issues(raw_vec)
+      issue_row_indices <- unique(raw_issues$row_index)
+      fixable_row_indices <- unique(
+        raw_issues$row_index[raw_issues$issue_type %in% .fixable_issue_types]
+      )
+      unfixable_row_indices <- unique(
+        raw_issues$row_index[!raw_issues$issue_type %in% .fixable_issue_types]
+      )
 
-    if (isTRUE(verbose)) {
-      n_final_issues <- length(issue_row_indices)
-      n_fixed <- n_initial_issue_rows - n_final_issues
-      if (n_initial_issue_rows == 0) {
-        message(sprintf("Parsed %d karyotype(s).", n_total_vec))
-      } else if (on_issues == "fix") {
-        parts <- character(0)
-        if (n_fixed > 0) {
-          parts <- c(parts, sprintf("%d fixed", n_fixed))
+      if (isTRUE(verbose)) {
+        n_final_issues <- length(issue_row_indices)
+        if (n_final_issues == 0) {
+          message(sprintf("Parsed %d karyotype(s).", n_total_vec))
+        } else {
+          message(sprintf(
+            "%d of %d karyotype(s) had issues and were returned as NA.",
+            n_final_issues,
+            n_total_vec
+          ))
         }
-        if (n_final_issues > 0) {
-          parts <- c(parts, sprintf("%d as NA", n_final_issues))
-        }
-        message(sprintf(
-          "Parsed %d/%d karyotype(s). %s.",
-          n_total_vec - n_final_issues,
-          n_total_vec,
-          paste(parts, collapse = ", ")
-        ))
-      } else {
-        message(sprintf(
-          "%d of %d karyotype(s) had issues and were returned as NA.",
-          n_final_issues,
-          n_total_vec
-        ))
       }
     }
   } else {
-    all_issues <- tibble::tibble(
-      row_index = integer(),
-      karyotype = character(),
-      issue_type = character(),
-      issue_detail = character()
-    )
     issue_row_indices <- integer(0)
     fixable_row_indices <- integer(0)
     unfixable_row_indices <- integer(0)

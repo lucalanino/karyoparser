@@ -167,41 +167,23 @@ preprocess_karyo <- function(x) {
   n <- length(x)
   message("Preprocessing ", n, " karyotype(s)...")
 
-  # Detect unfixable issues on the raw input before any fixes are applied
-  raw_issues <- flag_unpreprocessed(x)
-  unfixable_types <- setdiff(.all_issue_types, .fixable_issue_types)
-  unfixable_rows <- unique(raw_issues$row_index[
-    raw_issues$issue_type %in% unfixable_types
-  ])
+  assessment <- .assess_karyotypes(x)
+  processed <- assessment$processed
 
-  # Apply fixes
-  processed <- stringr::str_trim(x)
-  processed <- stringr::str_replace_all(processed, "[\n\r\t]+", " ")
-  for (nm in names(.dirty_patterns)) {
-    dp <- .dirty_patterns[[nm]]
-    for (fx in dp$fix) {
-      processed <- stringr::str_replace_all(
-        processed,
-        fx$pattern,
-        fx$replacement
-      )
-    }
-  }
-  processed <- stringr::str_trim(processed)
-
-  # For unfixable rows, revert preprocessed to original
-  processed[unfixable_rows] <- x[unfixable_rows]
-
-  # Determine status per row
+  # Status: unfixable > fixed (dirty or chimeric, successfully resolved) > clean
+  fixed_row_indices <- setdiff(
+    union(assessment$dirty_row_indices, assessment$chimeric_row_indices),
+    assessment$unfixable_row_indices
+  )
   status <- ifelse(
-    is.na(x) | seq_len(n) %in% unfixable_rows,
+    seq_len(n) %in% assessment$unfixable_row_indices,
     "unfixable",
-    ifelse(processed != x, "fixed", "clean")
+    ifelse(seq_len(n) %in% fixed_row_indices, "fixed", "clean")
   )
 
   # Summary
-  n_fixed <- sum(status == "fixed", na.rm = TRUE)
-  n_unfixable <- sum(status == "unfixable", na.rm = TRUE)
+  n_fixed <- sum(status == "fixed")
+  n_unfixable <- length(assessment$unfixable_row_indices)
 
   if (n_fixed == 0 && n_unfixable == 0) {
     message("  All clean.")
@@ -289,19 +271,6 @@ flag_unpreprocessed <- function(x) {
     ))
   }
   dplyr::bind_rows(issue_list[seq_len(n_issues)])
-}
-
-#' Apply preprocess_karyo() to a subset of rows
-#'
-#' @param vec Character vector.
-#' @param row_indices Integer indices of elements to clean.
-#' @return `vec` with `row_indices` elements replaced by cleaned versions.
-#' @keywords internal
-apply_preprocess_to_rows <- function(vec, row_indices) {
-  vec[row_indices] <- suppressMessages(preprocess_karyo(vec[
-    row_indices
-  ]))$preprocessed
-  vec
 }
 
 #' Preprocess ISCN Karyotype Strings
