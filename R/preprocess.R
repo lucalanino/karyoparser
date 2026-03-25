@@ -71,11 +71,11 @@
     detail = "Mid-string line-wrap artifact (e.g. ', .der(...)' or ', .+8')"
   ),
   missing_sex_comma = list(
-    detect = ",(XXXXY|XXXX|XXX|XXY|XYY|XY|XX|X|Y)\\s+(?=[a-z(+])",
+    detect = ",(XXXXY|XXXX|XXXY|XXYY|XXX|XXY|XYY|XY|XX|X|Y)\\s+(?=[a-z(+])",
     use_trimmed = FALSE,
     fix = list(
       list(
-        pattern = "(,(XXXXY|XXXX|XXX|XXY|XYY|XY|XX|X|Y))\\s+(?=[a-z(+])",
+        pattern = "(,(XXXXY|XXXX|XXXY|XXYY|XXX|XXY|XYY|XY|XX|X|Y))\\s+(?=[a-z(+])",
         replacement = "\\1,"
       )
     ),

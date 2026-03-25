@@ -788,6 +788,23 @@ test_that("check_karyo detects unparseable_bracket for non-numeric bracket conte
   expect_equal(result$unfixable, 1L)
 })
 
+test_that("XXYY and XXXY are valid sex complements (no no_sex_complement fired)", {
+  expect_equal(
+    suppressMessages(check_karyo("48,XXYY,+1[10]"))$no_sex_complement,
+    0L
+  )
+  expect_equal(
+    suppressMessages(check_karyo("48,XXXY,+1[10]"))$no_sex_complement,
+    0L
+  )
+})
+
+test_that("parse_karyo handles 48,XXYY karyotype", {
+  r <- pk("48,XXYY,+1[10]")
+  expect_false(is.na(r$ploidy_category))
+  expect_equal(r$tris1, 1L)
+})
+
 # =============================================================================
 # 14. on_issues parameter
 # =============================================================================
@@ -1003,7 +1020,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.5.0")
+  expect_equal(attr(r, "karyoparser_version"), "0.5.1")
 })
 
 test_that(".return='data.frame' returns data.frame", {

@@ -63,6 +63,8 @@ utils::globalVariables(c(
   "XXX",
   "XXY",
   "XYY",
+  "XXYY",
+  "XXXY",
   "XXXX",
   "XXXXY"
 )
