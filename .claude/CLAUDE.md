@@ -32,6 +32,15 @@ Run in order:
 2. `devtools::check()` — confirm 0 errors/warnings/notes
 3. Bump version in `DESCRIPTION` and `README.md`, then commit and push
 
+## First-time setup (per machine)
+
+```bash
+# Point git to the tracked hooks directory
+git config core.hooksPath .githooks
+```
+
+This enables the pre-push hook that runs `air format . --check` before every push, blocking unformatted code from reaching the remote.
+
 ## Development Commands
 
 ```bash
