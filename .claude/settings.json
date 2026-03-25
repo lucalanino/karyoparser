@@ -8,15 +8,13 @@
       "Bash(find:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue view:*)",
-      "Bash(gh pr diff:*)",
-      "Bash(gh pr view:*)",
       "Bash(git grep:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(R:*)",
       "Bash(rm:*)",
       "Bash(Rscript:*)",
-      "Bash(sed:*)",
+      "Bash(sed:*)"
     ],
     "deny": [
       "Read(.Renviron)",
