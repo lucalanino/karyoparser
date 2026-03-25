@@ -470,6 +470,15 @@ test_that("ploidy_category no brackets uses all clones", {
   expect_equal(res$chromosome_count, 45L)
 })
 
+test_that("ploidy_category: range metaphase bracket [N~M] uses max of range for eligibility", {
+  # [3~5] -> max = 5, so clone is eligible (>= 5); [3] clone is excluded.
+  # 47 falls in the 47-50 "other" gap; what matters is that the 47-count clone
+  # was selected (not the excluded 25-count clone), confirming range-max logic.
+  res <- ploidy_category("25,X[3]/47,XX,+8[3~5]")
+  expect_equal(res$ploidy, "other")
+  expect_equal(res$chromosome_count, 47L)
+})
+
 # =============================================================================
 # 8. Monosomy / trisomy
 # =============================================================================
@@ -764,6 +773,18 @@ test_that("check_karyo: empty vector returns zero-row tibble with full schema", 
   expect_true("unfixable" %in% names(result))
 })
 
+test_that("check_karyo detects invalid_idem when idem appears in clone 1", {
+  result <- check_karyo("46,XX,idem[10]")
+  expect_equal(result$invalid_idem, 1L)
+  expect_equal(result$unfixable, 1L)
+})
+
+test_that("check_karyo detects unparseable_bracket for non-numeric bracket content", {
+  result <- check_karyo("46,XX[abc]")
+  expect_equal(result$unparseable_bracket, 1L)
+  expect_equal(result$unfixable, 1L)
+})
+
 # =============================================================================
 # 14. on_issues parameter
 # =============================================================================
@@ -886,6 +907,14 @@ test_that("character vector input has no ID column", {
   r <- pk(c("46,XX", "46,XY"))
   expect_false("sample_id" %in% names(r))
   expect_equal(names(r)[1], "original_karyotype")
+})
+
+test_that("parse_karyo: data.frame with all invalid rows and ID column preserves ID in output", {
+  df <- data.frame(sample_id = "A", karyotype = "XX,+8")
+  r <- pk(df)
+  expect_equal(r$sample_id, "A")
+  expect_true(is.na(r$ploidy_category))
+  expect_equal(names(r)[1], "sample_id")
 })
 
 # =============================================================================
