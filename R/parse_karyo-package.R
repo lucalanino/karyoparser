@@ -24,6 +24,7 @@ utils::globalVariables(c(
   "has_idem",
   "head",
   "idem_invalid",
+  "issue_type",
   "is_composite",
   "is_cp",
   "is_mono_tri",

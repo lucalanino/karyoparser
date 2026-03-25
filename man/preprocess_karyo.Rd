@@ -22,7 +22,6 @@ Rules applied in order:
 \enumerate{
 \item Trim leading/trailing whitespace and collapse newlines/tabs
 \item Decode HTML entities (\verb{&lt;} → \code{<}, \verb{&gt;} → \code{>}, \verb{&amp;} → \code{&})
-\item Strip leading \verb{.//} (and variants like \verb{..//})
 \item Strip leading dot(s) before a digit (e.g. \verb{.46,XX} → \verb{46,XX})
 \item Strip FISH/nuc ish suffix after last clone bracket (e.g. \verb{[12] .nuc ish(...)})
 \item Strip trailing narrative: \verb{] .text} → \verb{]}; space-dot-capital mid-string
@@ -31,4 +30,7 @@ Rules applied in order:
 \item Remove space between count and \code{mar} token (\verb{+1~4 mar} → \verb{+1~4mar})
 \item Trim again
 }
+
+Note: \code{zero_host_chimera} strings (\verb{.//} prefix) are detected but not modified —
+their \code{fix} list is empty, so the loop skips them.
 }

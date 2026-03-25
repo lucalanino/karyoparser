@@ -64,17 +64,17 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 | `R/parse_karyo-package.R` | `"_PACKAGE"`, `globalVariables()`, `.karyoparser_version`, `.sex_complements` |
 | `R/rules.R` | `rules_table()` |
 | `R/preprocess.R` | `.dirty_patterns` (constant), `preprocess_karyo()`, `flag_unpreprocessed()` (internal), `apply_preprocess_to_rows()` (internal), `normalize_iscn()` (internal) |
-| `R/validate.R` | `check_karyo()`, `validate_karyotypes()` (internal), `print_issue_report()` (internal) |
+| `R/validate.R` | `check_karyo()`, `validate_karyotypes()` (internal), `collect_issues()` (internal) |
 | `R/ploidy.R` | `ploidy_from_count()` (internal), `ploidy_category()` (internal), `extract_clone_data()` (internal) |
 | `R/helpers.R` | `strip_bands()`, `normalize_token()` |
 | `R/parse_karyo.R` | `parse_karyo()` + internal pipeline helpers |
 
 ### Exported API
 
-- **`parse_karyo()`** — Main entry point. Accepts character vector or data.frame. Returns tibble with binary aberration flags, ploidy, monosomy/trisomy columns, derived flags (complex, monosomal, mixed ploidy), and `issues` list-column. Uses `on_issues` (`"fix"` / `"warn"` / `"stop"`). Default `"fix"` auto-applies `preprocess_karyo()` to dirty rows and truncates chimeric rows to the first clone before `//`, printing a summary of what was fixed. `"warn"` returns NA for all issue rows. `"stop"` errors immediately. Structural errors (no chromosome count, unbalanced brackets, `Updated ISCN`) are always NA regardless.
-- **`check_karyo()`** — Unified pre-parse check combining dirty-marker detection and structural validation. Returns tibble of all issues. Called automatically by `parse_karyo()`.
+- **`parse_karyo()`** — Main entry point. Accepts character vector or data.frame. Returns tibble with binary aberration flags, ploidy, monosomy/trisomy columns, derived flags (complex, monosomal, mixed ploidy), and `fixable_error`/`unfixable_error` (0L/1L) integer columns. Uses `on_issues` (`"fix"` / `"warn"` / `"stop"`). Default `"fix"` auto-applies `preprocess_karyo()` to dirty rows and truncates chimeric rows to the first clone before `//`, printing a summary of what was fixed. `"warn"` returns NA for all issue rows. `"stop"` errors immediately. Structural errors (no chromosome count, unbalanced brackets, `Updated ISCN`, `zero_host_chimera`) are always NA regardless.
+- **`check_karyo(x, verbose = FALSE)`** — Unified pre-parse check. Returns wide tibble: one row per input, one 0L/1L column per issue type (fixed schema from `.all_issue_types`), plus `fixable` and `unfixable` summary columns. `verbose=TRUE` prints a console summary and returns invisibly. Called automatically by `parse_karyo()` (via internal `collect_issues()`).
 - **`rules_table()`** — Regex rules defining which aberrations to detect. Priority system (100 > 95 > 90 > 85 > 60-80) resolves overlapping matches.
-- **`preprocess_karyo()`** — Dirty-data cleaning: strips trailing narrative text, HTML entities, leading `.//` prefix, leading dot-digit. Run before `parse_karyo()`.
+- **`preprocess_karyo()`** — Dirty-data cleaning: strips trailing narrative text, HTML entities, leading dot-digit, FISH suffixes, etc. Run before `parse_karyo()`. Does NOT modify `zero_host_chimera` strings (`.//` prefix) — those are flagged as unfixable NAs.
 
 ### Internal pipeline helpers (in `R/parse_karyo.R`, unexported)
 
@@ -90,13 +90,17 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 
 - `strip_bands()`, `normalize_token()` (in `R/helpers.R`)
 - `flag_unpreprocessed()`, `apply_preprocess_to_rows()`, `normalize_iscn()` (in `R/preprocess.R`)
-- `validate_karyotypes()`, `print_issue_report()` (in `R/validate.R`)
+- `validate_karyotypes()`, `collect_issues()` (in `R/validate.R`)
 - `ploidy_from_count()`, `ploidy_category()`, `extract_clone_data()` (in `R/ploidy.R`)
 
 ### Key design details
 
 - **`.pk_row_id`**: Internal row-tracking column, deliberately named to avoid collision with user data columns like `sample_id`. Dropped before output.
 - **`.sex_complements`**: Package-level constant listing valid sex chromosome complements. Used in both validation and parsing.
+- **`.dirty_patterns`**: Named list of pre-normalization issue patterns in `R/preprocess.R`. Each entry has `detect`, `use_trimmed`, `fix` (empty list = detectable but not fixable), and `detail`. Entries: `html_entities`, `leading_dot`, `fish_notation`, `trailing_narrative`, `midstring_linewrap`, `missing_sex_comma`, `mar_space`, `zero_host_chimera`.
+- **`.fixable_issue_types`**: Constant in `R/preprocess.R`. Dirty pattern names with non-empty `fix` lists + `"chimeric_separator"`.
+- **`.all_issue_types`**: Constant in `R/preprocess.R`. Fixed schema for `check_karyo()` columns — all detectable issue types in display order.
+- **`collect_issues()`**: Private function in `R/validate.R`. Returns long-format issues tibble (one row per issue). Used internally by `parse_karyo()` pipeline; `check_karyo()` pivots this to wide format.
 - **Priority-based rule matching**: A logical matrix (tokens × rules) is built with one `str_detect` call per rule. For each token, the highest-priority matching rule is selected via `which.max`. Ties across tokens sharing the same `aberr_norm` within a clone are resolved by `slice_head` after sorting by priority desc.
 - **Idem expansion**: For `comma_count_aberrations`, clones with "idem" inherit the stemline's (clone 1) aberration count. Both "idem" and "sl" are excluded from unique aberration counts used for `complex_karyotype`.
 - **Monosomal karyotype**: Requires ≥2 autosomal monosomies OR ≥1 autosomal monosomy + ≥1 structural aberration where `counts_for_monosomal=TRUE`. Sex chromosome monosomies and `marker_chromosome` don't qualify.
@@ -108,7 +112,7 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 
 ```
 Input → raw_vec extraction →
-  [Guard: check_karyo()] →
+  [Guard: collect_issues()] →
     If "fix": apply_preprocess_to_rows() on dirty rows → re-check → update raw_vec →
     If "fix": strip "//…" from chimeric rows → re-check → update raw_vec →
     Remaining issues: "stop"→error | else→message →
@@ -117,7 +121,7 @@ Input → raw_vec extraction →
     build_sample_meta → build_clone_tokens →
     match_rules / compute_aneuploidy / compute_comma_counts / compute_unique_counts →
     Assembly (monosomal/complex inline) →
-  [Join back if deduped] → Recombine issue rows → Attach issues list-column → Output
+  [Join back if deduped] → Recombine issue rows → Attach fixable_error/unfixable_error → Output
 ```
 
 ### Adding new aberration rules
@@ -126,14 +130,14 @@ Add rows to `rules_table()` in `R/rules.R`: `flag_name` (output column), `regex`
 
 ## Testing
 
-360 assertions (sections 1–25) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification, monosomy/trisomy detection, complex/monosomal flags, preprocessing, idem expansion, `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `issues` list-column, ID column detection, deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, `apply_preprocess_to_rows()`, trailing narrative (3-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, and edge cases.
+383 assertions (sections 1–25) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification, monosomy/trisomy detection, complex/monosomal flags, preprocessing, idem expansion, `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `fixable_error`/`unfixable_error` columns, ID column detection, deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, `apply_preprocess_to_rows()`, trailing narrative (3-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, and edge cases.
 
 Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbose = FALSE)`.
 
 ## TODO — Next Session
 
-- **Review full test suite**: Go through all 350 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
-- **`check_karyo()` fixability summary**: Add an optional summary to `check_karyo()` output (or a companion function) that tells the user how many detected issues are auto-fixable by `preprocess_karyo()` vs. structural (unfixable). Useful for users deciding whether to run `on_issues="fix"` or inspect manually first.
+- **Revisit versioning policy**: Current pace (0.1 → 0.2 → 0.3 in quick succession) may be moving too fast. Discuss whether patch-level bumps are more appropriate for some of these changes, and whether to formalize a changelog.
+- **Review full test suite**: Go through all 383 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
 
 ## TODO - Future Discussions
 

@@ -15,15 +15,18 @@ chars), \code{issue_type}, \code{issue_detail}. Each issue generates one row;
 multiple issues on the same input row appear as separate rows.
 }
 \description{
-Detects dirty markers in karyotype strings that \code{normalize_iscn()} cannot
-fix. Called internally by \code{check_karyo()}.
+Detects pre-normalization issues in raw karyotype strings: dirty markers
+that \code{preprocess_karyo()} can fix, and structural issues that must be caught
+before \code{normalize_iscn()} destroys the signal. Called internally by
+\code{check_karyo()}.
 }
 \details{
 Detected issue types:
 \itemize{
 \item \code{html_entities}: contains \verb{&lt;}, \verb{&gt;}, or \verb{&amp;}
-\item \code{leading_dotslash}: string starts with \verb{.//} (after trimming)
 \item \code{leading_dot}: string starts with dot(s) before a digit
+\item \code{zero_host_chimera}: string starts with \verb{.//} — donor-only chimera with no
+host metaphases; has \code{fix = list()} so \code{preprocess_karyo()} skips it; always NA
 \item \code{fish_notation}: FISH/nuc ish suffix after last clone bracket
 \item \code{trailing_narrative}: bracket followed by dot (\verb{] .text}) OR
 space-dot-capital pattern (\code{ .Text}, no bracket required)

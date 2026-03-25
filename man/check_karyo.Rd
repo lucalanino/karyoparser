@@ -4,18 +4,33 @@
 \alias{check_karyo}
 \title{Check Karyotype Strings for Issues}
 \usage{
-check_karyo(x)
+check_karyo(x, verbose = FALSE)
 }
 \arguments{
 \item{x}{Character vector of karyotype strings.}
+
+\item{verbose}{Logical. If \code{TRUE}, prints a summary of issues to the console
+and returns the tibble invisibly. Default \code{FALSE}.}
 }
 \value{
-A tibble with columns: \code{row_index}, \code{karyotype} (truncated to 40
-chars), \code{issue_type}, \code{issue_detail}. Each issue generates one row;
-multiple issues on the same input row appear as separate rows.
+A tibble with \code{length(x)} rows. Columns: \code{row_index}, \code{karyotype}
+(full input string), one integer column per issue type (see
+\code{.all_issue_types}), \code{fixable}, \code{unfixable}.
 }
 \description{
-Runs both dirty-marker detection and structural validation on raw karyotype
-strings. Returns a tibble of all issues found, suitable for inspection before
-parsing with \code{parse_karyo()}.
+Checks raw karyotype strings for formatting artifacts and structural errors.
+Returns a wide-format tibble with one row per input string: each possible
+issue type is a column (\code{0}/\code{1}), plus summary \code{fixable} and \code{unfixable}
+columns.
+}
+\details{
+Fixable issues (resolvable by \code{parse_karyo()} under \code{on_issues = "fix"}):
+dirty markers (\code{html_entities}, \code{leading_dot}, \code{fish_notation},
+\code{trailing_narrative}, \code{midstring_linewrap}, \code{missing_sex_comma}, \code{mar_space})
+and \code{chimeric_separator}.
+
+Unfixable issues (always returned as NA by \code{parse_karyo()}):
+\code{zero_host_chimera}, \code{empty}, \code{no_chromosome_count}, \code{updated_iscn},
+\code{unbalanced_parentheses}, \code{unbalanced_brackets}, \code{no_sex_complement},
+\code{invalid_idem}, \code{unparseable_bracket}.
 }
