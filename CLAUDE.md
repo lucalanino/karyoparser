@@ -14,7 +14,7 @@ Scheme: `major.minor.patch` (semantic versioning). Current pre-release series: `
 |---|---|---|
 | `patch` | Bug fixes, internal refactors, test additions, doc-only changes | `0.1.0` → `0.1.1` |
 | `minor` | New exported function, new aberration rule, new parameter, behavior change | `0.1.0` → `0.2.0` |
-| `major` | Breaking API change (renamed/removed parameter or column, changed return structure) | `0.x.y` → `1.0.0` |
+| `major` | Breaking API change after 1.0.0 (renamed/removed parameter or column, changed return structure). In the `0.x` series, breaking changes may be released as minor bumps. | `0.x.y` → `1.0.0` (first production release) |
 
 No bump needed for: formatting-only commits, CI/tooling changes, README edits.
 
