@@ -136,8 +136,15 @@ Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbo
 
 ## TODO — Next Session
 
-- **Revisit versioning policy**: Current pace (0.1 → 0.2 → 0.3 in quick succession) may be moving too fast. Discuss whether patch-level bumps are more appropriate for some of these changes, and whether to formalize a changelog.
 - **Review full test suite**: Go through all 383 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
+
+## TODO — Before 1.0 Release
+
+- **API audit**: Review every exported name before cutting 1.0 — after that, renames are breaking changes. Cover:
+  - Exported function names: `parse_karyo()`, `check_karyo()`, `preprocess_karyo()`, `rules_table()`
+  - Parameters: `on_issues = c("fix","warn","stop")` — names and defaults
+  - Output columns of `parse_karyo()`: all binary aberration flags, `fixable_error`/`unfixable_error`, `original_karyotype`, `normalized_karyotype`, `ploidy`, etc.
+  - Output columns of `check_karyo()`: column order, `fixable`/`unfixable` naming
 
 ## TODO - Future Discussions
 
