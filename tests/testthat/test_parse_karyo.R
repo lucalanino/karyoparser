@@ -1364,19 +1364,27 @@ test_that("missing_sex_comma: full pipeline via on_issues=fix parses correctly",
 
 test_that("missing_sex_comma: detected and fixed for XXYY and XXXY", {
   expect_equal(
-    suppressMessages(check_karyo("48,XXYY der(5;17)(q10;q10)[10]"))$missing_sex_comma,
+    suppressMessages(check_karyo(
+      "48,XXYY der(5;17)(q10;q10)[10]"
+    ))$missing_sex_comma,
     1L
   )
   expect_equal(
-    suppressMessages(check_karyo("48,XXXY der(5;17)(q10;q10)[10]"))$missing_sex_comma,
+    suppressMessages(check_karyo(
+      "48,XXXY der(5;17)(q10;q10)[10]"
+    ))$missing_sex_comma,
     1L
   )
   expect_equal(
-    suppressMessages(preprocess_karyo("48,XXYY der(5;17)(q10;q10)[10]"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "48,XXYY der(5;17)(q10;q10)[10]"
+    ))$preprocessed,
     "48,XXYY,der(5;17)(q10;q10)[10]"
   )
   expect_equal(
-    suppressMessages(preprocess_karyo("48,XXXY der(5;17)(q10;q10)[10]"))$preprocessed,
+    suppressMessages(preprocess_karyo(
+      "48,XXXY der(5;17)(q10;q10)[10]"
+    ))$preprocessed,
     "48,XXXY,der(5;17)(q10;q10)[10]"
   )
 })
