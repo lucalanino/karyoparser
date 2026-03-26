@@ -1020,7 +1020,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.5.1")
+  expect_equal(attr(r, "karyoparser_version"), "0.5.2")
 })
 
 test_that(".return='data.frame' returns data.frame", {
