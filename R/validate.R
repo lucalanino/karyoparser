@@ -24,7 +24,7 @@
 #'     (detected after dirty fixes, before truncation).
 #' @keywords internal
 .assess_karyotypes <- function(x) {
-  DIRTY_TYPES <- names(Filter(function(p) length(p$fix) > 0, .dirty_patterns))
+  DIRTY_TYPES <- setdiff(.fixable_issue_types, "chimeric_separator")
 
   # Step 1: detect dirty-pattern issues on the raw input --------------------
   dirty_issues <- flag_unpreprocessed(x)
@@ -66,12 +66,7 @@
       issue_detail = "Contains '//' chimeric separator (independent cell populations)"
     )
   } else {
-    tibble::tibble(
-      row_index = integer(),
-      karyotype = character(),
-      issue_type = character(),
-      issue_detail = character()
-    )
+    empty_issues_tibble()
   }
 
   # Step 4: truncate chimeric → fully_fixed --------------------------------
@@ -117,12 +112,7 @@
 #' @keywords internal
 collect_issues <- function(x) {
   if (length(x) == 0) {
-    return(tibble::tibble(
-      row_index = integer(),
-      karyotype = character(),
-      issue_type = character(),
-      issue_detail = character()
-    ))
+    return(empty_issues_tibble())
   }
   dirty_issues <- flag_unpreprocessed(x)
   normalized <- normalize_iscn(x)
@@ -385,12 +375,7 @@ validate_karyotypes <- function(karyotypes) {
   }
 
   if (n_issues == 0L) {
-    return(tibble::tibble(
-      row_index = integer(),
-      karyotype = character(),
-      issue_type = character(),
-      issue_detail = character()
-    ))
+    return(empty_issues_tibble())
   }
   dplyr::bind_rows(issue_list[seq_len(n_issues)])
 }

@@ -1,3 +1,10 @@
+# Sex complement alternation derived from the canonical constant, longest variants
+# first so the regex engine doesn't match a shorter prefix before a longer one.
+.sex_alt <- paste(
+  .sex_complements[order(-nchar(.sex_complements))],
+  collapse = "|"
+)
+
 # Single source of truth for all pre-normalization issue patterns.
 # Both preprocess_karyo() and flag_unpreprocessed() loop over this list.
 # Each entry:
@@ -71,11 +78,11 @@
     detail = "Mid-string line-wrap artifact (e.g. ', .der(...)' or ', .+8')"
   ),
   missing_sex_comma = list(
-    detect = ",(XXXXY|XXXX|XXXY|XXYY|XXX|XXY|XYY|XY|XX|X|Y)\\s+(?=[a-z(+])",
+    detect = paste0(",(", .sex_alt, ")\\s+(?=[a-z(+])"),
     use_trimmed = FALSE,
     fix = list(
       list(
-        pattern = "(,(XXXXY|XXXX|XXXY|XXYY|XXX|XXY|XYY|XY|XX|X|Y))\\s+(?=[a-z(+])",
+        pattern = paste0("(,(", .sex_alt, "))\\s+(?=[a-z(+])"),
         replacement = "\\1,"
       )
     ),
@@ -263,12 +270,7 @@ flag_unpreprocessed <- function(x) {
   }
 
   if (n_issues == 0L) {
-    return(tibble::tibble(
-      row_index = integer(),
-      karyotype = character(),
-      issue_type = character(),
-      issue_detail = character()
-    ))
+    return(empty_issues_tibble())
   }
   dplyr::bind_rows(issue_list[seq_len(n_issues)])
 }

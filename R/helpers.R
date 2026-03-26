@@ -2,6 +2,15 @@ truncate_str <- function(s, max_len = 40) {
   ifelse(nchar(s) > max_len, paste0(substr(s, 1, max_len - 3), "..."), s)
 }
 
+empty_issues_tibble <- function() {
+  tibble::tibble(
+    row_index = integer(),
+    karyotype = character(),
+    issue_type = character(),
+    issue_detail = character()
+  )
+}
+
 strip_bands <- function(band_str) {
   stringr::str_replace_all(band_str, "([pq]\\d+)\\.\\d+", "\\1")
 }
