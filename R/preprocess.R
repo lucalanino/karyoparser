@@ -44,7 +44,7 @@
     detail = "FISH / nuc ish suffix after last clone bracket (e.g. '[12] .nuc ish(PDGFRA x3)[20/200]')"
   ),
   trailing_narrative = list(
-    detect = c("\\]\\s*\\.", "\\s+\\.\\s*[A-Z]"),
+    detect = c("\\]\\s*\\.", "\\s+\\.\\s*[A-Z]", "\\)\\s+[A-Z][a-z]"),
     use_trimmed = FALSE,
     fix = list(
       # Rule 1: strip everything after the last metaphase-count bracket.
@@ -58,24 +58,31 @@
         pattern = "\\]\\s*\\./",
         replacement = "]/"
       ),
-      # Rule 3: fallback for strings with no metaphase bracket (e.g. "46,XX .note").
+      # Rule 3: strip narrative after last ')' when no metaphase bracket present
+      # (e.g. "46,XX,t(9;22)(q34;q11.2) Abnormal female karyotype").
+      # Requires Capital+lowercase to avoid false positives on ISCN tokens.
+      list(
+        pattern = "^(.*\\))\\s+[A-Z][a-z].*$",
+        replacement = "\\1"
+      ),
+      # Rule 4: fallback for strings with no metaphase bracket or parens.
       list(
         pattern = "\\s+\\.\\s*[A-Z].*$",
         replacement = ""
       )
     ),
-    detail = "Trailing narrative text after last metaphase-count bracket"
+    detail = "Trailing narrative text after last metaphase-count bracket or closing parenthesis"
   ),
   midstring_linewrap = list(
     detect = ",\\s+\\.[a-z(+]",
     use_trimmed = FALSE,
     fix = list(
       list(
-        pattern = ",\\s+\\.(?=[a-z(+])",
+        pattern = ",\\s+\\.?(?=[a-z(+])",
         replacement = ","
       )
     ),
-    detail = "Mid-string line-wrap artifact (e.g. ', .der(...)' or ', .+8')"
+    detail = "Mid-string line-wrap artifact (e.g. ', .der(...)' or bare ', +8' without dot)"
   ),
   missing_sex_comma = list(
     detect = paste0(",(", .sex_alt, ")\\s+(?=[a-z(+])"),
@@ -141,8 +148,8 @@
 #' 2. Decode HTML entities (`&lt;` → `<`, `&gt;` → `>`, `&amp;` → `&`)
 #' 3. Strip leading dot(s) before a digit (e.g. `.46,XX` → `46,XX`)
 #' 4. Strip FISH/nuc ish suffix after last clone bracket (e.g. `[12] .nuc ish(...)`)
-#' 5. Strip trailing narrative: `] .text` → `]`; space-dot-capital mid-string
-#' 6. Collapse mid-string line-wrap artifacts (`, .der(...)` → `,der(...)`; `, .+8` → `,+8`)
+#' 5. Strip trailing narrative: `] .text` → `]`; `) Capital text` → `)`; space-dot-capital mid-string
+#' 6. Collapse mid-string line-wrap artifacts (`, .der(...)` → `,der(...)`; `, +8` → `,+8`)
 #' 7. Insert missing comma after sex chromosome complement (`46,XX der(...)` → `46,XX,der(...)`)
 #' 8. Remove space between count and `mar` token (`+1~4 mar` → `+1~4mar`)
 #' 9. Trim again
@@ -306,6 +313,7 @@ normalize_iscn <- function(x) {
   x <- stringr::str_replace_all(x, "\\s*;\\s*", ";")
   x <- stringr::str_replace_all(x, "\\s*\\)\\s*", ")")
   x <- stringr::str_replace_all(x, "\\s*\\(\\s*", "(")
+  x <- stringr::str_replace_all(x, "\\s+\\[", "[")
   # normalizations
   x <- stringr::str_replace_all(x, "(?i)\\bpsu\\s*dic\\b", "psu dic")
   x <- stringr::str_replace_all(x, "\\s*\\bcp\\s*\\[(\\d+)\\]", "[cp\\1]")

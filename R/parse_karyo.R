@@ -418,7 +418,11 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   - complex_karyotype: 1 if >=3 unique aberrations, else 0
 #'   - monosomal_karyotype: 1 if meets monosomal criteria, else 0
 #'   - mixed_ploidy: 1 if clones have different ploidy categories, else 0
-#'   - issues: List-column; NULL for clean rows, tibble of issues for problem rows
+#'   - fixable_error: 1 if row had fixable issues that were not auto-fixed, else 0
+#'   - unfixable_error: 1 if row had unfixable structural issues (row is NA), else 0
+#'   - chimeric_karyotype: 1 if row contained a `//` chimeric separator (regular
+#'     chimeric rows are truncated to the host clone; `zero_host_chimera` rows
+#'     are also flagged here and returned as NA via `unfixable_error`)
 #'
 #' @examples
 #' # Basic usage with character vector
@@ -485,7 +489,8 @@ parse_karyo <- function(
     "monosomal_karyotype",
     "mixed_ploidy",
     "fixable_error",
-    "unfixable_error"
+    "unfixable_error",
+    "chimeric_karyotype"
   )
 
   empty_result <- function() {
@@ -545,6 +550,7 @@ parse_karyo <- function(
       issue_row_indices <- integer(0)
       fixable_row_indices <- integer(0)
       unfixable_row_indices <- integer(0)
+      chimeric_all_indices <- integer(0)
     } else if (on_issues == "fix") {
       assessment <- .assess_karyotypes(raw_vec)
       raw_vec <- assessment$processed
@@ -553,8 +559,19 @@ parse_karyo <- function(
       fixable_row_indices <- integer(0)
       unfixable_row_indices <- assessment$unfixable_row_indices
       issue_row_indices <- unfixable_row_indices
+      zhc_indices <- unique(assessment$reported_issues$row_index[
+        assessment$reported_issues$issue_type == "zero_host_chimera"
+      ])
+      chimeric_all_indices <- unique(c(
+        assessment$chimeric_row_indices,
+        zhc_indices
+      ))
 
       if (isTRUE(verbose)) {
+        n_chimeric_parsed <- length(setdiff(
+          assessment$chimeric_row_indices,
+          assessment$unfixable_row_indices
+        ))
         n_fixed <- length(setdiff(
           union(assessment$dirty_row_indices, assessment$chimeric_row_indices),
           assessment$unfixable_row_indices
@@ -576,6 +593,12 @@ parse_karyo <- function(
             n_total_vec,
             paste(parts, collapse = ", ")
           ))
+          if (n_chimeric_parsed > 0) {
+            message(sprintf(
+              "  Chimeric: %d \u2014 host clone extracted, donor discarded.",
+              n_chimeric_parsed
+            ))
+          }
         }
       }
     } else {
@@ -588,6 +611,9 @@ parse_karyo <- function(
       unfixable_row_indices <- unique(
         raw_issues$row_index[!raw_issues$issue_type %in% .fixable_issue_types]
       )
+      chimeric_all_indices <- unique(raw_issues$row_index[
+        raw_issues$issue_type %in% c("chimeric_separator", "zero_host_chimera")
+      ])
 
       if (isTRUE(verbose)) {
         n_final_issues <- length(issue_row_indices)
@@ -606,6 +632,7 @@ parse_karyo <- function(
     issue_row_indices <- integer(0)
     fixable_row_indices <- integer(0)
     unfixable_row_indices <- integer(0)
+    chimeric_all_indices <- integer(0)
   }
 
   # Ingest --------------------------------------------------------------------
@@ -712,6 +739,9 @@ parse_karyo <- function(
       out$fixable_error <- as.integer(out$.pk_row_id %in% fixable_row_indices)
       out$unfixable_error <- as.integer(
         out$.pk_row_id %in% unfixable_row_indices
+      )
+      out$chimeric_karyotype <- as.integer(
+        out$.pk_row_id %in% chimeric_all_indices
       )
       if (!is.null(id_values)) {
         out[[id_col_name]] <- id_values[out$.pk_row_id]
@@ -928,6 +958,7 @@ parse_karyo <- function(
   # Error flag columns ---------------------------------------------------------
   out$fixable_error <- as.integer(out$.pk_row_id %in% fixable_row_indices)
   out$unfixable_error <- as.integer(out$.pk_row_id %in% unfixable_row_indices)
+  out$chimeric_karyotype <- as.integer(out$.pk_row_id %in% chimeric_all_indices)
 
   # Attach ID column if available ---------------------------------------------
   if (!is.null(id_values)) {

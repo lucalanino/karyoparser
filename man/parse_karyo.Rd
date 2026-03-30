@@ -77,7 +77,11 @@ A tibble or data.frame with columns:
 \item complex_karyotype: 1 if >=3 unique aberrations, else 0
 \item monosomal_karyotype: 1 if meets monosomal criteria, else 0
 \item mixed_ploidy: 1 if clones have different ploidy categories, else 0
-\item issues: List-column; NULL for clean rows, tibble of issues for problem rows
+\item fixable_error: 1 if row had fixable issues that were not auto-fixed, else 0
+\item unfixable_error: 1 if row had unfixable structural issues (row is NA), else 0
+\item chimeric_karyotype: 1 if row contained a \verb{//} chimeric separator (regular
+chimeric rows are truncated to the host clone; \code{zero_host_chimera} rows
+are also flagged here and returned as NA via \code{unfixable_error})
 }
 }
 \description{

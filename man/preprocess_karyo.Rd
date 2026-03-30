@@ -27,8 +27,8 @@ Rules applied in order:
 \item Decode HTML entities (\verb{&lt;} → \code{<}, \verb{&gt;} → \code{>}, \verb{&amp;} → \code{&})
 \item Strip leading dot(s) before a digit (e.g. \verb{.46,XX} → \verb{46,XX})
 \item Strip FISH/nuc ish suffix after last clone bracket (e.g. \verb{[12] .nuc ish(...)})
-\item Strip trailing narrative: \verb{] .text} → \verb{]}; space-dot-capital mid-string
-\item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} → \verb{,der(...)}; \verb{, .+8} → \verb{,+8})
+\item Strip trailing narrative: \verb{] .text} → \verb{]}; \verb{) Capital text} → \verb{)}; space-dot-capital mid-string
+\item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} → \verb{,der(...)}; \verb{, +8} → \verb{,+8})
 \item Insert missing comma after sex chromosome complement (\verb{46,XX der(...)} → \verb{46,XX,der(...)})
 \item Remove space between count and \code{mar} token (\verb{+1~4 mar} → \verb{+1~4mar})
 \item Trim again

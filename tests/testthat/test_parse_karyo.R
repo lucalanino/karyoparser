@@ -1020,7 +1020,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.5.2")
+  expect_equal(attr(r, "karyoparser_version"), "0.6.0")
 })
 
 test_that(".return='data.frame' returns data.frame", {
@@ -1780,4 +1780,145 @@ test_that("midstring_linewrap: not triggered by trailing narrative with uppercas
     suppressMessages(preprocess_karyo("46,XX[20] .Abnormal note"))$preprocessed,
     "46,XX[20]"
   )
+})
+
+# =============================================================================
+# 26. B2/B4/B5/chimeric_karyotype (v0.6.0)
+# =============================================================================
+
+# 26a. B2: fix handles both dot and non-dot linewrap variants -----------------
+# Note: detect still requires a dot (to avoid false positives on "46 , XX , +8").
+# The fix runs unconditionally so bare-space wraps are still cleaned.
+
+test_that("midstring_linewrap: dot variant still detected", {
+  result <- suppressMessages(check_karyo(
+    "46,XY,del(5)(q13), .t(9;22)(q34;q11.2)[10]/46,XY[5]"
+  ))
+  expect_equal(result$midstring_linewrap, 1L)
+})
+
+test_that("preprocess_karyo: collapses ', .t()' (dot present) mid-string artifact", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XY,del(5)(q13), .t(9;22)(q34;q11.2)[10]/46,XY[5]"
+    ))$preprocessed,
+    "46,XY,del(5)(q13),t(9;22)(q34;q11.2)[10]/46,XY[5]"
+  )
+})
+
+test_that("normalize_iscn: bare ', t()' space (no dot) cleaned at normalization stage", {
+  # Not detected as midstring_linewrap (no dot), but normalize_iscn tidies spaces
+  result <- suppressMessages(
+    parse_karyo(
+      "46,XY,del(5)(q13), t(9;22)(q34;q11.2)[10]/46,XY[5]",
+      on_issues = "warn",
+      verbose = FALSE
+    )
+  )
+  expect_equal(
+    result$normalized_karyotype,
+    "46,XY,del(5)(q13),t(9;22)(q34;q11.2)[10]/46,XY[5]"
+  )
+})
+
+# 26b. B4: trailing narrative without metaphase bracket -----------------------
+
+test_that("trailing_narrative: detected when narrative follows last paren (no bracket)", {
+  result <- suppressMessages(check_karyo(
+    "46,XX,t(9;22)(q34;q11.2) Abnormal female karyotype"
+  ))
+  expect_equal(result$trailing_narrative, 1L)
+})
+
+test_that("preprocess_karyo: strips narrative after last ')' when no bracket present", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XX,t(9;22)(q34;q11.2) Abnormal female karyotype"
+    ))$preprocessed,
+    "46,XX,t(9;22)(q34;q11.2)"
+  )
+})
+
+test_that("preprocess_karyo: trailing narrative rule 3 does not fire when bracket present", {
+  # Rule 1 handles this; rule 3 must not double-strip
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XX,t(9;22)(q34;q11.2)[20] Abnormal female karyotype"
+    ))$preprocessed,
+    "46,XX,t(9;22)(q34;q11.2)[20]"
+  )
+})
+
+# 26c. B5: space before '[' normalized ----------------------------------------
+
+test_that("normalize_iscn: collapses space before opening bracket", {
+  result <- suppressMessages(pk("46,XX [20]"))
+  expect_equal(result$normal_karyotype, 1L)
+})
+
+test_that("preprocess_karyo: space before '[' cleaned via normalize path in parse_karyo", {
+  result <- suppressMessages(
+    parse_karyo("46,XX [20]", on_issues = "warn", verbose = FALSE)
+  )
+  expect_equal(result$normalized_karyotype, "46,XX[20]")
+})
+
+# 26d. chimeric_karyotype column -----------------------------------------------
+
+test_that("parse_karyo: chimeric_karyotype column exists in output", {
+  result <- suppressMessages(pk("46,XX"))
+  expect_true("chimeric_karyotype" %in% names(result))
+})
+
+test_that("parse_karyo: clean row has chimeric_karyotype=0", {
+  result <- suppressMessages(pk("46,XX"))
+  expect_equal(result$chimeric_karyotype, 0L)
+})
+
+test_that("parse_karyo on_issues='fix': chimeric row has chimeric_karyotype=1", {
+  result <- suppressMessages(
+    parse_karyo(
+      "46,XX,t(9;22)(q34;q11.2)[3]//46,XY[12]",
+      on_issues = "fix",
+      verbose = FALSE
+    )
+  )
+  expect_equal(result$chimeric_karyotype, 1L)
+})
+
+test_that("parse_karyo on_issues='warn': chimeric row has chimeric_karyotype=1", {
+  result <- suppressMessages(
+    parse_karyo(
+      "46,XX,t(9;22)(q34;q11.2)[3]//46,XY[12]",
+      on_issues = "warn",
+      verbose = FALSE
+    )
+  )
+  expect_equal(result$chimeric_karyotype, 1L)
+})
+
+test_that("parse_karyo: zero_host_chimera row has chimeric_karyotype=1", {
+  result <- suppressMessages(
+    parse_karyo(".//46,XX[20]", on_issues = "fix", verbose = FALSE)
+  )
+  expect_equal(result$chimeric_karyotype, 1L)
+})
+
+test_that("parse_karyo: zero_host_chimera has both unfixable_error=1 and chimeric_karyotype=1", {
+  result <- suppressMessages(
+    parse_karyo(".//46,XX[20]", on_issues = "fix", verbose = FALSE)
+  )
+  expect_equal(result$unfixable_error, 1L)
+  expect_equal(result$chimeric_karyotype, 1L)
+})
+
+test_that("parse_karyo: non-chimeric row in chimeric batch has chimeric_karyotype=0", {
+  result <- suppressMessages(
+    parse_karyo(
+      c("46,XX,t(9;22)(q34;q11.2)[3]//46,XY[12]", "46,XY"),
+      on_issues = "fix",
+      verbose = FALSE
+    )
+  )
+  expect_equal(result$chimeric_karyotype, c(1L, 0L))
 })
