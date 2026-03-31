@@ -4,3 +4,6 @@
 ^\.claude$
 ^[.]?air[.]toml$
 ^dev-data$
+
+^\.githooks$
+^\.github$
