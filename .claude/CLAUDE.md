@@ -153,20 +153,13 @@ Add rows to `rules_table()` in `R/rules.R`: `flag_name` (output column), `regex`
 
 ## Testing
 
-407 assertions (sections 1–25) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification, monosomy/trisomy detection, complex/monosomal flags, preprocessing, idem expansion, `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `fixable_error`/`unfixable_error` columns, ID column detection, deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, trailing narrative (3-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, and edge cases.
+428 assertions (sections 1–26) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification, monosomy/trisomy detection, complex/monosomal flags, preprocessing, idem expansion, `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `fixable_error`/`unfixable_error` columns, ID column detection, deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, trailing narrative (4-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, unicode_notation, embedded_newline, normalize_iscn (via preprocess path), and edge cases.
 
 Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbose = FALSE)`.
 
 ## TODO — Next Session
 
-- **Apply dev-data fixes**: Implement the changes identified from the dev-data smoke test (see session 2026-03-31):
-  1. Move `normalize_iscn()` into `preprocess_karyo()` (end of fix loop); remove from `parse_karyo()`
-  2. Add `unicode_notation` dirty pattern: detect NBSP/em-dash/fullwidth chars; fix by replacing
-  3. Add `embedded_newline` dirty pattern: detect `\n|\r|\t`; fix by collapsing (`,\n` → `,`, `\n` → ` `)
-  4. Extend `zero_host_chimera` detect from `^[.]+//` to `^[.]*//` (covers `//` with no leading dot)
-  5. Fix `fish_notation` to catch `[n].ish` (no space between bracket and `.ish`)
-  6. Add `\s*\[` tightening to `normalize_iscn()`
-- **Review full test suite**: Go through all 407 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
+- **Review full test suite**: Go through all 428 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
 
 ## TODO — Before 1.0 Release
 
