@@ -14,6 +14,27 @@
 #               - empty list means the issue is detected but NOT fixable by preprocess_karyo()
 #   detail      - human-readable description used in issue reports
 .dirty_patterns <- list(
+  unicode_notation = list(
+    detect = "[\u00A0\u2007\u202F\u2212\u2012\u2013\u2014\uFE63\uFF0D\uFF0B]",
+    use_trimmed = FALSE,
+    fix = list(
+      list(pattern = "[\u00A0\u2007\u202F]", replacement = " "),
+      list(
+        pattern = "[\u2212\u2012\u2013\u2014\uFE63\uFF0D]",
+        replacement = "-"
+      ),
+      list(pattern = "\uFF0B", replacement = "+")
+    ),
+    detail = "Contains unicode spaces (NBSP), dashes (em/en-dash), or fullwidth characters"
+  ),
+  embedded_newline = list(
+    detect = "[\n\r\t]",
+    use_trimmed = FALSE,
+    fix = list(
+      list(pattern = "[\n\r\t]+", replacement = " ")
+    ),
+    detail = "Contains embedded newline or tab characters"
+  ),
   html_entities = list(
     detect = "&lt;|&gt;|&amp;",
     use_trimmed = FALSE,
@@ -33,15 +54,15 @@
     detail = "String starts with dot(s) before chromosome count"
   ),
   fish_notation = list(
-    detect = "\\][ .]+(?:nuc )?ish\\b",
+    detect = "\\][. ]+(?:nuc )?ish\\b",
     use_trimmed = FALSE,
     fix = list(
       list(
-        pattern = "\\s+\\.?(?:nuc )?ish\\b.*$",
+        pattern = "[. ]+(?:nuc )?ish\\b.*$",
         replacement = ""
       )
     ),
-    detail = "FISH / nuc ish suffix after last clone bracket (e.g. '[12] .nuc ish(PDGFRA x3)[20/200]')"
+    detail = "FISH / nuc ish suffix after last clone bracket (e.g. '[12] .nuc ish(PDGFRA x3)[20/200]' or '[1].ish t(...)')"
   ),
   trailing_narrative = list(
     detect = c("\\]\\s*\\.", "\\s+\\.\\s*[A-Z]", "\\)\\s+[A-Z][a-z]"),
@@ -106,13 +127,14 @@
     ),
     detail = "Space between count and 'mar' token (e.g. '+1~4 mar' should be '+1~4mar')"
   ),
-  # Detected here rather than validate_karyotypes() because normalize_iscn() strips
-  # leading punctuation and would destroy the signal before structural checks run.
+  # Detected in flag_unpreprocessed() on the RAW string, before any fixes or
+  # normalize_iscn() runs. normalize_iscn() strips leading punctuation
+  # (^[,;/.]+) which would destroy the signal.
   zero_host_chimera = list(
-    detect = "^[.]+//",
+    detect = "^[.]*//",
     use_trimmed = TRUE,
     fix = list(),
-    detail = "String starts with './/': donor-only chimera with no host metaphases"
+    detail = "String starts with './/'' or '//': donor-only chimera with no host metaphases"
   )
 )
 
@@ -137,31 +159,35 @@
   "unparseable_bracket"
 )
 
-#' Clean Dirty ISCN Karyotype Strings
+#' Clean and Normalize ISCN Karyotype Strings
 #'
-#' Strips clinical free text, database artifacts, and HTML entities from raw
-#' karyotype strings before parsing. Runs BEFORE `normalize_iscn()`, which
-#' handles unicode/notation normalization inside `parse_karyo()`.
+#' The complete cleaning and normalization pipeline. Fixes dirty markers then
+#' runs `normalize_iscn()` as a final pass. Output is fully normalized and
+#' parser-ready. This is the only place in the workflow where cleaning or
+#' normalization occurs — `parse_karyo()` does none.
 #'
 #' Rules applied in order:
-#' 1. Trim leading/trailing whitespace and collapse newlines/tabs
-#' 2. Decode HTML entities (`&lt;` → `<`, `&gt;` → `>`, `&amp;` → `&`)
-#' 3. Strip leading dot(s) before a digit (e.g. `.46,XX` → `46,XX`)
-#' 4. Strip FISH/nuc ish suffix after last clone bracket (e.g. `[12] .nuc ish(...)`)
-#' 5. Strip trailing narrative: `] .text` → `]`; `) Capital text` → `)`; space-dot-capital mid-string
-#' 6. Collapse mid-string line-wrap artifacts (`, .der(...)` → `,der(...)`; `, +8` → `,+8`)
-#' 7. Insert missing comma after sex chromosome complement (`46,XX der(...)` → `46,XX,der(...)`)
-#' 8. Remove space between count and `mar` token (`+1~4 mar` → `+1~4mar`)
-#' 9. Trim again
+#' 1. Trim leading/trailing whitespace
+#' 2. Replace unicode spaces (NBSP), dashes (em/en-dash), fullwidth characters
+#' 3. Collapse embedded newlines/tabs to spaces
+#' 4. Decode HTML entities (`&lt;` → `<`, `&gt;` → `>`, `&amp;` → `&`)
+#' 5. Strip leading dot(s) before a digit (e.g. `.46,XX` → `46,XX`)
+#' 6. Strip FISH/nuc ish suffix after last clone bracket
+#' 7. Strip trailing narrative: `] .text` → `]`; `) Capital text` → `)`
+#' 8. Collapse mid-string line-wrap artifacts (`, .der(...)` → `,der(...)`)
+#' 9. Insert missing comma after sex chromosome complement
+#' 10. Remove space between count and `mar` token (`+1~4 mar` → `+1~4mar`)
+#' 11. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+#'     idem/sl/cp normalization
 #'
-#' Note: `zero_host_chimera` strings (`.//` prefix) are detected but not modified —
-#' their `fix` list is empty, so the loop skips them.
+#' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are detected but
+#' not modified — their `fix` list is empty, so the loop skips them. Always NA.
 #'
 #' @param x Character vector of raw karyotype strings. Data frames are not
 #'   accepted; extract the column first (e.g. `preprocess_karyo(df$karyotype)`).
 #' @return A tibble with columns `original` (raw input), `preprocessed`
-#'   (cleaned string, or original when status is not `"fixed"`), and `status`
-#'   (`"clean"` / `"fixed"` / `"unfixable"`).
+#'   (fully normalized string, or original when status is not `"fixed"`), and
+#'   `status` (`"clean"` / `"fixed"` / `"unfixable"`).
 #' @export
 preprocess_karyo <- function(x) {
   if (is.data.frame(x)) {
@@ -233,10 +259,11 @@ preprocess_karyo <- function(x) {
 #' `check_karyo()`.
 #'
 #' Detected issue types:
+#' - `unicode_notation`: unicode spaces (NBSP), dashes (em/en-dash), or
+#'   fullwidth characters
+#' - `embedded_newline`: embedded `\n`, `\r`, or `\t` characters
 #' - `html_entities`: contains `&lt;`, `&gt;`, or `&amp;`
 #' - `leading_dot`: string starts with dot(s) before a digit
-#' - `zero_host_chimera`: string starts with `.//` — donor-only chimera with no
-#'   host metaphases; has `fix = list()` so `preprocess_karyo()` skips it; always NA
 #' - `fish_notation`: FISH/nuc ish suffix after last clone bracket
 #' - `trailing_narrative`: bracket followed by dot (`] .text`) OR
 #'   space-dot-capital pattern (` .Text`, no bracket required)
@@ -244,6 +271,8 @@ preprocess_karyo <- function(x) {
 #' - `missing_sex_comma`: sex complement followed by space instead of comma
 #'   (e.g. `46,XX der(...)` → `46,XX,der(...)`)
 #' - `mar_space`: space between count and `mar` token (e.g. `+1~4 mar`)
+#' - `zero_host_chimera`: string starts with `.//` or `//` — donor-only chimera
+#'   with no host metaphases; has `fix = list()` so always unfixable/NA
 #'
 #' @param x Character vector of karyotype strings.
 #' @return A tibble with columns: `row_index`, `karyotype` (truncated to 40
@@ -282,13 +311,15 @@ flag_unpreprocessed <- function(x) {
   dplyr::bind_rows(issue_list[seq_len(n_issues)])
 }
 
-#' Preprocess ISCN Karyotype Strings
+#' Normalize ISCN Notation
 #'
-#' Normalizes unicode characters, whitespace, delimiters, and notation
-#' variants (idem, sl, psu dic) in ISCN karyotype strings. Runs automatically
-#' inside `parse_karyo()`.
+#' Final normalization pass: collapses whitespace, tightens delimiters,
+#' normalizes notation variants (idem, sl, cp, psu dic, range notation).
+#' Called at the end of `preprocess_karyo()` and internally by
+#' `.assess_karyotypes()` for structural validation checks.
+#' Never called directly by `parse_karyo()`.
 #'
-#' @param x Character vector of raw karyotype strings.
+#' @param x Character vector of karyotype strings.
 #' @return Character vector of normalized karyotype strings.
 #' @keywords internal
 normalize_iscn <- function(x) {

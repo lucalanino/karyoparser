@@ -614,40 +614,54 @@ test_that("marker_chromosome does NOT count for monosomal", {
 # 11. Preprocessing
 # =============================================================================
 
-test_that("unicode normalization: NBSPs and dashes", {
-  expect_equal(
-    suppressMessages(preprocess_karyo("46,\u00A0XX"))$preprocessed,
-    "46,\u00A0XX"
-  ) # preprocess_karyo doesn't handle NBSPs
-  # normalize_iscn is internal now, test through parse_karyo
-  r <- pk("46,\u00A0XX")
-  expect_equal(r$original_karyotype, "46,\u00A0XX")
-  expect_equal(r$normalized_karyotype, "46,XX")
+test_that("unicode normalization: NBSPs detected and fixed by preprocess_karyo", {
+  result <- suppressMessages(preprocess_karyo("46,\u00A0XX"))
+  expect_equal(result$preprocessed, "46,XX")
+  expect_equal(result$status, "fixed")
+  # on_issues="warn": unicode_notation is a flagged issue — row returns NA
+  r_warn <- pk("46,\u00A0XX")
+  expect_true(is.na(r_warn$normal_karyotype))
+  # on_issues="fix": preprocessed through .assess_karyotypes — parses correctly
+  r_fix <- parse_karyo("46,\u00A0XX", on_issues = "fix", verbose = FALSE)
+  expect_equal(r_fix$normal_karyotype, 1L)
 })
 
-test_that("whitespace and delimiter cleanup via parse_karyo", {
-  r <- pk("46 , XX , +8")
-  expect_equal(r$original_karyotype, "46 , XX , +8")
-  expect_equal(r$normalized_karyotype, "46,XX,+8")
+test_that("whitespace and delimiter cleanup: normalize_iscn runs inside preprocess_karyo", {
+  result <- suppressMessages(preprocess_karyo("46 , XX , +8"))
+  expect_equal(result$preprocessed, "46,XX,+8")
+  # on_issues="fix" parses the normalized string
+  r <- parse_karyo("46 , XX , +8", on_issues = "fix", verbose = FALSE)
+  expect_equal(r$tris8, 1L)
 })
 
-test_that("psu dic normalization via parse_karyo", {
-  r <- pk("46,XX,PSU DIC(15;22)")
+test_that("psu dic normalization: preprocess_karyo normalizes before parse", {
+  result <- suppressMessages(preprocess_karyo("46,XX,PSU DIC(15;22)"))
+  expect_equal(result$preprocessed, "46,XX,psu dic(15;22)")
+  r <- parse_karyo("46,XX,PSU DIC(15;22)", on_issues = "fix", verbose = FALSE)
   expect_equal(r$pseudodicentric, 1L)
 })
 
-test_that("idem and sl case normalization via parse_karyo", {
-  r <- pk("46,XX,del(5)(q13)[10]/46,IDEM,+8[5]")
+test_that("idem and sl case normalization via preprocess_karyo", {
+  result <- suppressMessages(preprocess_karyo("46,XX,del(5)(q13)[10]/46,IDEM,+8[5]"))
+  expect_equal(result$preprocessed, "46,XX,del(5)(q13)[10]/46,idem,+8[5]")
+  r <- parse_karyo(
+    "46,XX,del(5)(q13)[10]/46,IDEM,+8[5]",
+    on_issues = "fix", verbose = FALSE
+  )
   expect_equal(r$comma_count_aberrations, 2L)
 })
 
-test_that("duplicate commas and leading/trailing delimiters via parse_karyo", {
-  r <- pk(",46,,XX,")
+test_that("duplicate commas and leading/trailing delimiters: normalize_iscn in preprocess", {
+  result <- suppressMessages(preprocess_karyo(",46,,XX,"))
+  expect_equal(result$preprocessed, "46,XX")
+  r <- parse_karyo(",46,,XX,", on_issues = "fix", verbose = FALSE)
   expect_equal(r$normal_karyotype, 1L)
 })
 
-test_that("fullwidth plus normalized via parse_karyo", {
-  r <- pk("47,XY,\uFF0B8")
+test_that("fullwidth plus: detected as unicode_notation, fixed by preprocess_karyo", {
+  result <- suppressMessages(preprocess_karyo("47,XY,\uFF0B8"))
+  expect_equal(result$preprocessed, "47,XY,+8")
+  r <- parse_karyo("47,XY,\uFF0B8", on_issues = "fix", verbose = FALSE)
   expect_equal(r$tris8, 1L)
 })
 
@@ -1020,7 +1034,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.6.0")
+  expect_equal(attr(r, "karyoparser_version"), "0.7.0")
 })
 
 test_that(".return='data.frame' returns data.frame", {
@@ -1177,7 +1191,7 @@ test_that("preprocess_karyo: decodes HTML lt/gt entities", {
     suppressMessages(preprocess_karyo(
       "46,XX,t(9;22)(q34;q11) &lt;AML&gt;"
     ))$preprocessed,
-    "46,XX,t(9;22)(q34;q11) <AML>"
+    "46,XX,t(9;22)(q34;q11)<AML>"
   )
 })
 
@@ -1188,9 +1202,9 @@ test_that("preprocess_karyo: decodes &amp; entity", {
   )
 })
 
-test_that("preprocess_karyo: does NOT strip leading .// prefix (structural issue, not dirty artifact)", {
+test_that("preprocess_karyo: .// and // prefix are unfixable; normalize_iscn strips the prefix from output", {
   result <- suppressMessages(preprocess_karyo(c(".//46,XX", "..//46,XX")))
-  expect_equal(result$preprocessed, c(".//46,XX", "..//46,XX"))
+  expect_equal(result$preprocessed, c("46,XX", "46,XX"))
   expect_equal(result$status, c("unfixable", "unfixable"))
 })
 
@@ -1305,6 +1319,8 @@ test_that(".dirty_patterns contains all expected keys", {
   expect_setequal(
     names(karyoparser:::.dirty_patterns),
     c(
+      "unicode_notation",
+      "embedded_newline",
       "html_entities",
       "leading_dot",
       "fish_notation",
@@ -1326,10 +1342,10 @@ test_that("preprocess_karyo() output is consistent with .dirty_patterns fix rule
     suppressMessages(preprocess_karyo(".46,XY,+21[10] .Note"))$preprocessed,
     "46,XY,+21[10]"
   )
-  # .// prefix is NOT stripped by preprocess_karyo() — it is a structural issue
+  # .// prefix is unfixable; normalize_iscn strips it from the preprocessed output
   expect_equal(
     suppressMessages(preprocess_karyo(".//46,XX"))$preprocessed,
-    ".//46,XX"
+    "46,XX"
   )
 })
 
@@ -1806,17 +1822,13 @@ test_that("preprocess_karyo: collapses ', .t()' (dot present) mid-string artifac
   )
 })
 
-test_that("normalize_iscn: bare ', t()' space (no dot) cleaned at normalization stage", {
-  # Not detected as midstring_linewrap (no dot), but normalize_iscn tidies spaces
+test_that("normalize_iscn: bare ', t()' space (no dot) cleaned via preprocess_karyo", {
+  # Not detected as midstring_linewrap (no dot), but normalize_iscn in preprocess tidies it
   result <- suppressMessages(
-    parse_karyo(
-      "46,XY,del(5)(q13), t(9;22)(q34;q11.2)[10]/46,XY[5]",
-      on_issues = "warn",
-      verbose = FALSE
-    )
+    preprocess_karyo("46,XY,del(5)(q13), t(9;22)(q34;q11.2)[10]/46,XY[5]")
   )
   expect_equal(
-    result$normalized_karyotype,
+    result$preprocessed,
     "46,XY,del(5)(q13),t(9;22)(q34;q11.2)[10]/46,XY[5]"
   )
 })
@@ -1856,11 +1868,9 @@ test_that("normalize_iscn: collapses space before opening bracket", {
   expect_equal(result$normal_karyotype, 1L)
 })
 
-test_that("preprocess_karyo: space before '[' cleaned via normalize path in parse_karyo", {
-  result <- suppressMessages(
-    parse_karyo("46,XX [20]", on_issues = "warn", verbose = FALSE)
-  )
-  expect_equal(result$normalized_karyotype, "46,XX[20]")
+test_that("preprocess_karyo: space before '[' cleaned via normalize_iscn in preprocess_karyo", {
+  result <- suppressMessages(preprocess_karyo("46,XX [20]"))
+  expect_equal(result$preprocessed, "46,XX[20]")
 })
 
 # 26d. chimeric_karyotype column -----------------------------------------------

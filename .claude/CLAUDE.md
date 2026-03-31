@@ -68,6 +68,15 @@ Rscript -e 'devtools::load_all()'
 air format .
 ```
 
+## Workflow design principle
+
+The two stages of the workflow are **strictly separate** and must remain so:
+
+1. **`preprocess_karyo()`** — the one and only place where cleaning and normalization happen. This includes dirty-pattern fixes, unicode normalization, whitespace collapsing, and delimiter tightening. Output is fully normalized and parser-ready.
+2. **`parse_karyo()`** — pure parser. Trusts its input completely. Does **no** cleaning or normalization, not even unicode or whitespace. If called with `on_issues="fix"`, it routes input through `preprocess_karyo()` first (via `.assess_karyotypes()`). If called with `on_issues="warn"` or `"stop"`, it flags issues and warns/errors — it does not fix them.
+
+**Never add cleaning or normalization logic to `parse_karyo()`.** Any new normalization step belongs in `preprocess_karyo()` and, if it represents a detectable data quality issue, should be added as a named entry in `.dirty_patterns` so `check_karyo()` can flag it.
+
 ## Architecture
 
 Package source is split across multiple files in `R/`. A legacy standalone `source()`-able script is in `legacy/parse_karyo.R` (build-ignored).
@@ -87,7 +96,7 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 - **`parse_karyo()`** — Main entry point. Accepts character vector or data.frame. Returns tibble with binary aberration flags, ploidy, monosomy/trisomy columns, derived flags (complex, monosomal, mixed ploidy), and `fixable_error`/`unfixable_error` (0L/1L) integer columns. Uses `on_issues` (`"fix"` / `"warn"` / `"stop"`). Default `"fix"` auto-applies `preprocess_karyo()` to dirty rows and truncates chimeric rows to the first clone before `//`, printing a summary of what was fixed. `"warn"` returns NA for all issue rows. `"stop"` errors immediately. Structural errors (no chromosome count, unbalanced brackets, `Updated ISCN`, `zero_host_chimera`) are always NA regardless.
 - **`check_karyo(x, verbose = FALSE)`** — Unified pre-parse check. Returns wide tibble: one row per input, one 0L/1L column per issue type (fixed schema from `.all_issue_types`), plus `fixable` and `unfixable` summary columns. `verbose=TRUE` prints a console summary and returns invisibly. Internally uses `.assess_karyotypes()`.
 - **`rules_table()`** — Regex rules defining which aberrations to detect. Priority system (100 > 95 > 90 > 85 > 60-80) resolves overlapping matches.
-- **`preprocess_karyo()`** — Dirty-data cleaning: strips trailing narrative text, HTML entities, leading dot-digit, FISH suffixes, etc. Run before `parse_karyo()`. Does NOT modify `zero_host_chimera` strings (`.//` prefix) — those are flagged as unfixable NAs.
+- **`preprocess_karyo()`** — The complete cleaning and normalization pipeline. Fixes dirty markers (unicode notation, embedded newlines, HTML entities, leading dot-digit, FISH suffixes, trailing narrative, etc.) then runs `normalize_iscn()` as a final pass (whitespace, delimiters, unicode). Output is fully normalized and parser-ready. Does NOT modify `zero_host_chimera` strings (`.//` or `//` prefix) — those are flagged as unfixable NAs.
 
 ### Internal pipeline helpers (in `R/parse_karyo.R`, unexported)
 
@@ -110,7 +119,7 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 
 - **`.pk_row_id`**: Internal row-tracking column, deliberately named to avoid collision with user data columns like `sample_id`. Dropped before output.
 - **`.sex_complements`**: Package-level constant listing valid sex chromosome complements. Used in both validation and parsing.
-- **`.dirty_patterns`**: Named list of pre-normalization issue patterns in `R/preprocess.R`. Each entry has `detect`, `use_trimmed`, `fix` (empty list = detectable but not fixable), and `detail`. Entries: `html_entities`, `leading_dot`, `fish_notation`, `trailing_narrative`, `midstring_linewrap`, `missing_sex_comma`, `mar_space`, `zero_host_chimera`.
+- **`.dirty_patterns`**: Named list of pre-normalization issue patterns in `R/preprocess.R`. Each entry has `detect`, `use_trimmed`, `fix` (empty list = detectable but not fixable), and `detail`. Entries: `unicode_notation`, `embedded_newline`, `html_entities`, `leading_dot`, `fish_notation`, `trailing_narrative`, `midstring_linewrap`, `missing_sex_comma`, `mar_space`, `zero_host_chimera`. After all dirty fixes are applied, `normalize_iscn()` runs as a final normalization pass (whitespace collapsing, delimiter tightening, `\s*\[` tightening).
 - **`.fixable_issue_types`**: Constant in `R/preprocess.R`. Dirty pattern names with non-empty `fix` lists + `"chimeric_separator"`.
 - **`.all_issue_types`**: Constant in `R/preprocess.R`. Fixed schema for `check_karyo()` columns — all detectable issue types in display order.
 - **`collect_issues()`**: Private function in `R/validate.R`. Returns long-format issues tibble (one row per issue). Used internally by `parse_karyo()` pipeline; `check_karyo()` pivots this to wide format.
@@ -127,15 +136,16 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 Input → raw_vec extraction →
   [Guard]:
     "stop": collect_issues(raw_vec) → error if any
-    "fix":  .assess_karyotypes(raw_vec) → raw_vec = $processed; unfixable → NA
+    "fix":  .assess_karyotypes(raw_vec) → raw_vec = $processed (fully normalized); unfixable → NA
     "warn": collect_issues(raw_vec) → issue rows → NA (no fixing) →
-  normalize_iscn(raw_vec) →
   Filter issue rows → [Dedup] → Parse unique:
     build_sample_meta → build_clone_tokens →
     match_rules / compute_aneuploidy / compute_comma_counts / compute_unique_counts →
     Assembly (monosomal/complex inline) →
   [Join back if deduped] → Recombine issue rows → Attach fixable_error/unfixable_error → Output
 ```
+
+Note: `normalize_iscn()` is called inside `preprocess_karyo()`, not here. `parse_karyo()` does no normalization.
 
 ### Adding new aberration rules
 
@@ -149,7 +159,13 @@ Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbo
 
 ## TODO — Next Session
 
-- **Validate preprocess against dev-data**: Run `preprocess_karyo()` and `check_karyo()` on the real dataset in `dev-data/` and verify that the fixable/unfixable counts and cleaned strings match the manually-curated ground truth. This is the first real-world smoke test of the unified `.assess_karyotypes()` pipeline introduced in v0.5.0.
+- **Apply dev-data fixes**: Implement the changes identified from the dev-data smoke test (see session 2026-03-31):
+  1. Move `normalize_iscn()` into `preprocess_karyo()` (end of fix loop); remove from `parse_karyo()`
+  2. Add `unicode_notation` dirty pattern: detect NBSP/em-dash/fullwidth chars; fix by replacing
+  3. Add `embedded_newline` dirty pattern: detect `\n|\r|\t`; fix by collapsing (`,\n` → `,`, `\n` → ` `)
+  4. Extend `zero_host_chimera` detect from `^[.]+//` to `^[.]*//` (covers `//` with no leading dot)
+  5. Fix `fish_notation` to catch `[n].ish` (no space between bracket and `.ish`)
+  6. Add `\s*\[` tightening to `normalize_iscn()`
 - **Review full test suite**: Go through all 407 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
 
 ## TODO — Before 1.0 Release

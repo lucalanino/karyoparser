@@ -2,19 +2,21 @@
 % Please edit documentation in R/preprocess.R
 \name{normalize_iscn}
 \alias{normalize_iscn}
-\title{Preprocess ISCN Karyotype Strings}
+\title{Normalize ISCN Notation}
 \usage{
 normalize_iscn(x)
 }
 \arguments{
-\item{x}{Character vector of raw karyotype strings.}
+\item{x}{Character vector of karyotype strings.}
 }
 \value{
 Character vector of normalized karyotype strings.
 }
 \description{
-Normalizes unicode characters, whitespace, delimiters, and notation
-variants (idem, sl, psu dic) in ISCN karyotype strings. Runs automatically
-inside \code{parse_karyo()}.
+Final normalization pass: collapses whitespace, tightens delimiters,
+normalizes notation variants (idem, sl, cp, psu dic, range notation).
+Called at the end of \code{preprocess_karyo()} and internally by
+\code{.assess_karyotypes()} for structural validation checks.
+Never called directly by \code{parse_karyo()}.
 }
 \keyword{internal}

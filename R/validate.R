@@ -96,7 +96,7 @@
   )
 
   list(
-    processed = fully_fixed,
+    processed = normalize_iscn(fully_fixed),
     reported_issues = reported_issues,
     unfixable_row_indices = unfixable_row_indices,
     dirty_row_indices = dirty_row_indices,

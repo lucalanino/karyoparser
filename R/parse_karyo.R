@@ -710,13 +710,13 @@ parse_karyo <- function(
     input_df <- tibble::tibble(
       .pk_row_id = seq_len(nrow(karyotypes)),
       original_karyotype = original_vec,
-      normalized_karyotype = normalize_iscn(raw_vec)
+      normalized_karyotype = raw_vec
     )
   } else {
     input_df <- tibble::tibble(
       .pk_row_id = seq_along(raw_vec),
       original_karyotype = original_vec,
-      normalized_karyotype = normalize_iscn(raw_vec)
+      normalized_karyotype = raw_vec
     )
   }
 

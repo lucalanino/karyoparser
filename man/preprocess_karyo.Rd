@@ -2,7 +2,7 @@
 % Please edit documentation in R/preprocess.R
 \name{preprocess_karyo}
 \alias{preprocess_karyo}
-\title{Clean Dirty ISCN Karyotype Strings}
+\title{Clean and Normalize ISCN Karyotype Strings}
 \usage{
 preprocess_karyo(x)
 }
@@ -12,28 +12,32 @@ accepted; extract the column first (e.g. \code{preprocess_karyo(df$karyotype)}).
 }
 \value{
 A tibble with columns \code{original} (raw input), \code{preprocessed}
-(cleaned string, or original when status is not \code{"fixed"}), and \code{status}
-(\code{"clean"} / \code{"fixed"} / \code{"unfixable"}).
+(fully normalized string, or original when status is not \code{"fixed"}), and
+\code{status} (\code{"clean"} / \code{"fixed"} / \code{"unfixable"}).
 }
 \description{
-Strips clinical free text, database artifacts, and HTML entities from raw
-karyotype strings before parsing. Runs BEFORE \code{normalize_iscn()}, which
-handles unicode/notation normalization inside \code{parse_karyo()}.
+The complete cleaning and normalization pipeline. Fixes dirty markers then
+runs \code{normalize_iscn()} as a final pass. Output is fully normalized and
+parser-ready. This is the only place in the workflow where cleaning or
+normalization occurs — \code{parse_karyo()} does none.
 }
 \details{
 Rules applied in order:
 \enumerate{
-\item Trim leading/trailing whitespace and collapse newlines/tabs
+\item Trim leading/trailing whitespace
+\item Replace unicode spaces (NBSP), dashes (em/en-dash), fullwidth characters
+\item Collapse embedded newlines/tabs to spaces
 \item Decode HTML entities (\verb{&lt;} → \code{<}, \verb{&gt;} → \code{>}, \verb{&amp;} → \code{&})
 \item Strip leading dot(s) before a digit (e.g. \verb{.46,XX} → \verb{46,XX})
-\item Strip FISH/nuc ish suffix after last clone bracket (e.g. \verb{[12] .nuc ish(...)})
-\item Strip trailing narrative: \verb{] .text} → \verb{]}; \verb{) Capital text} → \verb{)}; space-dot-capital mid-string
-\item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} → \verb{,der(...)}; \verb{, +8} → \verb{,+8})
-\item Insert missing comma after sex chromosome complement (\verb{46,XX der(...)} → \verb{46,XX,der(...)})
+\item Strip FISH/nuc ish suffix after last clone bracket
+\item Strip trailing narrative: \verb{] .text} → \verb{]}; \verb{) Capital text} → \verb{)}
+\item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} → \verb{,der(...)})
+\item Insert missing comma after sex chromosome complement
 \item Remove space between count and \code{mar} token (\verb{+1~4 mar} → \verb{+1~4mar})
-\item Trim again
+\item \code{normalize_iscn()}: whitespace collapsing, delimiter tightening,
+idem/sl/cp normalization
 }
 
-Note: \code{zero_host_chimera} strings (\verb{.//} prefix) are detected but not modified —
-their \code{fix} list is empty, so the loop skips them.
+Note: \code{zero_host_chimera} strings (\verb{.//} or \verb{//} prefix) are detected but
+not modified — their \code{fix} list is empty, so the loop skips them. Always NA.
 }

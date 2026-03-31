@@ -23,10 +23,11 @@ before \code{normalize_iscn()} destroys the signal. Called internally by
 \details{
 Detected issue types:
 \itemize{
+\item \code{unicode_notation}: unicode spaces (NBSP), dashes (em/en-dash), or
+fullwidth characters
+\item \code{embedded_newline}: embedded \verb{\\n}, \verb{\\r}, or \verb{\\t} characters
 \item \code{html_entities}: contains \verb{&lt;}, \verb{&gt;}, or \verb{&amp;}
 \item \code{leading_dot}: string starts with dot(s) before a digit
-\item \code{zero_host_chimera}: string starts with \verb{.//} — donor-only chimera with no
-host metaphases; has \code{fix = list()} so \code{preprocess_karyo()} skips it; always NA
 \item \code{fish_notation}: FISH/nuc ish suffix after last clone bracket
 \item \code{trailing_narrative}: bracket followed by dot (\verb{] .text}) OR
 space-dot-capital pattern (\code{ .Text}, no bracket required)
@@ -34,6 +35,8 @@ space-dot-capital pattern (\code{ .Text}, no bracket required)
 \item \code{missing_sex_comma}: sex complement followed by space instead of comma
 (e.g. \verb{46,XX der(...)} → \verb{46,XX,der(...)})
 \item \code{mar_space}: space between count and \code{mar} token (e.g. \verb{+1~4 mar})
+\item \code{zero_host_chimera}: string starts with \verb{.//} or \verb{//} — donor-only chimera
+with no host metaphases; has \code{fix = list()} so always unfixable/NA
 }
 }
 \keyword{internal}
