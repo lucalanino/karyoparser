@@ -642,11 +642,14 @@ test_that("psu dic normalization: preprocess_karyo normalizes before parse", {
 })
 
 test_that("idem and sl case normalization via preprocess_karyo", {
-  result <- suppressMessages(preprocess_karyo("46,XX,del(5)(q13)[10]/46,IDEM,+8[5]"))
+  result <- suppressMessages(preprocess_karyo(
+    "46,XX,del(5)(q13)[10]/46,IDEM,+8[5]"
+  ))
   expect_equal(result$preprocessed, "46,XX,del(5)(q13)[10]/46,idem,+8[5]")
   r <- parse_karyo(
     "46,XX,del(5)(q13)[10]/46,IDEM,+8[5]",
-    on_issues = "fix", verbose = FALSE
+    on_issues = "fix",
+    verbose = FALSE
   )
   expect_equal(r$comma_count_aberrations, 2L)
 })
