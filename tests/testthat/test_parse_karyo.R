@@ -290,6 +290,31 @@ test_that("idic(X)(q13) detected", {
   expect_equal(r$`idic(X)(q13)`, 1L)
 })
 
+test_that("idic(X)(q13.1) sub-band still matches idic(X)(q13) via prefix", {
+  # Regex idic\(X\)\(q13 is a prefix match; strip_bands() removes .1 sub-band
+  r <- pk("46,XX,idic(X)(q13.1)")
+  expect_equal(r$`idic(X)(q13)`, 1L)
+  expect_equal(r$isodicentric, 0L)
+})
+
+test_that("idic(X)(q14) does NOT match idic(X)(q13); fires isodicentric instead", {
+  r <- pk("46,XX,idic(X)(q14)")
+  expect_equal(r$`idic(X)(q13)`, 0L)
+  expect_equal(r$isodicentric, 1L)
+})
+
+test_that("del(7)(p11) does NOT trigger del(7q)", {
+  # p-arm deletion should not match q-arm rule
+  r <- pk("46,XY,del(7)(p11)")
+  expect_equal(r$`del(7q)`, 0L)
+})
+
+test_that("del(12)(q22) does NOT trigger del(12p)", {
+  # q-arm deletion should not match p-arm rule
+  r <- pk("46,XX,del(12)(q22)")
+  expect_equal(r$`del(12p)`, 0L)
+})
+
 # =============================================================================
 # 5. General rules (priority 60-80)
 # =============================================================================
@@ -379,6 +404,12 @@ test_that("general_translocation: der with embedded t does NOT match", {
   expect_equal(r$general_translocation, 0L)
 })
 
+test_that("general_translocation: Y chromosome as first partner detected", {
+  # Regex ^[?~]?t\([0-9XY] explicitly includes Y
+  r <- pk("46,XY,t(Y;1)(q11;p11)")
+  expect_equal(r$general_translocation, 1L)
+})
+
 # =============================================================================
 # 6. Priority system
 # =============================================================================
@@ -422,6 +453,12 @@ test_that("variable partner fires, general_translocation does NOT", {
 test_that("chromosome-specific tx fires, general_translocation does NOT", {
   r <- pk("46,XX,t(5;17)(q33;p13)")
   expect_equal(r$`t(5q)`, 1L)
+  expect_equal(r$general_translocation, 0L)
+})
+
+test_that("t(v;11p15) fires, general_translocation does NOT", {
+  r <- pk("46,XX,t(4;11)(q21;p15)")
+  expect_equal(r$`t(v;11p15)`, 1L)
   expect_equal(r$general_translocation, 0L)
 })
 
@@ -479,6 +516,35 @@ test_that("ploidy_category: range metaphase bracket [N~M] uses max of range for 
   expect_equal(res$chromosome_count, 47L)
 })
 
+test_that("ploidy_from_count: values below near_haploid floor return 'other'", {
+  expect_equal(ploidy_from_count(22), "other") # below near_haploid (23-29)
+})
+
+test_that("ploidy_from_count: exact gap boundaries return 'other'", {
+  # 34-39 gap (between low_hypodiploid ceiling 33 and high_hypodiploid floor 40)
+  expect_equal(ploidy_from_count(34), "other")
+  expect_equal(ploidy_from_count(39), "other")
+  # 47-50 gap (between diploid 46 and hyperdiploid floor 51)
+  expect_equal(ploidy_from_count(47), "other")
+  expect_equal(ploidy_from_count(50), "other")
+})
+
+test_that("ploidy_category: all clones with <5 metaphases returns 'unknown'", {
+  # has_any_brackets=TRUE but no clone meets the >=5 metaphase threshold
+  res <- ploidy_category("46,XX[2]/45,XY,-7[3]")
+  expect_equal(res$ploidy, "unknown")
+  expect_true(is.na(res$chromosome_count))
+  expect_false(res$mixed)
+})
+
+test_that("ploidy_category: range chromosome count uses round(mean())", {
+  # 45~46 -> mean=45.5 -> round(45.5)=46 (R banker's rounding) -> "diploid"
+  # No brackets -> all clones eligible
+  res <- ploidy_category("45~46,XX")
+  expect_equal(res$ploidy, "diploid")
+  expect_equal(res$chromosome_count, 46L)
+})
+
 # =============================================================================
 # 8. Monosomy / trisomy
 # =============================================================================
@@ -525,10 +591,10 @@ test_that("complex karyotype threshold at 3 unique aberrations", {
 })
 
 test_that("idem and sl excluded from complex count", {
-  # Clone 1 has 2 aberrations, clone 2 adds idem + 1 new = still only 3 unique
+  # Clone 1 has 2 aberrations, clone 2 adds idem + 1 new = 3 unique total (>= 3 threshold)
   r <- pk("46,XX,del(5)(q13),del(7)(q22)[10]/46,idem,+8[5]")
   expect_equal(r$complex_karyotype, 1L)
-  # But idem itself doesn't count as an aberration
+  # idem itself doesn't count as an aberration; only unique non-idem/sl tokens are counted
 })
 
 # =============================================================================
@@ -610,6 +676,25 @@ test_that("marker_chromosome does NOT count for monosomal", {
   expect_equal(r$monosomal_karyotype, 0L)
 })
 
+test_that("sex chromosome monosomy + structural does NOT qualify as monosomal", {
+  # -X is sex chromosome monosomy; only autosomal monosomies count
+  r <- pk("45,X,del(5)(q13)")
+  expect_equal(r$monosomal_karyotype, 0L)
+})
+
+test_that("CBF-AML inv(16) overrides monosomal karyotype to 0", {
+  # Same logic as t(8;21): CBF-AML translocations suppress monosomal flag
+  r <- pk("45,XX,-7,inv(16)(p13q22)")
+  expect_equal(r$`inv(16)(p13q22)`, 1L)
+  expect_equal(r$monosomal_karyotype, 0L)
+})
+
+test_that("CBF-AML t(16;16) overrides monosomal karyotype to 0", {
+  r <- pk("45,XX,-7,t(16;16)(p13;q22)")
+  expect_equal(r$`t(16;16)(p13;q22)`, 1L)
+  expect_equal(r$monosomal_karyotype, 0L)
+})
+
 # =============================================================================
 # 11. Preprocessing
 # =============================================================================
@@ -678,7 +763,7 @@ test_that("range count: dash normalized to tilde via parse_karyo", {
   expect_equal(r$normal_karyotype, 0L) # range karyotype is never normal
 })
 
-test_that("range count normalization does not affect monosomies", {
+test_that("karyotype starting with 45 correctly assigns monosomy", {
   r <- pk("45,XY,-7")
   expect_equal(r$mono7, 1L)
 })
@@ -695,6 +780,17 @@ test_that("idem inherits stemline comma count", {
 test_that("clone without idem uses raw count", {
   r <- pk("46,XX,del(5)(q13)")
   expect_equal(r$comma_count_aberrations, 1L)
+})
+
+test_that("idem in clone 2 inheriting 0 aberrations from clean stemline", {
+  # Clone 1 has no aberrations; clone 2 inherits via idem -> 0 count
+  # invalid_idem must NOT fire (idem is in clone 2, not clone 1)
+  result <- suppressMessages(check_karyo("46,XX[10]/46,idem[5]"))
+  expect_equal(result$invalid_idem, 0L)
+  r <- pk("46,XX[10]/46,idem[5]")
+  expect_false(is.na(r$ploidy_category))
+  expect_equal(r$comma_count_aberrations, 0L)
+  expect_equal(r$complex_karyotype, 0L)
 })
 
 # =============================================================================
@@ -820,6 +916,12 @@ test_that("parse_karyo handles 48,XXYY karyotype", {
   r <- pk("48,XXYY,+1[10]")
   expect_false(is.na(r$ploidy_category))
   expect_equal(r$tris1, 1L)
+})
+
+test_that("check_karyo: no_sex_complement detected when sex chromosome token absent", {
+  result <- suppressMessages(check_karyo("46,+8"))
+  expect_equal(result$no_sex_complement, 1L)
+  expect_equal(result$unfixable, 1L)
 })
 
 # =============================================================================
@@ -954,6 +1056,13 @@ test_that("parse_karyo: data.frame with all invalid rows and ID column preserves
   expect_equal(names(r)[1], "sample_id")
 })
 
+test_that("explicit karyotype_column parameter works for non-standard column name", {
+  df <- data.frame(my_col = c("46,XX", "46,XY"), stringsAsFactors = FALSE)
+  r <- pk(df, karyotype_column = "my_col")
+  expect_equal(nrow(r), 2L)
+  expect_equal(r$normal_karyotype, c(1L, 1L))
+})
+
 # =============================================================================
 # 17. Normal karyotype
 # =============================================================================
@@ -1037,7 +1146,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.7.0")
+  expect_equal(attr(r, "karyoparser_version"), "0.7.1")
 })
 
 test_that(".return='data.frame' returns data.frame", {
@@ -1934,4 +2043,40 @@ test_that("parse_karyo: non-chimeric row in chimeric batch has chimeric_karyotyp
     )
   )
   expect_equal(result$chimeric_karyotype, c(1L, 0L))
+})
+
+# =============================================================================
+# 27. API surface: rules_table(), normalized_karyotype
+# =============================================================================
+
+test_that("rules_table() returns a tibble with expected columns", {
+  rt <- rules_table()
+  expect_true(tibble::is_tibble(rt))
+  expect_true(nrow(rt) > 0L)
+  expect_true(all(c(
+    "flag_name", "regex", "category", "priority",
+    "counts_for_monosomal", "competition_group"
+  ) %in% names(rt)))
+})
+
+test_that("rules_table() priorities are positive integers", {
+  rt <- rules_table()
+  expect_true(is.integer(rt$priority) || is.numeric(rt$priority))
+  expect_true(all(rt$priority >= 1L))
+})
+
+test_that("normalized_karyotype under on_issues='warn' equals the raw input", {
+  r <- parse_karyo(c("46,XX", "46,XY,+8"), on_issues = "warn", verbose = FALSE)
+  expect_equal(r$normalized_karyotype[1], "46,XX")
+  expect_equal(r$normalized_karyotype[2], "46,XY,+8")
+})
+
+test_that("normalized_karyotype under on_issues='fix' equals the cleaned string", {
+  r <- parse_karyo(".46,XX", on_issues = "fix", verbose = FALSE)
+  expect_equal(r$normalized_karyotype, "46,XX")
+})
+
+test_that("normalized_karyotype column is present in output", {
+  r <- pk("46,XX")
+  expect_true("normalized_karyotype" %in% names(r))
 })
