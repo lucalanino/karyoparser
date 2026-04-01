@@ -160,6 +160,9 @@ Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbo
 ## TODO — Next Session
 
 - **Review full test suite**: Go through all 428 assertions in `tests/testthat/test_parse_karyo.R` and assess coverage gaps and stale tests.
+- **Tidyverse style fixes**:
+  - `R/ploidy.R` lines 70, 71, 92: replace `sapply()` with `vapply()` (add explicit `FUN.VALUE` for type safety)
+  - `R/validate.R` line 262: replace `ifelse(is.na(k), "NA", "")` with `if (is.na(k)) "NA" else ""` (scalar condition)
 
 ## TODO — Before 1.0 Release
 
