@@ -2053,10 +2053,17 @@ test_that("rules_table() returns a tibble with expected columns", {
   rt <- rules_table()
   expect_true(tibble::is_tibble(rt))
   expect_true(nrow(rt) > 0L)
-  expect_true(all(c(
-    "flag_name", "regex", "category", "priority",
-    "counts_for_monosomal", "competition_group"
-  ) %in% names(rt)))
+  expect_true(all(
+    c(
+      "flag_name",
+      "regex",
+      "category",
+      "priority",
+      "counts_for_monosomal",
+      "competition_group"
+    ) %in%
+      names(rt)
+  ))
 })
 
 test_that("rules_table() priorities are positive integers", {
