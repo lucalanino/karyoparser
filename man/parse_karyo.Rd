@@ -20,8 +20,8 @@ containing a karyotype column. If a data.frame, specify the column name via
 karyotype_column parameter.}
 
 \item{rules}{A data.frame of parsing rules (default: rules_table()). Must contain
-columns: flag_name, regex, category, priority, counts_for_monosomal.
-Use custom data.frame for specialized parsing needs.}
+columns: flag_name, regex, category, priority, counts_for_monosomal,
+competition_group. Use custom data.frame for specialized parsing needs.}
 
 \item{karyotype_column}{Character string specifying the column name containing
 karyotypes when input is a data.frame. If NULL (default), tries to auto-detect
@@ -37,7 +37,8 @@ placed first in the output. Ignored when input is a character vector.}
 \item{.return}{Character string specifying return type: "tibble" (default) or
 "data.frame".}
 
-\item{verbose}{Logical. If TRUE, prints validation reports and parsing messages.}
+\item{verbose}{Logical. If TRUE, prints validation reports and parsing messages.
+Default \code{TRUE}.}
 
 \item{on_issues}{Character string specifying how to handle any karyotype
 issues detected by \code{check_karyo()}. Three classes of issues are handled:
@@ -66,8 +67,12 @@ is attempted.
 \value{
 A tibble or data.frame with columns:
 \itemize{
-\item original_karyotype: Input karyotype string
+\item original_karyotype: Input karyotype string (always the raw input)
+\item normalized_karyotype: Fully normalized form of the karyotype (equal to
+original_karyotype when \code{on_issues} is \code{"warn"} or \code{"stop"}, since no
+normalization is applied in those modes)
 \item ploidy_category: Classification (diploid, hyperdiploid, etc.) based on most abnormal clone
+\item chromosome_count: Integer chromosome count extracted from the karyotype
 \item One column per aberration flag (0/1 binary)
 \item monoX, monoY, mono1-22: Monosomy flags for each chromosome
 \item trisX, trisY, tris1-22: Trisomy flags for each chromosome

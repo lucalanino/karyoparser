@@ -14,6 +14,9 @@ Long-format tibble with columns: row_index, karyotype (truncated),
 issue_type, issue_detail. Only rows with issues are returned.
 }
 \description{
-Collect issues from karyotype strings (long format, internal use)
+Called internally by \code{parse_karyo()} in its \code{on_issues = "warn"} and
+\code{"stop"} paths. Note: unlike \code{.assess_karyotypes()}, this function does
+NOT apply dirty fixes before structural validation — it is intentionally
+used on the raw input to detect issues without modifying it.
 }
 \keyword{internal}

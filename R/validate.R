@@ -106,6 +106,11 @@
 
 #' Collect issues from karyotype strings (long format, internal use)
 #'
+#' Called internally by `parse_karyo()` in its `on_issues = "warn"` and
+#' `"stop"` paths. Note: unlike `.assess_karyotypes()`, this function does
+#' NOT apply dirty fixes before structural validation — it is intentionally
+#' used on the raw input to detect issues without modifying it.
+#'
 #' @param x Character vector of karyotype strings.
 #' @return Long-format tibble with columns: row_index, karyotype (truncated),
 #'   issue_type, issue_detail. Only rows with issues are returned.
@@ -130,9 +135,9 @@ collect_issues <- function(x) {
 #' (`0`/`1`), plus summary `fixable` and `unfixable` columns.
 #'
 #' Fixable issues (resolvable by `parse_karyo()` under `on_issues = "fix"`):
-#' dirty markers (`html_entities`, `leading_dot`, `fish_notation`,
-#' `trailing_narrative`, `midstring_linewrap`, `missing_sex_comma`, `mar_space`)
-#' and `chimeric_separator`.
+#' dirty markers (`unicode_notation`, `embedded_newline`, `html_entities`,
+#' `leading_dot`, `fish_notation`, `trailing_narrative`, `midstring_linewrap`,
+#' `missing_sex_comma`, `mar_space`) and `chimeric_separator`.
 #'
 #' Unfixable issues (always returned as NA by `parse_karyo()`):
 #' `zero_host_chimera`, `empty`, `no_chromosome_count`, `updated_iscn`,
@@ -235,7 +240,7 @@ check_karyo <- function(x, verbose = FALSE) {
 #' Validate Karyotype Strings
 #'
 #' Checks karyotype strings for common structural issues. Called internally by
-#' `check_karyo()` after normalization.
+#' `.assess_karyotypes()` after dirty fixes and chimeric truncation.
 #'
 #' @param karyotypes Character vector of karyotype strings (already preprocessed)
 #' @return A tibble with columns: row_index, karyotype (truncated), issue_type, issue_detail
@@ -259,7 +264,7 @@ validate_karyotypes <- function(karyotypes) {
 
     # Check 1: NA or empty
     if (is.na(k) || k == "") {
-      add_issue(i, ifelse(is.na(k), "NA", ""), "empty", "NA or empty string")
+      add_issue(i, if (is.na(k)) "NA" else "", "empty", "NA or empty string")
       next
     }
 

@@ -33,9 +33,10 @@ The `.karyoparser_version` constant in `R/parse_karyo-package.R` is derived from
 ## After any user-facing change
 
 Run in order:
-1. `devtools::document()` — regenerate man/ pages
-2. `devtools::check()` — confirm 0 errors/warnings/notes
-3. Bump version in `DESCRIPTION` and `README.md`
+1. Review the roxygen `#'` block for any changed exported function — check `@param` defaults, `@return` column list, and caller attributions in any related internal-function docs.
+2. `devtools::document()` — regenerate man/ pages
+3. `devtools::check()` — confirm 0 errors/warnings/notes
+4. Bump version in `DESCRIPTION` and `README.md`
 
 ## First-time setup (per machine)
 
@@ -156,12 +157,6 @@ Add rows to `rules_table()` in `R/rules.R`: `flag_name` (output column), `regex`
 469 assertions (sections 1–27) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification (incl. gap boundaries, ineligible clones, range averaging), monosomy/trisomy detection, complex/monosomal flags, CBF-AML override (t(8;21)/inv(16)/t(16;16)), preprocessing, idem expansion (incl. clean-stemline edge case), `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `fixable_error`/`unfixable_error` columns, ID column detection (incl. explicit `karyotype_column`), deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, trailing narrative (4-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, unicode_notation, embedded_newline, normalize_iscn (via preprocess path), `rules_table()` structure, `normalized_karyotype` column, and edge cases.
 
 Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbose = FALSE)`.
-
-## TODO — Next Session
-
-- **Tidyverse style fixes**:
-  - `R/ploidy.R` lines 70, 71, 92: replace `sapply()` with `vapply()` (add explicit `FUN.VALUE` for type safety)
-  - `R/validate.R` line 262: replace `ifelse(is.na(k), "NA", "")` with `if (is.na(k)) "NA" else ""` (scalar condition)
 
 ## TODO — Before 1.0 Release
 

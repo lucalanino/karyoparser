@@ -27,9 +27,9 @@ with one row per input string: each possible issue type is a column
 }
 \details{
 Fixable issues (resolvable by \code{parse_karyo()} under \code{on_issues = "fix"}):
-dirty markers (\code{html_entities}, \code{leading_dot}, \code{fish_notation},
-\code{trailing_narrative}, \code{midstring_linewrap}, \code{missing_sex_comma}, \code{mar_space})
-and \code{chimeric_separator}.
+dirty markers (\code{unicode_notation}, \code{embedded_newline}, \code{html_entities},
+\code{leading_dot}, \code{fish_notation}, \code{trailing_narrative}, \code{midstring_linewrap},
+\code{missing_sex_comma}, \code{mar_space}) and \code{chimeric_separator}.
 
 Unfixable issues (always returned as NA by \code{parse_karyo()}):
 \code{zero_host_chimera}, \code{empty}, \code{no_chromosome_count}, \code{updated_iscn},

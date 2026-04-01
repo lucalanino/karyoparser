@@ -55,11 +55,14 @@ result <- parse_karyo(c(".46,XX", "47,XY,+21[10] .Lab note"), on_issues = "fix")
 
 # Inspect what issues were found without parsing:
 check_karyo(c(".46,XX", "bad string"))
-#> # A tibble: 2 × 4
-#>   row_index karyotype  issue_type   issue_detail
-#>       <int> <chr>      <chr>        <chr>
-#> 1         1 .46,XX     leading_dot  String starts with dot(s) before chromosome count
-#> 2         2 bad string no_chrom...  ...
+#> Checking 2 karyotype(s)...
+#>   Fixable:   1
+#>   Unfixable: 1
+#> # A tibble: 2 × 23
+#>   row_index karyotype  leading_dot no_chromosome_count … fixable unfixable
+#>       <int> <chr>            <int>               <int>     <int>     <int>
+#> 1         1 .46,XX               1                   0 …       1         0
+#> 2         2 bad string           0                   1 …       0         1
 
 # Export
 readr::write_csv(result, "parsed.csv")
@@ -115,7 +118,9 @@ readr::write_csv(result, "parsed.csv")
 | `complex_karyotype` | integer 0/1 | 1 if ≥3 unique aberrations |
 | `monosomal_karyotype` | integer 0/1 | 1 if ≥2 autosomal monosomies, or ≥1 monosomy + ≥1 structural aberration |
 | `mixed_ploidy` | integer 0/1 | 1 if clones span different ploidy categories |
-| `issues` | list | `NULL` for clean rows; tibble of `issue_type`/`issue_detail` for problem rows |
+| `fixable_error` | integer 0/1 | 1 if the row had fixable issues that were not auto-corrected (i.e. under `on_issues = "warn"`); always 0 under `"fix"` |
+| `unfixable_error` | integer 0/1 | 1 if the row had unfixable structural issues (row is all NA) |
+| `chimeric_karyotype` | integer 0/1 | 1 if the input contained a `//` chimeric separator (truncated to first clone under `"fix"`; `zero_host_chimera` rows are also flagged here and always NA) |
 
 ## How Rule Matching Works
 
@@ -249,42 +254,53 @@ result <- parse_karyo(clean)
 result <- parse_karyo(raw_strings, on_issues = "warn")
 ```
 
-Rules applied by `preprocess_karyo()` in order: trim whitespace → decode HTML entities (`&lt;`/`&gt;`/`&amp;`) → strip leading `.//` → strip leading dot before digit → strip trailing `] .text` narrative → collapse mid-string `, .token` line-wrap artifacts.
+Rules applied by `preprocess_karyo()` in order: trim whitespace → normalize unicode spaces/dashes/fullwidth characters → collapse embedded newlines/tabs → decode HTML entities (`&lt;`/`&gt;`/`&amp;`) → strip leading dot(s) before digit → strip FISH/nuc ish suffix → strip trailing narrative → collapse mid-string line-wrap artifacts → insert missing comma after sex complement → remove space before `mar` token → `normalize_iscn()` (whitespace collapsing, delimiter tightening, idem/sl/cp normalization).
+
+Note: `zero_host_chimera` strings (`.//` or `//` prefix) are detected as unfixable — `preprocess_karyo()` does not modify them.
 
 To inspect all issues (dirty markers + structural problems) without parsing:
 
 ```r
 check_karyo(raw_strings)
-# Returns a tibble with columns: row_index, karyotype, issue_type, issue_detail
+# Returns a wide tibble: one row per input, one 0/1 column per issue type,
+# plus summary `fixable` and `unfixable` columns.
 ```
-
-Each output row includes an `issues` list-column: `NULL` for clean rows, or a tibble of issues for problem rows.
 
 ## Validation
 
 The parser validates all input before parsing and reports issues by type:
 
-| Issue type | Severity | Effect |
+| Issue type | Fixable? | Effect |
 |---|---|---|
-| `empty` | Error | Row gets NA values |
-| `no_chromosome_count` | Error | Row gets NA values |
-| `chimeric_separator` | Error | Row gets NA unless `on_issues = "fix"` (truncates to first clone) |
-| `updated_iscn` | Error | Row always gets NA values |
-| `unbalanced_parentheses` | Error | Row gets NA values |
-| `unbalanced_brackets` | Error | Row gets NA values |
-| `no_sex_complement` | Warning | Still parsed |
-| `invalid_idem` | Warning | Still parsed (idem ignored) |
-| `unparseable_bracket` | Warning | Bracket treated as 0 |
+| `unicode_notation` | Yes | Auto-normalized under `"fix"` |
+| `embedded_newline` | Yes | Auto-normalized under `"fix"` |
+| `html_entities` | Yes | Auto-normalized under `"fix"` |
+| `leading_dot` | Yes | Auto-normalized under `"fix"` |
+| `fish_notation` | Yes | Auto-normalized under `"fix"` |
+| `trailing_narrative` | Yes | Auto-normalized under `"fix"` |
+| `midstring_linewrap` | Yes | Auto-normalized under `"fix"` |
+| `missing_sex_comma` | Yes | Auto-normalized under `"fix"` |
+| `mar_space` | Yes | Auto-normalized under `"fix"` |
+| `chimeric_separator` | Yes | Truncated to first clone under `"fix"`; row parsed normally |
+| `zero_host_chimera` | No | Row always NA (no host clone to parse) |
+| `empty` | No | Row always NA |
+| `no_chromosome_count` | No | Row always NA |
+| `updated_iscn` | No | Row always NA |
+| `unbalanced_parentheses` | No | Row always NA |
+| `unbalanced_brackets` | No | Row always NA |
+| `no_sex_complement` | No | Row always NA |
+| `invalid_idem` | No | Row always NA |
+| `unparseable_bracket` | No | Row always NA |
 
 ### `on_issues` behavior
 
-| Value | Dirty rows | Chimeric rows (`//`) | Structural errors |
+| Value | Dirty rows | Chimeric rows (`//`) | Unfixable structural errors |
 |---|---|---|---|
-| `"fix"` (default) | `preprocess_karyo()` applied; still-dirty → NA | Truncated to first clone; still-invalid → NA | Always NA |
+| `"fix"` (default) | `preprocess_karyo()` applied; still-dirty → NA | Truncated to first clone and parsed | Always NA |
 | `"warn"` | NA + message | NA + message | Always NA |
 | `"stop"` | Error immediately | Error immediately | Error immediately |
 
-Under `"fix"`, a message is printed summarising how many rows were cleaned and how many could not be fixed. Structural errors (unbalanced brackets, no chromosome count, `Updated ISCN` marker) are always NA regardless of `on_issues`; they cannot be auto-corrected.
+Under `"fix"`, a message is printed summarising how many rows were cleaned and how many could not be fixed. Unfixable issues (`zero_host_chimera`, unbalanced brackets, no chromosome count, `Updated ISCN` marker, etc.) are always NA regardless of `on_issues`.
 
 ## Custom Rules
 

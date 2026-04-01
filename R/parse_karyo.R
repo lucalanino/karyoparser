@@ -372,8 +372,8 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   containing a karyotype column. If a data.frame, specify the column name via
 #'   karyotype_column parameter.
 #' @param rules A data.frame of parsing rules (default: rules_table()). Must contain
-#'   columns: flag_name, regex, category, priority, counts_for_monosomal.
-#'   Use custom data.frame for specialized parsing needs.
+#'   columns: flag_name, regex, category, priority, counts_for_monosomal,
+#'   competition_group. Use custom data.frame for specialized parsing needs.
 #' @param karyotype_column Character string specifying the column name containing
 #'   karyotypes when input is a data.frame. If NULL (default), tries to auto-detect
 #'   from common names: "karyotype", "Karyotype", "KARYOTYPE", "karyo", "Karyo",
@@ -386,6 +386,7 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #' @param .return Character string specifying return type: "tibble" (default) or
 #'   "data.frame".
 #' @param verbose Logical. If TRUE, prints validation reports and parsing messages.
+#'   Default `TRUE`.
 #' @param on_issues Character string specifying how to handle any karyotype
 #'   issues detected by `check_karyo()`. Three classes of issues are handled:
 #'   - **Dirty markers** (e.g. leading dots, HTML entities, missing sex comma):
@@ -407,8 +408,12 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'     is attempted.
 #'
 #' @return A tibble or data.frame with columns:
-#'   - original_karyotype: Input karyotype string
+#'   - original_karyotype: Input karyotype string (always the raw input)
+#'   - normalized_karyotype: Fully normalized form of the karyotype (equal to
+#'     original_karyotype when `on_issues` is `"warn"` or `"stop"`, since no
+#'     normalization is applied in those modes)
 #'   - ploidy_category: Classification (diploid, hyperdiploid, etc.) based on most abnormal clone
+#'   - chromosome_count: Integer chromosome count extracted from the karyotype
 #'   - One column per aberration flag (0/1 binary)
 #'   - monoX, monoY, mono1-22: Monosomy flags for each chromosome
 #'   - trisX, trisY, tris1-22: Trisomy flags for each chromosome

@@ -67,8 +67,8 @@ extract_clone_data <- function(karyotype) {
 #' @keywords internal
 ploidy_category <- function(karyotype) {
   clone_data <- extract_clone_data(karyotype)
-  chrom_counts <- sapply(clone_data, `[[`, "chrom_count")
-  metaphases <- sapply(clone_data, `[[`, "metaphases")
+  chrom_counts <- vapply(clone_data, `[[`, NA_real_, "chrom_count")
+  metaphases <- vapply(clone_data, `[[`, NA_real_, "metaphases")
   # If any clone has brackets, only consider clones with >= 5 metaphases
   has_any_brackets <- any(!is.na(metaphases))
   if (has_any_brackets) {
@@ -89,7 +89,7 @@ ploidy_category <- function(karyotype) {
   most_abnormal <- eligible_counts[which.max(distances)]
   ploidy <- ploidy_from_count(most_abnormal)
   # Mixed if different ploidy categories across eligible clones
-  all_ploidies <- sapply(eligible_counts, ploidy_from_count)
+  all_ploidies <- vapply(eligible_counts, ploidy_from_count, character(1))
   mixed <- length(unique(all_ploidies)) > 1
   list(
     ploidy = ploidy,

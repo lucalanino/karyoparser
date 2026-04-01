@@ -14,6 +14,6 @@ A tibble with columns: row_index, karyotype (truncated), issue_type, issue_detai
 }
 \description{
 Checks karyotype strings for common structural issues. Called internally by
-\code{check_karyo()} after normalization.
+\code{.assess_karyotypes()} after dirty fixes and chimeric truncation.
 }
 \keyword{internal}
