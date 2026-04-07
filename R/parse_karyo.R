@@ -91,10 +91,7 @@ build_sample_meta <- function(input_df, verbose = FALSE) {
       mixed_ploidy = as.integer(purrr::map_lgl(ploidy_result, "mixed"))
     ) |>
     dplyr::select(-ploidy_result) |>
-    dplyr::left_join(counts_tbl, by = ".pk_row_id") |>
-    dplyr::mutate(
-      total_metaphases = tidyr::replace_na(total_metaphases, NA_integer_)
-    )
+    dplyr::left_join(counts_tbl, by = ".pk_row_id")
 }
 
 build_clone_tokens <- function(sample_meta) {
@@ -533,45 +530,91 @@ parse_karyo <- function(
     as.character(karyotypes)
   }
   original_vec <- raw_vec
+  # Detect karyo_preprocessed input — cached indices available, skip assessment
+  is_preprocessed <- is.data.frame(karyotypes) &&
+    inherits(karyotypes, "karyo_preprocessed")
 
   if (length(raw_vec) > 0) {
     n_total_vec <- length(raw_vec)
 
-    if (on_issues == "stop") {
-      # Check raw issues and error immediately before any fixing
-      raw_issues <- collect_issues(raw_vec)
-      if (nrow(raw_issues) > 0) {
-        issue_counts <- raw_issues |>
-          dplyr::count(issue_type, name = "n") |>
-          dplyr::arrange(dplyr::desc(n))
-        stop(
-          sprintf(
-            "%d of %d karyotype(s) have issues (%s). Use on_issues='fix' or 'warn', or call check_karyo() for details.",
-            length(unique(raw_issues$row_index)),
-            n_total_vec,
-            paste(
-              paste0(issue_counts$issue_type, ": ", issue_counts$n),
-              collapse = ", "
-            )
-          ),
-          call. = FALSE
-        )
+    if (is_preprocessed) {
+      # Reuse cached assessment indices — skip .assess_karyotypes() entirely
+      fixable_row_indices <- attr(karyotypes, ".kp_fixable_rows")
+      if (is.null(fixable_row_indices)) {
+        fixable_row_indices <- integer(0)
       }
-      raw_vec <- normalize_iscn(raw_vec)
-      issue_row_indices <- integer(0)
-      fixable_row_indices <- integer(0)
-      unfixable_row_indices <- integer(0)
-      chimeric_all_indices <- integer(0)
-    } else if (on_issues == "fix") {
+      unfixable_row_indices <- attr(karyotypes, ".kp_unfixable_rows")
+      if (is.null(unfixable_row_indices)) {
+        unfixable_row_indices <- integer(0)
+      }
+      chimeric_all_indices <- attr(karyotypes, ".kp_chimeric_all_rows")
+      if (is.null(chimeric_all_indices)) {
+        chimeric_all_indices <- integer(0)
+      }
+      chimeric_rows_cached <- attr(karyotypes, ".kp_chimeric_rows")
+      if (is.null(chimeric_rows_cached)) {
+        chimeric_rows_cached <- integer(0)
+      }
+
+      if (on_issues == "stop") {
+        na_indices <- which(is.na(raw_vec))
+        if (length(na_indices) > 0) {
+          stop(
+            sprintf(
+              "%d of %d karyotype(s) are unfixable (NA in preprocessed input). Use on_issues = \"fix\" or \"warn\".",
+              length(na_indices),
+              n_total_vec
+            ),
+            call. = FALSE
+          )
+        }
+        issue_row_indices <- integer(0)
+        fixable_row_indices <- integer(0)
+        unfixable_row_indices <- integer(0)
+        chimeric_all_indices <- integer(0)
+      } else {
+        # "fix" and "warn": NA rows in preprocessed column are already the issue rows
+        issue_row_indices <- which(is.na(raw_vec))
+
+        if (isTRUE(verbose)) {
+          n_final_issues <- length(unfixable_row_indices)
+          n_fixed <- length(setdiff(fixable_row_indices, unfixable_row_indices))
+          n_chimeric_parsed <- length(
+            setdiff(chimeric_rows_cached, unfixable_row_indices)
+          )
+          if (n_fixed == 0 && n_final_issues == 0) {
+            message(sprintf("Parsed %d karyotype(s).", n_total_vec))
+          } else {
+            parts <- character(0)
+            if (n_fixed > 0) {
+              parts <- c(parts, sprintf("%d pre-fixed", n_fixed))
+            }
+            if (n_final_issues > 0) {
+              parts <- c(parts, sprintf("%d as NA", n_final_issues))
+            }
+            message(sprintf(
+              "Parsed %d/%d karyotype(s). %s.",
+              n_total_vec - n_final_issues,
+              n_total_vec,
+              paste(parts, collapse = ", ")
+            ))
+            if (n_chimeric_parsed > 0) {
+              message(sprintf(
+                "  Chimeric: %d \u2014 host clone extracted, donor discarded.",
+                n_chimeric_parsed
+              ))
+            }
+          }
+        }
+      }
+    } else {
+      # Standard path: run unified assessment
       assessment <- .assess_karyotypes(raw_vec)
-      raw_vec <- assessment$processed
-      # fixable_error = 1 for rows that HAD a fixable issue (dirty or chimeric),
-      # regardless of whether they were successfully fixed.
+
       fixable_row_indices <- unique(
         union(assessment$dirty_row_indices, assessment$chimeric_row_indices)
       )
       unfixable_row_indices <- assessment$unfixable_row_indices
-      issue_row_indices <- unfixable_row_indices
       zhc_indices <- unique(assessment$reported_issues$row_index[
         assessment$reported_issues$issue_type == "zero_host_chimera"
       ])
@@ -580,65 +623,83 @@ parse_karyo <- function(
         zhc_indices
       ))
 
-      if (isTRUE(verbose)) {
-        n_chimeric_parsed <- length(setdiff(
-          assessment$chimeric_row_indices,
-          assessment$unfixable_row_indices
-        ))
-        n_fixed <- length(setdiff(
-          union(assessment$dirty_row_indices, assessment$chimeric_row_indices),
-          assessment$unfixable_row_indices
-        ))
-        n_final_issues <- length(unfixable_row_indices)
-        if (n_fixed == 0 && n_final_issues == 0) {
-          message(sprintf("Parsed %d karyotype(s).", n_total_vec))
-        } else {
-          parts <- character(0)
-          if (n_fixed > 0) {
-            parts <- c(parts, sprintf("%d fixed", n_fixed))
-          }
-          if (n_final_issues > 0) {
-            parts <- c(parts, sprintf("%d as NA", n_final_issues))
-          }
-          message(sprintf(
-            "Parsed %d/%d karyotype(s). %s.",
-            n_total_vec - n_final_issues,
-            n_total_vec,
-            paste(parts, collapse = ", ")
+      if (on_issues == "stop") {
+        if (nrow(assessment$reported_issues) > 0) {
+          issue_counts <- assessment$reported_issues |>
+            dplyr::count(issue_type, name = "n") |>
+            dplyr::arrange(dplyr::desc(n))
+          stop(
+            sprintf(
+              "%d of %d karyotype(s) have issues (%s). Use on_issues='fix' or 'warn', or call check_karyo() for details.",
+              length(unique(assessment$reported_issues$row_index)),
+              n_total_vec,
+              paste(
+                paste0(issue_counts$issue_type, ": ", issue_counts$n),
+                collapse = ", "
+              )
+            ),
+            call. = FALSE
+          )
+        }
+        raw_vec <- normalize_iscn(raw_vec)
+        issue_row_indices <- integer(0)
+        fixable_row_indices <- integer(0)
+        unfixable_row_indices <- integer(0)
+        chimeric_all_indices <- integer(0)
+      } else if (on_issues == "fix") {
+        raw_vec <- assessment$processed
+        issue_row_indices <- unfixable_row_indices
+
+        if (isTRUE(verbose)) {
+          n_chimeric_parsed <- length(setdiff(
+            assessment$chimeric_row_indices,
+            assessment$unfixable_row_indices
           ))
-          if (n_chimeric_parsed > 0) {
+          n_fixed <- length(setdiff(
+            fixable_row_indices,
+            assessment$unfixable_row_indices
+          ))
+          n_final_issues <- length(unfixable_row_indices)
+          if (n_fixed == 0 && n_final_issues == 0) {
+            message(sprintf("Parsed %d karyotype(s).", n_total_vec))
+          } else {
+            parts <- character(0)
+            if (n_fixed > 0) {
+              parts <- c(parts, sprintf("%d fixed", n_fixed))
+            }
+            if (n_final_issues > 0) {
+              parts <- c(parts, sprintf("%d as NA", n_final_issues))
+            }
             message(sprintf(
-              "  Chimeric: %d \u2014 host clone extracted, donor discarded.",
-              n_chimeric_parsed
+              "Parsed %d/%d karyotype(s). %s.",
+              n_total_vec - n_final_issues,
+              n_total_vec,
+              paste(parts, collapse = ", ")
             ))
+            if (n_chimeric_parsed > 0) {
+              message(sprintf(
+                "  Chimeric: %d \u2014 host clone extracted, donor discarded.",
+                n_chimeric_parsed
+              ))
+            }
           }
         }
-      }
-    } else {
-      # "warn": detect issues on raw, no fixing; all issue rows become NA
-      raw_issues <- collect_issues(raw_vec)
-      raw_vec <- normalize_iscn(raw_vec)
-      issue_row_indices <- unique(raw_issues$row_index)
-      fixable_row_indices <- unique(
-        raw_issues$row_index[raw_issues$issue_type %in% .fixable_issue_types]
-      )
-      unfixable_row_indices <- unique(
-        raw_issues$row_index[!raw_issues$issue_type %in% .fixable_issue_types]
-      )
-      chimeric_all_indices <- unique(raw_issues$row_index[
-        raw_issues$issue_type %in% c("chimeric_separator", "zero_host_chimera")
-      ])
+      } else {
+        # "warn": detect issues on raw, no fixing; all issue rows become NA
+        raw_vec <- normalize_iscn(raw_vec)
+        issue_row_indices <- unique(assessment$reported_issues$row_index)
 
-      if (isTRUE(verbose)) {
-        n_final_issues <- length(issue_row_indices)
-        if (n_final_issues == 0) {
-          message(sprintf("Parsed %d karyotype(s).", n_total_vec))
-        } else {
-          message(sprintf(
-            "%d of %d karyotype(s) had issues and were returned as NA.",
-            n_final_issues,
-            n_total_vec
-          ))
+        if (isTRUE(verbose)) {
+          n_final_issues <- length(issue_row_indices)
+          if (n_final_issues == 0) {
+            message(sprintf("Parsed %d karyotype(s).", n_total_vec))
+          } else {
+            message(sprintf(
+              "%d of %d karyotype(s) had issues and were returned as NA.",
+              n_final_issues,
+              n_total_vec
+            ))
+          }
         }
       }
     }

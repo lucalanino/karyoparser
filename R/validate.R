@@ -33,19 +33,7 @@
   )
 
   # Step 2: apply dirty fixes → partially_fixed ----------------------------
-  partially_fixed <- stringr::str_trim(x)
-  partially_fixed <- stringr::str_replace_all(partially_fixed, "[\n\r\t]+", " ")
-  for (nm in names(.dirty_patterns)) {
-    dp <- .dirty_patterns[[nm]]
-    for (fx in dp$fix) {
-      partially_fixed <- stringr::str_replace_all(
-        partially_fixed,
-        fx$pattern,
-        fx$replacement
-      )
-    }
-  }
-  partially_fixed <- stringr::str_trim(partially_fixed)
+  partially_fixed <- .apply_dirty_fixes(x)
 
   # Step 3: detect chimeric in partially_fixed (before truncation) ----------
   # Mirrors validate_karyotypes(): must start with a digit (i.e. pass the
@@ -107,41 +95,20 @@
   )
 }
 
-#' Collect issues from karyotype strings (long format, internal use)
-#'
-#' Called internally by `parse_karyo()` in its `on_issues = "warn"` and
-#' `"stop"` paths. Detects dirty issues on the raw input (for accurate
-#' reporting), then applies dirty fixes before running structural validation
-#' — matching `.assess_karyotypes()` design so dirty markers do not produce
-#' false-positive structural issues (e.g., trailing narrative making
-#' `no_sex_complement` fire).
-#'
-#' @param x Character vector of karyotype strings.
-#' @return Long-format tibble with columns: row_index, karyotype (truncated),
-#'   issue_type, issue_detail. Only rows with issues are returned.
-#' @keywords internal
-collect_issues <- function(x) {
-  if (length(x) == 0) {
-    return(empty_issues_tibble())
-  }
-  # Step 1: detect dirty issues on RAW input (for accurate reporting)
-  dirty_issues <- flag_unpreprocessed(x)
-  # Step 2: apply dirty fixes before structural validation — eliminates
-  # false positives caused by dirty markers contaminating structural checks
-  fixed <- stringr::str_trim(x)
-  fixed <- stringr::str_replace_all(fixed, "[\n\r\t]+", " ")
+# Apply all dirty-pattern fixes to a character vector. Called by
+# .assess_karyotypes() (Step 2). Single source of truth for the fix loop.
+.apply_dirty_fixes <- function(x) {
+  x <- stringr::str_trim(x)
+  x <- stringr::str_replace_all(x, "[\n\r\t]+", " ")
   for (nm in names(.dirty_patterns)) {
     dp <- .dirty_patterns[[nm]]
     for (fx in dp$fix) {
-      fixed <- stringr::str_replace_all(fixed, fx$pattern, fx$replacement)
+      x <- stringr::str_replace_all(x, fx$pattern, fx$replacement)
     }
   }
-  fixed <- stringr::str_trim(fixed)
-  # Step 3: structural checks on the fixed string
-  struct_issues <- validate_karyotypes(normalize_iscn(fixed))
-  dplyr::bind_rows(dirty_issues, struct_issues) |>
-    dplyr::arrange(row_index)
+  stringr::str_trim(x)
 }
+
 
 #' Check Karyotype Strings for Issues
 #'
@@ -191,7 +158,9 @@ check_karyo <- function(x, verbose = FALSE) {
     for (nm in c(.all_issue_types, "fixable", "unfixable")) {
       out[[nm]] <- integer()
     }
-    return(out[, all_cols])
+    out <- out[, all_cols]
+    class(out) <- c("karyo_check", class(out))
+    return(out)
   }
 
   message("Checking ", n, " karyotype(s)...")
@@ -223,6 +192,11 @@ check_karyo <- function(x, verbose = FALSE) {
     message("  Fixable:   ", n_fix_rows)
     message("  Unfixable: ", n_unfix_rows)
   }
+
+  # Tag output so preprocess_karyo() can reuse the assessment
+  class(out) <- c("karyo_check", class(out))
+  attr(out, ".kp_assessment") <- assessment
+  attr(out, ".kp_raw") <- x
 
   if (isTRUE(verbose)) {
     fix_counts <- vapply(

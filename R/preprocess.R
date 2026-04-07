@@ -197,24 +197,38 @@
 #'     fixing; `preprocessed` is `NA`).
 #' @export
 preprocess_karyo <- function(x) {
-  if (is.data.frame(x)) {
-    stop(
-      "`x` must be a character vector, not a data frame. ",
-      "Extract the column first: preprocess_karyo(df$karyotype)"
-    )
+  # Accept karyo_check output directly — reuse its cached assessment
+  if (inherits(x, "karyo_check")) {
+    cached_assessment <- attr(x, ".kp_assessment")
+    x <- attr(x, ".kp_raw")
+  } else {
+    if (is.data.frame(x)) {
+      stop(
+        "`x` must be a character vector, not a data frame. ",
+        "Extract the column first: preprocess_karyo(df$karyotype)"
+      )
+    }
+    cached_assessment <- NULL
   }
+
   if (length(x) == 0) {
-    return(tibble::tibble(
+    out <- tibble::tibble(
       original = character(),
       preprocessed = character(),
       status = character()
-    ))
+    )
+    class(out) <- c("karyo_preprocessed", class(out))
+    return(out)
   }
 
   n <- length(x)
   message("Preprocessing ", n, " karyotype(s)...")
 
-  assessment <- .assess_karyotypes(x)
+  assessment <- if (!is.null(cached_assessment)) {
+    cached_assessment
+  } else {
+    .assess_karyotypes(x)
+  }
   processed <- assessment$processed
 
   # Status: unfixable > fixed (dirty or chimeric, successfully resolved) > clean
@@ -251,11 +265,29 @@ preprocess_karyo <- function(x) {
     }
   }
 
-  tibble::tibble(
+  out <- tibble::tibble(
     original = as.character(x),
     preprocessed = as.character(processed),
     status = status
   )
+
+  # Tag output so parse_karyo() can skip .assess_karyotypes() on the result.
+  # Store only the index vectors parse_karyo() needs, not the full assessment.
+  zhc_row_indices <- unique(
+    assessment$reported_issues$row_index[
+      assessment$reported_issues$issue_type == "zero_host_chimera"
+    ]
+  )
+  class(out) <- c("karyo_preprocessed", class(out))
+  attr(out, ".kp_fixable_rows") <- unique(
+    union(assessment$dirty_row_indices, assessment$chimeric_row_indices)
+  )
+  attr(out, ".kp_unfixable_rows") <- assessment$unfixable_row_indices
+  attr(out, ".kp_chimeric_rows") <- assessment$chimeric_row_indices
+  attr(out, ".kp_chimeric_all_rows") <- unique(
+    c(assessment$chimeric_row_indices, zhc_row_indices)
+  )
+  out
 }
 
 #' Flag Unpreprocessed ISCN Strings
