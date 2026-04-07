@@ -7,22 +7,28 @@
 preprocess_karyo(x)
 }
 \arguments{
-\item{x}{Character vector of raw karyotype strings. Data frames are not
-accepted; extract the column first (e.g. \code{preprocess_karyo(df$karyotype)}).}
+\item{x}{Character vector of raw karyotype strings, or the \code{karyo_check}
+tibble returned by \code{check_karyo()}. When a \code{karyo_check} tibble is
+supplied, the assessment it already computed is reused directly —
+no re-scanning of the input. Plain data frames are not accepted; extract
+the column first (e.g. \code{preprocess_karyo(df$karyotype)}).}
 }
 \value{
-A tibble with columns:
+A \code{karyo_preprocessed} tibble with columns:
 \itemize{
 \item \code{original}: raw input string (always unchanged).
 \item \code{preprocessed}: fully normalized, parser-ready string for rows that are
 clean or successfully fixed. \code{NA_character_} for unfixable rows — rows
 where structural issues remain after all dirty fixes have been applied.
-Pass this column directly to \code{parse_karyo()} for a consistent
-check → preprocess → parse workflow.
 \item \code{status}: \code{"clean"} (no issues found), \code{"fixed"} (one or more dirty
 issues were resolved), or \code{"unfixable"} (structural issues remain after
 fixing; \code{preprocessed} is \code{NA}).
 }
+
+The returned tibble can be passed directly to \code{parse_karyo()} (without
+specifying \code{karyotype_column}), which will reuse the cached issue
+classification and skip re-scanning. Alternatively, pass the
+\code{preprocessed} column to \code{parse_karyo()} manually.
 }
 \description{
 The complete cleaning and normalization pipeline. Fixes dirty markers then

@@ -183,18 +183,24 @@
 #' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are detected but
 #' not modified — their `fix` list is empty, so the loop skips them. Always NA.
 #'
-#' @param x Character vector of raw karyotype strings. Data frames are not
-#'   accepted; extract the column first (e.g. `preprocess_karyo(df$karyotype)`).
-#' @return A tibble with columns:
+#' @param x Character vector of raw karyotype strings, or the `karyo_check`
+#'   tibble returned by `check_karyo()`. When a `karyo_check` tibble is
+#'   supplied, the assessment it already computed is reused directly —
+#'   no re-scanning of the input. Plain data frames are not accepted; extract
+#'   the column first (e.g. `preprocess_karyo(df$karyotype)`).
+#' @return A `karyo_preprocessed` tibble with columns:
 #'   - `original`: raw input string (always unchanged).
 #'   - `preprocessed`: fully normalized, parser-ready string for rows that are
 #'     clean or successfully fixed. `NA_character_` for unfixable rows — rows
 #'     where structural issues remain after all dirty fixes have been applied.
-#'     Pass this column directly to `parse_karyo()` for a consistent
-#'     check → preprocess → parse workflow.
 #'   - `status`: `"clean"` (no issues found), `"fixed"` (one or more dirty
 #'     issues were resolved), or `"unfixable"` (structural issues remain after
 #'     fixing; `preprocessed` is `NA`).
+#'
+#'   The returned tibble can be passed directly to `parse_karyo()` (without
+#'   specifying `karyotype_column`), which will reuse the cached issue
+#'   classification and skip re-scanning. Alternatively, pass the
+#'   `preprocessed` column to `parse_karyo()` manually.
 #' @export
 preprocess_karyo <- function(x) {
   # Accept karyo_check output directly — reuse its cached assessment

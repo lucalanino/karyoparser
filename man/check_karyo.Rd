@@ -14,9 +14,11 @@ accepted; extract the column first (e.g. \code{check_karyo(df$karyotype)}).}
 and returns the tibble invisibly. Default \code{FALSE}.}
 }
 \value{
-A tibble with \code{length(x)} rows. Columns: \code{row_index}, \code{karyotype}
-(full input string), one integer column per issue type (see
-\code{.all_issue_types}), \code{fixable}, \code{unfixable}.
+A \code{karyo_check} tibble with \code{length(x)} rows. Columns: \code{row_index},
+\code{karyotype} (full input string), one integer column per issue type (see
+\code{.all_issue_types}), \code{fixable}, \code{unfixable}. The tibble can be passed
+directly to \code{preprocess_karyo()}, which will reuse the cached assessment
+rather than re-scanning the input.
 }
 \description{
 Checks raw karyotype strings for formatting artifacts and structural errors.

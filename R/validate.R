@@ -132,9 +132,11 @@
 #'   accepted; extract the column first (e.g. `check_karyo(df$karyotype)`).
 #' @param verbose Logical. If `TRUE`, also prints a per-issue-type breakdown
 #'   and returns the tibble invisibly. Default `FALSE`.
-#' @return A tibble with `length(x)` rows. Columns: `row_index`, `karyotype`
-#'   (full input string), one integer column per issue type (see
-#'   `.all_issue_types`), `fixable`, `unfixable`.
+#' @return A `karyo_check` tibble with `length(x)` rows. Columns: `row_index`,
+#'   `karyotype` (full input string), one integer column per issue type (see
+#'   `.all_issue_types`), `fixable`, `unfixable`. The tibble can be passed
+#'   directly to `preprocess_karyo()`, which will reuse the cached assessment
+#'   rather than re-scanning the input.
 #' @export
 check_karyo <- function(x, verbose = FALSE) {
   if (is.data.frame(x)) {
