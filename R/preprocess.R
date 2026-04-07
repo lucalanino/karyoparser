@@ -185,9 +185,16 @@
 #'
 #' @param x Character vector of raw karyotype strings. Data frames are not
 #'   accepted; extract the column first (e.g. `preprocess_karyo(df$karyotype)`).
-#' @return A tibble with columns `original` (raw input), `preprocessed`
-#'   (fully normalized string, or original when status is not `"fixed"`), and
-#'   `status` (`"clean"` / `"fixed"` / `"unfixable"`).
+#' @return A tibble with columns:
+#'   - `original`: raw input string (always unchanged).
+#'   - `preprocessed`: fully normalized, parser-ready string for rows that are
+#'     clean or successfully fixed. `NA_character_` for unfixable rows — rows
+#'     where structural issues remain after all dirty fixes have been applied.
+#'     Pass this column directly to `parse_karyo()` for a consistent
+#'     check → preprocess → parse workflow.
+#'   - `status`: `"clean"` (no issues found), `"fixed"` (one or more dirty
+#'     issues were resolved), or `"unfixable"` (structural issues remain after
+#'     fixing; `preprocessed` is `NA`).
 #' @export
 preprocess_karyo <- function(x) {
   if (is.data.frame(x)) {

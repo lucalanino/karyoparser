@@ -68,9 +68,10 @@ is attempted.
 A tibble or data.frame with columns:
 \itemize{
 \item original_karyotype: Input karyotype string (always the raw input)
-\item normalized_karyotype: Fully normalized form of the karyotype (equal to
-original_karyotype when \code{on_issues} is \code{"warn"} or \code{"stop"}, since no
-normalization is applied in those modes)
+\item normalized_karyotype: \code{normalize_iscn()} output of the karyotype string,
+consistent across all \code{on_issues} modes. In \code{"fix"} mode this is also
+dirty-fixed and chimeric-truncated; in \code{"warn"}/\code{"stop"} modes only
+\code{normalize_iscn()} is applied. \code{NA_character_} for issue rows.
 \item ploidy_category: Classification (diploid, hyperdiploid, etc.) based on most abnormal clone
 \item chromosome_count: Integer chromosome count extracted from the karyotype
 \item One column per aberration flag (0/1 binary)
@@ -82,7 +83,11 @@ normalization is applied in those modes)
 \item complex_karyotype: 1 if >=3 unique aberrations, else 0
 \item monosomal_karyotype: 1 if meets monosomal criteria, else 0
 \item mixed_ploidy: 1 if clones have different ploidy categories, else 0
-\item fixable_error: 1 if row had fixable issues that were not auto-fixed, else 0
+\item fixable_error: 1 if the row had at least one fixable issue (dirty marker
+or chimeric separator), regardless of whether it was auto-fixed. In
+\code{"fix"} mode, rows with \code{fixable_error = 1} are parsed normally (the
+issue was resolved). In \code{"warn"}/\code{"stop"} mode, such rows are returned
+as NA (nothing was fixed).
 \item unfixable_error: 1 if row had unfixable structural issues (row is NA), else 0
 \item chimeric_karyotype: 1 if row contained a \verb{//} chimeric separator (regular
 chimeric rows are truncated to the host clone; \code{zero_host_chimera} rows

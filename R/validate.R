@@ -95,8 +95,11 @@
     reported_issues$row_index[reported_issues$issue_type %in% unfixable_types]
   )
 
+  processed <- normalize_iscn(fully_fixed)
+  processed[unfixable_row_indices] <- NA_character_
+
   list(
-    processed = normalize_iscn(fully_fixed),
+    processed = processed,
     reported_issues = reported_issues,
     unfixable_row_indices = unfixable_row_indices,
     dirty_row_indices = dirty_row_indices,
@@ -107,9 +110,11 @@
 #' Collect issues from karyotype strings (long format, internal use)
 #'
 #' Called internally by `parse_karyo()` in its `on_issues = "warn"` and
-#' `"stop"` paths. Note: unlike `.assess_karyotypes()`, this function does
-#' NOT apply dirty fixes before structural validation — it is intentionally
-#' used on the raw input to detect issues without modifying it.
+#' `"stop"` paths. Detects dirty issues on the raw input (for accurate
+#' reporting), then applies dirty fixes before running structural validation
+#' — matching `.assess_karyotypes()` design so dirty markers do not produce
+#' false-positive structural issues (e.g., trailing narrative making
+#' `no_sex_complement` fire).
 #'
 #' @param x Character vector of karyotype strings.
 #' @return Long-format tibble with columns: row_index, karyotype (truncated),
@@ -119,9 +124,21 @@ collect_issues <- function(x) {
   if (length(x) == 0) {
     return(empty_issues_tibble())
   }
+  # Step 1: detect dirty issues on RAW input (for accurate reporting)
   dirty_issues <- flag_unpreprocessed(x)
-  normalized <- normalize_iscn(x)
-  struct_issues <- validate_karyotypes(normalized)
+  # Step 2: apply dirty fixes before structural validation — eliminates
+  # false positives caused by dirty markers contaminating structural checks
+  fixed <- stringr::str_trim(x)
+  fixed <- stringr::str_replace_all(fixed, "[\n\r\t]+", " ")
+  for (nm in names(.dirty_patterns)) {
+    dp <- .dirty_patterns[[nm]]
+    for (fx in dp$fix) {
+      fixed <- stringr::str_replace_all(fixed, fx$pattern, fx$replacement)
+    }
+  }
+  fixed <- stringr::str_trim(fixed)
+  # Step 3: structural checks on the fixed string
+  struct_issues <- validate_karyotypes(normalize_iscn(fixed))
   dplyr::bind_rows(dirty_issues, struct_issues) |>
     dplyr::arrange(row_index)
 }

@@ -409,9 +409,10 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'
 #' @return A tibble or data.frame with columns:
 #'   - original_karyotype: Input karyotype string (always the raw input)
-#'   - normalized_karyotype: Fully normalized form of the karyotype (equal to
-#'     original_karyotype when `on_issues` is `"warn"` or `"stop"`, since no
-#'     normalization is applied in those modes)
+#'   - normalized_karyotype: `normalize_iscn()` output of the karyotype string,
+#'     consistent across all `on_issues` modes. In `"fix"` mode this is also
+#'     dirty-fixed and chimeric-truncated; in `"warn"`/`"stop"` modes only
+#'     `normalize_iscn()` is applied. `NA_character_` for issue rows.
 #'   - ploidy_category: Classification (diploid, hyperdiploid, etc.) based on most abnormal clone
 #'   - chromosome_count: Integer chromosome count extracted from the karyotype
 #'   - One column per aberration flag (0/1 binary)
@@ -423,7 +424,11 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   - complex_karyotype: 1 if >=3 unique aberrations, else 0
 #'   - monosomal_karyotype: 1 if meets monosomal criteria, else 0
 #'   - mixed_ploidy: 1 if clones have different ploidy categories, else 0
-#'   - fixable_error: 1 if row had fixable issues that were not auto-fixed, else 0
+#'   - fixable_error: 1 if the row had at least one fixable issue (dirty marker
+#'     or chimeric separator), regardless of whether it was auto-fixed. In
+#'     `"fix"` mode, rows with `fixable_error = 1` are parsed normally (the
+#'     issue was resolved). In `"warn"`/`"stop"` mode, such rows are returned
+#'     as NA (nothing was fixed).
 #'   - unfixable_error: 1 if row had unfixable structural issues (row is NA), else 0
 #'   - chimeric_karyotype: 1 if row contained a `//` chimeric separator (regular
 #'     chimeric rows are truncated to the host clone; `zero_host_chimera` rows
@@ -552,6 +557,7 @@ parse_karyo <- function(
           call. = FALSE
         )
       }
+      raw_vec <- normalize_iscn(raw_vec)
       issue_row_indices <- integer(0)
       fixable_row_indices <- integer(0)
       unfixable_row_indices <- integer(0)
@@ -559,9 +565,11 @@ parse_karyo <- function(
     } else if (on_issues == "fix") {
       assessment <- .assess_karyotypes(raw_vec)
       raw_vec <- assessment$processed
-      # All fixable issues have been applied; none remain as "fixable errors".
-      # Only truly broken rows (unfixable after all fixes) become NA.
-      fixable_row_indices <- integer(0)
+      # fixable_error = 1 for rows that HAD a fixable issue (dirty or chimeric),
+      # regardless of whether they were successfully fixed.
+      fixable_row_indices <- unique(
+        union(assessment$dirty_row_indices, assessment$chimeric_row_indices)
+      )
       unfixable_row_indices <- assessment$unfixable_row_indices
       issue_row_indices <- unfixable_row_indices
       zhc_indices <- unique(assessment$reported_issues$row_index[
@@ -609,6 +617,7 @@ parse_karyo <- function(
     } else {
       # "warn": detect issues on raw, no fixing; all issue rows become NA
       raw_issues <- collect_issues(raw_vec)
+      raw_vec <- normalize_iscn(raw_vec)
       issue_row_indices <- unique(raw_issues$row_index)
       fixable_row_indices <- unique(
         raw_issues$row_index[raw_issues$issue_type %in% .fixable_issue_types]

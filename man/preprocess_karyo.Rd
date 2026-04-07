@@ -11,9 +11,18 @@ preprocess_karyo(x)
 accepted; extract the column first (e.g. \code{preprocess_karyo(df$karyotype)}).}
 }
 \value{
-A tibble with columns \code{original} (raw input), \code{preprocessed}
-(fully normalized string, or original when status is not \code{"fixed"}), and
-\code{status} (\code{"clean"} / \code{"fixed"} / \code{"unfixable"}).
+A tibble with columns:
+\itemize{
+\item \code{original}: raw input string (always unchanged).
+\item \code{preprocessed}: fully normalized, parser-ready string for rows that are
+clean or successfully fixed. \code{NA_character_} for unfixable rows — rows
+where structural issues remain after all dirty fixes have been applied.
+Pass this column directly to \code{parse_karyo()} for a consistent
+check → preprocess → parse workflow.
+\item \code{status}: \code{"clean"} (no issues found), \code{"fixed"} (one or more dirty
+issues were resolved), or \code{"unfixable"} (structural issues remain after
+fixing; \code{preprocessed} is \code{NA}).
+}
 }
 \description{
 The complete cleaning and normalization pipeline. Fixes dirty markers then

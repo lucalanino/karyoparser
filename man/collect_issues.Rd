@@ -15,8 +15,10 @@ issue_type, issue_detail. Only rows with issues are returned.
 }
 \description{
 Called internally by \code{parse_karyo()} in its \code{on_issues = "warn"} and
-\code{"stop"} paths. Note: unlike \code{.assess_karyotypes()}, this function does
-NOT apply dirty fixes before structural validation — it is intentionally
-used on the raw input to detect issues without modifying it.
+\code{"stop"} paths. Detects dirty issues on the raw input (for accurate
+reporting), then applies dirty fixes before running structural validation
+— matching \code{.assess_karyotypes()} design so dirty markers do not produce
+false-positive structural issues (e.g., trailing narrative making
+\code{no_sex_complement} fire).
 }
 \keyword{internal}
