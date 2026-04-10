@@ -4,6 +4,7 @@
     "defaultMode": "acceptEdits",
     "allow": [
       "Bash(air:*)",
+      "Bash(bash .claude/hooks/check-docs.sh)",
       "Bash(cat:*)",
       "Bash(find:*)",
       "Bash(gh issue list:*)",
@@ -14,11 +15,30 @@
       "Bash(R:*)",
       "Bash(rm:*)",
       "Bash(Rscript:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Skill(update-config)"
     ],
     "deny": [
       "Read(.Renviron)",
       "Read(.env)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-docs.sh"
+          },
+          {
+            "type": "command",
+            "command": "air format .",
+            "statusMessage": "air format"
+          }
+        ]
+      }
     ]
   }
 }
