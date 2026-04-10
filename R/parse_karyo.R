@@ -337,11 +337,11 @@ compute_unique_counts <- function(tokens_tbl) {
 blank_rows <- function(original_karyotypes, all_output_cols) {
   n <- length(original_karyotypes)
   out <- tibble::tibble(original_karyotype = original_karyotypes)
-  out$normalized_karyotype <- NA_character_
+  out$preprocessed_karyotype <- NA_character_
   out$ploidy_category <- NA_character_
   other_cols <- setdiff(
     all_output_cols,
-    c("original_karyotype", "normalized_karyotype", "ploidy_category")
+    c("original_karyotype", "preprocessed_karyotype", "ploidy_category")
   )
   for (nm in other_cols) {
     out[[nm]] <- rep(NA_integer_, n)
@@ -401,7 +401,7 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'
 #' @return A tibble or data.frame with columns:
 #'   - original_karyotype: Input karyotype string (always the raw input)
-#'   - normalized_karyotype: `normalize_iscn()` output of the karyotype string,
+#'   - preprocessed_karyotype: `normalize_iscn()` output of the karyotype string,
 #'     consistent across all `on_issues` modes. In `"fix"` mode this is also
 #'     dirty-fixed and chimeric-truncated; in `"warn"`/`"stop"` modes only
 #'     `normalize_iscn()` is applied. `NA_character_` for issue rows.
@@ -476,7 +476,7 @@ parse_karyo <- function(
   chroms <- c(as.character(1:22), "X", "Y")
   all_output_cols <- c(
     "original_karyotype",
-    "normalized_karyotype",
+    "preprocessed_karyotype",
     "ploidy_category",
     "chromosome_count",
     rule_flag_names,
@@ -495,11 +495,11 @@ parse_karyo <- function(
 
   empty_result <- function() {
     out <- tibble::tibble(original_karyotype = character())
-    out$normalized_karyotype <- character()
+    out$preprocessed_karyotype <- character()
     out$ploidy_category <- character()
     for (nm in setdiff(
       all_output_cols,
-      c("original_karyotype", "normalized_karyotype", "ploidy_category")
+      c("original_karyotype", "preprocessed_karyotype", "ploidy_category")
     )) {
       out[[nm]] <- integer()
     }
@@ -737,7 +737,7 @@ parse_karyo <- function(
   input_df <- tibble::tibble(
     .pk_row_id = seq_along(raw_vec),
     original_karyotype = original_vec,
-    normalized_karyotype = raw_vec
+    preprocessed_karyotype = raw_vec
   )
 
   # Apply issue-row filtering -------------------------------------------------
@@ -773,7 +773,7 @@ parse_karyo <- function(
       }
       out <- out |>
         dplyr::select(-.pk_row_id) |>
-        dplyr::relocate(normalized_karyotype, .after = original_karyotype)
+        dplyr::relocate(preprocessed_karyotype, .after = original_karyotype)
       attr(out, "karyoparser_version") <- .karyoparser_version
       return(
         if (.return == "tibble") tibble::as_tibble(out) else as.data.frame(out)
@@ -787,7 +787,7 @@ parse_karyo <- function(
 
   # ---- Deduplication ---------------------------------------------------------
   n_total <- nrow(input_df)
-  unique_karyotypes <- unique(input_df$normalized_karyotype)
+  unique_karyotypes <- unique(input_df$preprocessed_karyotype)
   n_unique <- length(unique_karyotypes)
   deduped <- n_unique < n_total
 
@@ -810,7 +810,7 @@ parse_karyo <- function(
     }
     dedup_df <- tibble::tibble(
       .pk_row_id = input_df$.pk_row_id,
-      original_karyotype = input_df$normalized_karyotype
+      original_karyotype = input_df$preprocessed_karyotype
     )
   }
 
@@ -937,14 +937,14 @@ parse_karyo <- function(
       ploidy_category = tidyr::replace_na(ploidy_category, "unknown")
     ) |>
     dplyr::left_join(dedup_df, by = ".pk_row_id") |>
-    dplyr::rename(normalized_karyotype = original_karyotype) |>
-    dplyr::relocate(normalized_karyotype, .before = 1) |>
-    dplyr::relocate(ploidy_category, .after = normalized_karyotype) |>
+    dplyr::rename(preprocessed_karyotype = original_karyotype) |>
+    dplyr::relocate(preprocessed_karyotype, .before = 1) |>
+    dplyr::relocate(ploidy_category, .after = preprocessed_karyotype) |>
     dplyr::relocate(chromosome_count, .after = ploidy_category)
 
   keep_cols <- intersect(
     c(
-      "normalized_karyotype",
+      "preprocessed_karyotype",
       "ploidy_category",
       "chromosome_count",
       abnormality_names,
@@ -957,7 +957,7 @@ parse_karyo <- function(
   if (deduped) {
     parsed_unique <- result[, keep_cols]
     valid_out <- input_df |>
-      dplyr::left_join(parsed_unique, by = "normalized_karyotype")
+      dplyr::left_join(parsed_unique, by = "preprocessed_karyotype")
     valid_out <- valid_out[, c(".pk_row_id", "original_karyotype", keep_cols)]
   } else {
     valid_out <- dplyr::bind_cols(
@@ -996,7 +996,7 @@ parse_karyo <- function(
 
   out <- out |>
     dplyr::select(-.pk_row_id) |>
-    dplyr::relocate(normalized_karyotype, .after = original_karyotype)
+    dplyr::relocate(preprocessed_karyotype, .after = original_karyotype)
 
   # Provenance
   attr(out, "karyoparser_version") <- .karyoparser_version

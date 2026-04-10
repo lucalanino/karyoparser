@@ -37,7 +37,7 @@ utils::globalVariables(c(
   "n",
   "n_unique_aberr",
   "normal_karyotype",
-  "normalized_karyotype",
+  "preprocessed_karyotype",
   "original_karyotype",
   "ploidy_result",
   "prefix",

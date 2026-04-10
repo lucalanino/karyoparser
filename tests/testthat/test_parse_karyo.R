@@ -2039,7 +2039,7 @@ test_that("parse_karyo: non-chimeric row in chimeric batch has chimeric_karyotyp
 })
 
 # =============================================================================
-# 27. API surface: rules_table(), normalized_karyotype
+# 27. API surface: rules_table(), preprocessed_karyotype
 # =============================================================================
 
 test_that("rules_table() returns a tibble with expected columns", {
@@ -2065,41 +2065,41 @@ test_that("rules_table() priorities are positive integers", {
   expect_true(all(rt$priority >= 1L))
 })
 
-test_that("normalized_karyotype under on_issues='warn' is normalize_iscn() of input", {
+test_that("preprocessed_karyotype under on_issues='warn' is normalize_iscn() of input", {
   r <- parse_karyo(c("46,XX", "46,XY,+8"), on_issues = "warn", verbose = FALSE)
-  expect_equal(r$normalized_karyotype[1], "46,XX")
-  expect_equal(r$normalized_karyotype[2], "46,XY,+8")
+  expect_equal(r$preprocessed_karyotype[1], "46,XX")
+  expect_equal(r$preprocessed_karyotype[2], "46,XY,+8")
 })
 
-test_that("normalized_karyotype under on_issues='fix' equals the cleaned string", {
+test_that("preprocessed_karyotype under on_issues='fix' equals the cleaned string", {
   r <- parse_karyo(".46,XX", on_issues = "fix", verbose = FALSE)
-  expect_equal(r$normalized_karyotype, "46,XX")
+  expect_equal(r$preprocessed_karyotype, "46,XX")
 })
 
-test_that("normalized_karyotype column is present in output", {
+test_that("preprocessed_karyotype column is present in output", {
   r <- pk("46,XX")
-  expect_true("normalized_karyotype" %in% names(r))
+  expect_true("preprocessed_karyotype" %in% names(r))
 })
 
 # =============================================================================
 # 28. Workflow consistency: check -> preprocess -> parse
 # =============================================================================
 
-# 28a. normalized_karyotype is always normalize_iscn() output -----------------
+# 28a. preprocessed_karyotype is always normalize_iscn() output -----------------
 
-test_that("normalized_karyotype: normalize_iscn applied even in on_issues='warn'", {
+test_that("preprocessed_karyotype: normalize_iscn applied even in on_issues='warn'", {
   # "46 , XX" has spaces around comma — no dirty markers, but normalize_iscn
   # tightens the comma. In "warn" mode the column should be normalized, not raw.
   r <- parse_karyo("46 , XX", on_issues = "warn", verbose = FALSE)
-  expect_equal(r$normalized_karyotype, "46,XX")
+  expect_equal(r$preprocessed_karyotype, "46,XX")
 })
 
-test_that("normalized_karyotype: consistent across all three on_issues modes for clean input", {
+test_that("preprocessed_karyotype: consistent across all three on_issues modes for clean input", {
   x <- "46,XX,t(9;22)(q34;q11.2)[20]"
   r_fix <- parse_karyo(x, on_issues = "fix", verbose = FALSE)
   r_warn <- parse_karyo(x, on_issues = "warn", verbose = FALSE)
-  expect_equal(r_fix$normalized_karyotype, x)
-  expect_equal(r_warn$normalized_karyotype, x)
+  expect_equal(r_fix$preprocessed_karyotype, x)
+  expect_equal(r_warn$preprocessed_karyotype, x)
 })
 
 # 28b. fixable_error is consistent across on_issues modes --------------------
@@ -2303,8 +2303,8 @@ test_that("full pipeline: original_karyotype in parse output is the raw string, 
   result <- suppressMessages(parse_karyo(pp))
   # original_karyotype must be the raw dirty string, not the cleaned one
   expect_equal(result$original_karyotype, ".46,XX[20]")
-  # normalized_karyotype is the clean preprocessed form
-  expect_equal(result$normalized_karyotype, "46,XX[20]")
+  # preprocessed_karyotype is the clean preprocessed form
+  expect_equal(result$preprocessed_karyotype, "46,XX[20]")
 })
 
 # 29d. Type guard -------------------------------------------------------------
@@ -2368,7 +2368,7 @@ test_that("parse_karyo: original_karyotype shows pre-fix string when using karyo
   pp <- suppressMessages(preprocess_karyo(raw))
   result <- suppressMessages(parse_karyo(pp))
   expect_equal(result$original_karyotype, raw)
-  expect_equal(result$normalized_karyotype, "46,XX,t(9;22)(q34;q11)[20]")
+  expect_equal(result$preprocessed_karyotype, "46,XX,t(9;22)(q34;q11)[20]")
 })
 
 # 29f. verbose alignment -------------------------------------------------------

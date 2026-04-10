@@ -106,7 +106,7 @@ readr::write_csv(result, "parsed.csv")
 | Column | Type | Description |
 |---|---|---|
 | `original_karyotype` | character | Raw input string exactly as provided |
-| `normalized_karyotype` | character | Input after preprocessing and ISCN normalization (what was actually parsed); NA for unfixable rows |
+| `preprocessed_karyotype` | character | Input after preprocessing and ISCN normalization (what was actually parsed); NA for unfixable rows |
 | `ploidy_category` | character | `diploid`, `hyperdiploid`, `high_hypodiploid`, `low_hypodiploid`, `near_haploid`, `other`, or `unknown` |
 | `chromosome_count` | integer | Count from the most abnormal eligible clone |
 | *(aberration flags)* | integer 0/1 | One column per rule — see [Aberration Flags](#aberration-flags) |

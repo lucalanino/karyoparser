@@ -73,7 +73,7 @@ is attempted.
 A tibble or data.frame with columns:
 \itemize{
 \item original_karyotype: Input karyotype string (always the raw input)
-\item normalized_karyotype: \code{normalize_iscn()} output of the karyotype string,
+\item preprocessed_karyotype: \code{normalize_iscn()} output of the karyotype string,
 consistent across all \code{on_issues} modes. In \code{"fix"} mode this is also
 dirty-fixed and chimeric-truncated; in \code{"warn"}/\code{"stop"} modes only
 \code{normalize_iscn()} is applied. \code{NA_character_} for issue rows.
