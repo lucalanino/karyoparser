@@ -102,22 +102,20 @@ normalize_token <- function(x) {
   )
 }
 
-# Interactive column confirmation helper.
+# Interactive karyotype column confirmation helper.
 #
 # Shows the auto-detected column (with a short preview) and prompts the user to
-# accept, pick a different column, or abort. Only called when interactive() is
-# TRUE.
+# accept, pick a different column, or abort. Only called for the karyotype
+# column when interactive() is TRUE. The ID column is always auto-detected
+# silently.
 #
 # @param x        Data frame.
 # @param detected Auto-detected column name (character), or NA_character_ when
 #                 none was found.
-# @param role     "karyotype" or "ID" — used in prompt text.
 # @param caller   Calling function name — used in the abort hint.
-# @param allow_none If TRUE, offer a "none" option to skip the column (for the
-#                 ID column).
-# @return Chosen column name (character), or NULL when user picks "none".
+# @return Chosen column name (character).
 # @keywords internal
-.confirm_column <- function(x, detected, role, caller, allow_none = FALSE) {
+.confirm_column <- function(x, detected, caller) {
   cols <- names(x)
 
   if (!is.na(detected)) {
@@ -126,25 +124,15 @@ normalize_token <- function(x) {
       sprintf('"%s"', utils::head(as.character(x[[detected]]), 3)),
       collapse = ", "
     )
-    opts <- if (allow_none) {
-      "Enter/y = use,  n = pick another,  none = skip,  stop = abort"
-    } else {
-      "Enter/y = use,  n = pick another,  stop = abort"
-    }
     message(sprintf(
-      '\nAuto-detected %s column: "%s"\n  Preview: %s\n  %s',
-      role,
+      '\nAuto-detected karyotype column: "%s"\n  Preview: %s\n  Enter/y = use,  n = pick another,  stop = abort',
       detected,
-      preview,
-      opts
+      preview
     ))
     answer <- trimws(readline("> "))
 
     if (answer == "" || tolower(answer) %in% c("y", "yes")) {
       return(detected)
-    }
-    if (allow_none && tolower(answer) == "none") {
-      return(NULL)
     }
     if (tolower(answer) == "stop") {
       .abort_column_selection(caller)
@@ -158,15 +146,10 @@ normalize_token <- function(x) {
     }
     # User said "n" — fall through to pick-from-list
     candidate_cols <- setdiff(cols, detected)
-  } else if (allow_none) {
-    # ID column not found — offer to pick one or skip
-    message(sprintf("\nNo %s column auto-detected.", role))
-    candidate_cols <- cols
   } else {
-    # Karyotype column not found — must pick one
+    # Nothing auto-detected — must pick one
     message(sprintf(
-      '\nCould not auto-detect %s column in `%s()`.',
-      role,
+      '\nCould not auto-detect karyotype column in `%s()`.',
       caller
     ))
     candidate_cols <- cols
@@ -174,21 +157,10 @@ normalize_token <- function(x) {
 
   # Pick-from-list
   message("  Available columns: ", paste(candidate_cols, collapse = ", "))
-  opts2 <- if (allow_none) {
-    "Enter column name,  none = skip,  stop = abort"
-  } else {
-    "Enter column name,  stop = abort"
-  }
-  message("  ", opts2)
+  message("  Enter column name,  stop = abort")
   answer2 <- trimws(readline("> "))
 
-  if (tolower(answer2) == "stop") {
-    .abort_column_selection(caller)
-  }
-  if (allow_none && (tolower(answer2) == "none" || answer2 == "")) {
-    return(NULL)
-  }
-  if (!allow_none && answer2 == "") {
+  if (tolower(answer2) == "stop" || answer2 == "") {
     .abort_column_selection(caller)
   }
   if (answer2 %in% cols) {
@@ -203,9 +175,10 @@ normalize_token <- function(x) {
 # data-frame input path. Handles karyotype column detection (auto or explicit),
 # type guard, and ID column detection (auto or explicit).
 #
-# When neither column argument is supplied and the session is interactive,
-# auto-detected columns are confirmed with the user via readline() before use.
-# In non-interactive sessions (scripts, CI), auto-detected columns are used
+# When karyotype_column is NULL and the session is interactive, the
+# auto-detected karyotype column is confirmed with the user via readline()
+# before use. The ID column is always auto-detected silently regardless of
+# session mode. In non-interactive sessions, both columns are auto-detected
 # silently (verbose=TRUE prints a notice).
 #
 # @param x A data frame.
@@ -226,13 +199,7 @@ normalize_token <- function(x) {
   if (is.null(karyotype_column)) {
     detected_karyo <- intersect(.karyotype_col_candidates, names(x))[1]
     if (interactive()) {
-      karyotype_col_name <- .confirm_column(
-        x,
-        detected_karyo,
-        "karyotype",
-        caller,
-        allow_none = FALSE
-      )
+      karyotype_col_name <- .confirm_column(x, detected_karyo, caller)
     } else {
       if (is.na(detected_karyo)) {
         stop(
@@ -282,28 +249,18 @@ normalize_token <- function(x) {
   # --- ID column --------------------------------------------------------------
   if (is.null(id_column)) {
     detected_id <- intersect(.id_col_candidates, names(x))[1]
-    if (interactive()) {
-      id_col_name <- .confirm_column(
-        x,
-        detected_id,
-        "ID",
-        caller,
-        allow_none = TRUE
-      )
+    id_col_name <- if (!is.na(detected_id)) detected_id else NULL
+    if (!is.null(id_col_name)) {
+      if (isTRUE(verbose)) {
+        message(
+          "Auto-detected ID column: ",
+          id_col_name,
+          ". Use id_column= to specify explicitly."
+        )
+      }
     } else {
-      id_col_name <- if (!is.na(detected_id)) detected_id else NULL
-      if (!is.null(id_col_name)) {
-        if (isTRUE(verbose)) {
-          message(
-            "Auto-detected ID column: ",
-            id_col_name,
-            ". Use id_column= to specify explicitly."
-          )
-        }
-      } else {
-        if (isTRUE(verbose)) {
-          message("No ID column detected. Use id_column= to specify one.")
-        }
+      if (isTRUE(verbose)) {
+        message("No ID column detected. Use id_column= to specify one.")
       }
     }
   } else {

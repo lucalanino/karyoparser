@@ -33,8 +33,7 @@ vector or \code{karyo_preprocessed} input.}
 
 \item{id_column}{Character. Name of the id column when input is a data frame.
 If \code{NULL} (default), auto-detected from common names (\code{sample_id},
-\code{patient_id}, \code{id}, \code{mrn}, etc.); in an interactive session the detected
-column is confirmed before use, with an option to skip it. The id column is
+\code{patient_id}, \code{id}, \code{mrn}, etc.) and used silently. The id column is
 placed first in the output. For \code{karyo_preprocessed} input, the id is
 propagated automatically
 from upstream pipeline steps; pass \code{id_column} explicitly only to override.}
