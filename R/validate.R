@@ -68,7 +68,8 @@
   }
 
   # Step 5: structural issues REMAINING after all fixes --------------------
-  struct_issues <- validate_karyotypes(normalize_iscn(fully_fixed))
+  norm_fully_fixed <- normalize_iscn(fully_fixed)
+  struct_issues <- validate_karyotypes(norm_fully_fixed)
 
   # Step 6: combine all reported issues and classify -----------------------
   reported_issues <- dplyr::bind_rows(
@@ -83,7 +84,7 @@
     reported_issues$row_index[reported_issues$issue_type %in% unfixable_types]
   )
 
-  processed <- normalize_iscn(fully_fixed)
+  processed <- norm_fully_fixed
   processed[unfixable_row_indices] <- NA_character_
 
   list(
@@ -95,8 +96,8 @@
   )
 }
 
-# Apply all dirty-pattern fixes to a character vector. Called by
-# .assess_karyotypes() (Step 2). Single source of truth for the fix loop.
+# Apply all dirty-pattern fixes to a character vector.
+# Single source of truth for the fix loop.
 .apply_dirty_fixes <- function(x) {
   x <- stringr::str_trim(x)
   x <- stringr::str_replace_all(x, "[\n\r\t]+", " ")

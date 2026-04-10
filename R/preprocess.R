@@ -321,7 +321,6 @@ preprocess_karyo <- function(
   }
 
   # Tag output so parse_karyo() can skip .assess_karyotypes() on the result.
-  # Store only the index vectors parse_karyo() needs, not the full assessment.
   zhc_row_indices <- unique(
     assessment$reported_issues$row_index[
       assessment$reported_issues$issue_type == "zero_host_chimera"
