@@ -27,13 +27,16 @@ competition_group. Use custom data.frame for specialized parsing needs.}
 
 \item{karyotype_column}{Character. Name of the karyotype column when input is
 a plain data frame. If \code{NULL} (default), auto-detected from common names
-(\code{karyotype}, \code{iscn}, etc.). Ignored for character vector or
-\code{karyo_preprocessed} input.}
+(\code{karyotype}, \code{iscn}, etc.); in an interactive session the detected column
+is shown with a preview and confirmed before use. Ignored for character
+vector or \code{karyo_preprocessed} input.}
 
 \item{id_column}{Character. Name of the id column when input is a data frame.
 If \code{NULL} (default), auto-detected from common names (\code{sample_id},
-\code{patient_id}, \code{id}, \code{mrn}, etc.). The id column is placed first in the
-output. For \code{karyo_preprocessed} input, the id is propagated automatically
+\code{patient_id}, \code{id}, \code{mrn}, etc.); in an interactive session the detected
+column is confirmed before use, with an option to skip it. The id column is
+placed first in the output. For \code{karyo_preprocessed} input, the id is
+propagated automatically
 from upstream pipeline steps; pass \code{id_column} explicitly only to override.}
 
 \item{.return}{Character string specifying return type: \code{"tibble"} (default)
@@ -86,10 +89,8 @@ dirty-fixed and chimeric-truncated; in \code{"warn"}/\code{"stop"} modes only
 \item monosomal_karyotype: 1 if meets monosomal criteria, else 0
 \item mixed_ploidy: 1 if clones have different ploidy categories, else 0
 \item fixable_error: 1 if the row had at least one fixable issue (dirty marker
-or chimeric separator), regardless of whether it was auto-fixed. In
-\code{"fix"} mode, rows with \code{fixable_error = 1} are parsed normally (the
-issue was resolved). In \code{"warn"}/\code{"stop"} mode, such rows are returned
-as NA (nothing was fixed).
+or chimeric separator) and no unfixable issue, regardless of whether the
+fixable issue was auto-corrected. 0 when \code{unfixable_error = 1}.
 \item unfixable_error: 1 if row had unfixable structural issues (row is NA), else 0
 \item chimeric_karyotype: 1 if row contained a \verb{//} chimeric separator (regular
 chimeric rows are truncated to the host clone; \code{zero_host_chimera} rows

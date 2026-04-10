@@ -15,11 +15,15 @@ upstream is propagated automatically. When a plain data frame is supplied,
 the karyotype column is auto-detected or specified via \code{karyotype_column}.}
 
 \item{karyotype_column}{Character. Name of the karyotype column when \code{x} is
-a plain data frame. Ignored for character vector or \code{karyo_check} input.}
+a plain data frame. If \code{NULL} (default), auto-detected from common names;
+in an interactive session the detected column is shown with a preview and
+confirmed before use. Ignored for character vector or \code{karyo_check} input.}
 
 \item{id_column}{Character. Name of the id column when \code{x} is a plain data
-frame. Ignored for character vector or \code{karyo_check} input (id is
-propagated automatically from \code{karyo_check} attrs in that case).}
+frame. If \code{NULL} (default), auto-detected from common names; in an
+interactive session the detected column is confirmed before use, with an
+option to skip it. Ignored for character vector or \code{karyo_check} input (id
+is propagated automatically from \code{karyo_check} attrs in that case).}
 
 \item{verbose}{Logical. If \code{TRUE}, prints a processing summary. Default
 \code{FALSE}.}

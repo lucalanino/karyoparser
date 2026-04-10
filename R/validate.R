@@ -138,11 +138,14 @@
 #' @param verbose Logical. If `TRUE`, prints a count summary and per-issue-type
 #'   breakdown. Default `FALSE`.
 #' @param karyotype_column Character. Name of the karyotype column when `x` is
-#'   a data frame. If `NULL` (default), auto-detected from common names.
-#'   Ignored when `x` is a character vector.
+#'   a data frame. If `NULL` (default), auto-detected from common names; in an
+#'   interactive session the detected column is shown with a preview and
+#'   confirmed before use. Ignored when `x` is a character vector.
 #' @param id_column Character. Name of the id column when `x` is a data frame.
 #'   If `NULL` (default), auto-detected from common names (`sample_id`,
-#'   `patient_id`, `id`, `mrn`, etc.). Ignored when `x` is a character vector.
+#'   `patient_id`, `id`, `mrn`, etc.); in an interactive session the detected
+#'   column is confirmed before use, with an option to skip it. Ignored when
+#'   `x` is a character vector.
 #' @return A `karyo_check` tibble with `length(x)` rows (or `nrow(x)` when
 #'   input is a data frame). Columns: optional id column (first, when detected),
 #'   `row_index`, `karyotype` (full input string), one integer column per issue

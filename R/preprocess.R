@@ -190,10 +190,14 @@
 #'   upstream is propagated automatically. When a plain data frame is supplied,
 #'   the karyotype column is auto-detected or specified via `karyotype_column`.
 #' @param karyotype_column Character. Name of the karyotype column when `x` is
-#'   a plain data frame. Ignored for character vector or `karyo_check` input.
+#'   a plain data frame. If `NULL` (default), auto-detected from common names;
+#'   in an interactive session the detected column is shown with a preview and
+#'   confirmed before use. Ignored for character vector or `karyo_check` input.
 #' @param id_column Character. Name of the id column when `x` is a plain data
-#'   frame. Ignored for character vector or `karyo_check` input (id is
-#'   propagated automatically from `karyo_check` attrs in that case).
+#'   frame. If `NULL` (default), auto-detected from common names; in an
+#'   interactive session the detected column is confirmed before use, with an
+#'   option to skip it. Ignored for character vector or `karyo_check` input (id
+#'   is propagated automatically from `karyo_check` attrs in that case).
 #' @param verbose Logical. If `TRUE`, prints a processing summary. Default
 #'   `FALSE`.
 #' @return A `karyo_preprocessed` tibble. Columns: optional id column (first,

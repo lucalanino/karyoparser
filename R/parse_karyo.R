@@ -365,12 +365,15 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   competition_group. Use custom data.frame for specialized parsing needs.
 #' @param karyotype_column Character. Name of the karyotype column when input is
 #'   a plain data frame. If `NULL` (default), auto-detected from common names
-#'   (`karyotype`, `iscn`, etc.). Ignored for character vector or
-#'   `karyo_preprocessed` input.
+#'   (`karyotype`, `iscn`, etc.); in an interactive session the detected column
+#'   is shown with a preview and confirmed before use. Ignored for character
+#'   vector or `karyo_preprocessed` input.
 #' @param id_column Character. Name of the id column when input is a data frame.
 #'   If `NULL` (default), auto-detected from common names (`sample_id`,
-#'   `patient_id`, `id`, `mrn`, etc.). The id column is placed first in the
-#'   output. For `karyo_preprocessed` input, the id is propagated automatically
+#'   `patient_id`, `id`, `mrn`, etc.); in an interactive session the detected
+#'   column is confirmed before use, with an option to skip it. The id column is
+#'   placed first in the output. For `karyo_preprocessed` input, the id is
+#'   propagated automatically
 #'   from upstream pipeline steps; pass `id_column` explicitly only to override.
 #' @param .return Character string specifying return type: `"tibble"` (default)
 #'   or `"data.frame"`.

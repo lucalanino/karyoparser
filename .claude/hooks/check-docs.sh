@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Fires after Edit/Write. If the edited file is in R/, reminds Claude to check docs.
 f=$(jq -r '.tool_input.file_path // .tool_response.filePath // ""')
+# Normalize backslashes to forward slashes (Windows paths)
+f="${f//\\//}"
 
 case "$f" in
   */R/*.R)

@@ -18,12 +18,15 @@ and propagated through subsequent pipeline steps.}
 breakdown. Default \code{FALSE}.}
 
 \item{karyotype_column}{Character. Name of the karyotype column when \code{x} is
-a data frame. If \code{NULL} (default), auto-detected from common names.
-Ignored when \code{x} is a character vector.}
+a data frame. If \code{NULL} (default), auto-detected from common names; in an
+interactive session the detected column is shown with a preview and
+confirmed before use. Ignored when \code{x} is a character vector.}
 
 \item{id_column}{Character. Name of the id column when \code{x} is a data frame.
 If \code{NULL} (default), auto-detected from common names (\code{sample_id},
-\code{patient_id}, \code{id}, \code{mrn}, etc.). Ignored when \code{x} is a character vector.}
+\code{patient_id}, \code{id}, \code{mrn}, etc.); in an interactive session the detected
+column is confirmed before use, with an option to skip it. Ignored when
+\code{x} is a character vector.}
 }
 \value{
 A \code{karyo_check} tibble with \code{length(x)} rows (or \code{nrow(x)} when
