@@ -89,15 +89,15 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 | `R/preprocess.R` | `.dirty_patterns`, `.sex_alt`, `.fixable_issue_types`, `.all_issue_types` (constants), `preprocess_karyo()`, `flag_unpreprocessed()` (internal), `normalize_iscn()` (internal) |
 | `R/validate.R` | `.assess_karyotypes()` (internal), `.apply_dirty_fixes()` (internal), `check_karyo()`, `validate_karyotypes()` (internal) |
 | `R/ploidy.R` | `ploidy_from_count()` (internal), `ploidy_category()` (internal), `extract_clone_data()` (internal) |
-| `R/helpers.R` | `truncate_str()`, `empty_issues_tibble()`, `strip_bands()`, `normalize_token()` |
+| `R/helpers.R` | `truncate_str()`, `empty_issues_tibble()`, `strip_bands()`, `normalize_token()`, `.karyotype_col_candidates`, `.id_col_candidates` (constants), `.extract_df_input()` (internal) |
 | `R/parse_karyo.R` | `parse_karyo()` + internal pipeline helpers |
 
 ### Exported API
 
-- **`parse_karyo()`** — Main entry point. Accepts character vector or data.frame. Returns tibble with binary aberration flags, ploidy, monosomy/trisomy columns, derived flags (complex, monosomal, mixed ploidy), and `fixable_error`/`unfixable_error` (0L/1L) integer columns. Uses `on_issues` (`"fix"` / `"warn"` / `"stop"`). Default `"fix"` auto-applies `preprocess_karyo()` to dirty rows and truncates chimeric rows to the first clone before `//`, printing a summary of what was fixed. `"warn"` returns NA for all issue rows. `"stop"` errors immediately. Structural errors (no chromosome count, unbalanced brackets, `Updated ISCN`, `zero_host_chimera`) are always NA regardless.
-- **`check_karyo(x, verbose = FALSE)`** — Unified pre-parse check. Returns a `karyo_check` tibble: one row per input, one 0L/1L column per issue type (fixed schema from `.all_issue_types`), plus `fixable` and `unfixable` summary columns. `verbose=TRUE` prints a console summary and returns invisibly. Internally uses `.assess_karyotypes()`. The result carries `.kp_assessment` and `.kp_raw` as attributes; passing it directly to `preprocess_karyo()` reuses the cached assessment and skips re-running `.assess_karyotypes()`.
+- **`parse_karyo()`** — Main entry point. Accepts character vector, data frame, or `karyo_preprocessed` tibble. When a `karyo_preprocessed` object is passed, `$preprocessed` is used automatically and cached indices + id column are reused — no extra arguments needed. Returns tibble with binary aberration flags, ploidy, monosomy/trisomy columns, derived flags (complex, monosomal, mixed ploidy), and `fixable_error`/`unfixable_error` (0L/1L) integer columns. `verbose = FALSE` default. Uses `on_issues` (`"fix"` / `"warn"` / `"stop"`). Default `"fix"` auto-applies `preprocess_karyo()` to dirty rows and truncates chimeric rows to the first clone before `//`. `"warn"` returns NA for all issue rows. `"stop"` errors immediately. Structural errors are always NA regardless.
+- **`check_karyo(x, verbose = FALSE, karyotype_column = NULL, id_column = NULL)`** — Unified pre-parse check. Accepts character vector or data frame. For data frame input, karyotype column is auto-detected from `.karyotype_col_candidates`; id column is auto-detected from `.id_col_candidates` and placed first in the output. Returns a `karyo_check` tibble: one row per input, one 0L/1L column per issue type, plus `fixable` and `unfixable` summary columns. `verbose=FALSE` is total silence; `verbose=TRUE` prints count + per-issue breakdown and returns visibly. The result carries `.kp_assessment`, `.kp_raw`, `.kp_karyotype_col`, `.kp_id_col`, `.kp_id_values` as attributes.
 - **`rules_table()`** — Regex rules defining which aberrations to detect. Priority system (100 > 95 > 90 > 85 > 60-80) resolves overlapping matches.
-- **`preprocess_karyo()`** — The complete cleaning and normalization pipeline. Accepts a character vector **or** a `karyo_check` tibble (reuses cached assessment). Fixes dirty markers (unicode notation, embedded newlines, HTML entities, leading dot-digit, FISH suffixes, trailing narrative, etc.) then runs `normalize_iscn()` as a final pass (whitespace, delimiters, unicode). Returns a `karyo_preprocessed` tibble with `original`, `preprocessed`, and `status` columns. `preprocessed` is `NA_character_` for unfixable rows (structural issues remain after all dirty fixes); `status` is `"clean"` / `"fixed"` / `"unfixable"`. The result carries `.kp_fixable_rows`, `.kp_unfixable_rows`, `.kp_chimeric_rows`, `.kp_chimeric_all_rows` as attributes; passing it directly to `parse_karyo()` reuses these and skips re-running `.assess_karyotypes()`.
+- **`preprocess_karyo(x, karyotype_column = NULL, id_column = NULL, verbose = FALSE)`** — The complete cleaning and normalization pipeline. Accepts a character vector, data frame, or `karyo_check` tibble. For data frame input: same column detection as `check_karyo()`. When given a `karyo_check`, reuses cached assessment and propagates id column. Fixes dirty markers then runs `normalize_iscn()`. Returns a `karyo_preprocessed` tibble with optional id column (first), `original`, `preprocessed`, and `status` columns. Carries `.kp_fixable_rows`, `.kp_unfixable_rows`, `.kp_chimeric_rows`, `.kp_chimeric_all_rows`, `.kp_id_col`, `.kp_id_values` as attributes. Passing it directly to `parse_karyo()` requires no extra arguments.
 
 ### Internal pipeline helpers (in `R/parse_karyo.R`, unexported)
 
@@ -111,7 +111,8 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 
 ### Other internal helpers (unexported)
 
-- `truncate_str()`, `empty_issues_tibble()`, `strip_bands()`, `normalize_token()` (in `R/helpers.R`)
+- `truncate_str()`, `empty_issues_tibble()`, `strip_bands()`, `normalize_token()`, `.extract_df_input()` (in `R/helpers.R`)
+- `.karyotype_col_candidates`, `.id_col_candidates` constants (in `R/helpers.R`)
 - `flag_unpreprocessed()`, `normalize_iscn()` (in `R/preprocess.R`)
 - `.apply_dirty_fixes()`, `validate_karyotypes()` (in `R/validate.R`)
 - `ploidy_from_count()`, `ploidy_category()`, `extract_clone_data()` (in `R/ploidy.R`)
@@ -134,20 +135,26 @@ Package source is split across multiple files in `R/`. A legacy standalone `sour
 ### `parse_karyo()` pipeline flow
 
 ```
-Input → raw_vec extraction →
+Input → [Input routing: detect is_preprocessed FIRST]:
+    karyo_preprocessed: raw_vec = $preprocessed, original_vec = $original, id from attrs
+    plain data frame:   .extract_df_input() → raw_vec, original_vec, id
+    character vector:   raw_vec = original_vec = as.character(karyotypes)
   [Guard]:
-    all modes: .assess_karyotypes(raw_vec) → indices derived
+    is_preprocessed: reuse cached .kp_* indices, skip .assess_karyotypes()
+    standard path:   .assess_karyotypes(raw_vec) → indices derived
     "stop": error if any issues; raw_vec = normalize_iscn(raw_vec)
     "fix":  raw_vec = $processed (NA for unfixable); unfixable → NA
     "warn": issue rows → NA (no fixing); raw_vec = normalize_iscn(raw_vec)
+  Build input_df (original_karyotype = original_vec, normalized_karyotype = raw_vec)
   Filter issue rows → [Dedup] → Parse unique:
     build_sample_meta → build_clone_tokens →
     match_rules / compute_aneuploidy / compute_comma_counts / compute_unique_counts →
     Assembly (monosomal/complex inline) →
-  [Join back if deduped] → Recombine issue rows → Attach fixable_error/unfixable_error → Output
+  [Join back if deduped] → Recombine issue rows → Attach fixable_error/unfixable_error →
+  Attach id column (from id_values/id_col_name) → Output
 ```
 
-Note: `normalized_karyotype` column = `normalize_iscn(raw)` in all three modes. In `"fix"` mode, `raw_vec` is also dirty-fixed and chimeric-truncated before normalization. `fixable_error = 1` for any row that had a fixable issue (dirty marker or chimeric separator), regardless of whether it was fixed.
+Note: `normalized_karyotype` column = `normalize_iscn(raw)` in all three modes. In `"fix"` mode, `raw_vec` is also dirty-fixed and chimeric-truncated before normalization. `fixable_error = 1` for any row that had a fixable issue (dirty marker or chimeric separator), regardless of whether it was fixed. When input is `karyo_preprocessed`, `original_karyotype` = `$original` (the truly raw string), not the preprocessed form.
 
 `normalize_iscn()` is called inside `preprocess_karyo()` and (for "warn"/"stop") inside `parse_karyo()`. `parse_karyo()` applies no other normalization.
 
@@ -157,7 +164,7 @@ Add rows to `rules_table()` in `R/rules.R`: `flag_name` (output column), `regex`
 
 ## Testing
 
-497 assertions (sections 1–28) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification (incl. gap boundaries, ineligible clones, range averaging), monosomy/trisomy detection, complex/monosomal flags, CBF-AML override (t(8;21)/inv(16)/t(16;16)), preprocessing, idem expansion (incl. clean-stemline edge case), `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `fixable_error`/`unfixable_error` columns, ID column detection (incl. explicit `karyotype_column`), deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, trailing narrative (4-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, unicode_notation, embedded_newline, normalize_iscn (via preprocess path), `rules_table()` structure, `normalized_karyotype` column, workflow consistency (check → preprocess → parse chain, false-positive prevention, fixable_error cross-mode consistency), and edge cases.
+539 assertions (sections 1–29) in `tests/testthat/test_parse_karyo.R` covering: all regex rules (positive/negative/reversed), priority system, ploidy classification (incl. gap boundaries, ineligible clones, range averaging), monosomy/trisomy detection, complex/monosomal flags, CBF-AML override (t(8;21)/inv(16)/t(16;16)), preprocessing, idem expansion (incl. clean-stemline edge case), `check_karyo()`, `on_issues` guard (`"fix"`, `"warn"`, `"stop"`), `fixable_error`/`unfixable_error` columns, ID column detection (incl. explicit `karyotype_column`), deduplication, multi-group rule firing, `preprocess_karyo()`, `.dirty_patterns`, trailing narrative (4-rule chain), midstring_linewrap (incl. `+`), fish_notation, mar_space, missing_sex_comma, chimeric_separator, updated_iscn, zero_host_chimera, unicode_notation, embedded_newline, normalize_iscn (via preprocess path), `rules_table()` structure, `normalized_karyotype` column, workflow consistency (check → preprocess → parse chain, false-positive prevention, fixable_error cross-mode consistency), entry-point consistency (data frame input for all three functions, id propagation through full pipeline, type guard, `karyo_preprocessed` without `karyotype_column`, verbose alignment), and edge cases.
 
 Tests use a `pk()` helper that wraps `parse_karyo(..., on_issues = "warn", verbose = FALSE)`.
 

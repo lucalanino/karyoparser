@@ -2,7 +2,7 @@
 
 An R package for parsing ISCN karyotype strings into structured binary features. Designed for analysis of myeloid neoplasm-related chromosomal aberrations.
 
-**Version**: 0.8.0
+**Version**: 0.9.0
 
 ## Installation
 
@@ -54,7 +54,7 @@ result <- parse_karyo(df)   # sample_id carried through automatically
 result <- parse_karyo(c(".46,XX", "47,XY,+21[10] .Lab note"), on_issues = "fix")
 
 # Inspect what issues were found without parsing:
-check_karyo(c(".46,XX", "bad string"))
+check_karyo(c(".46,XX", "bad string"), verbose = TRUE)
 #> Checking 2 karyotype(s)...
 #>   Fixable:   1
 #>   Unfixable: 1
@@ -98,7 +98,7 @@ readr::write_csv(result, "parsed.csv")
 | `id_column` | `NULL` | ID column to carry through to output (auto-detected from sample_id, patient_id, id, mrn, etc.) |
 | `rules` | `rules_table()` | Custom rules data frame (see [Custom Rules](#custom-rules)) |
 | `.return` | `"tibble"` | Return type: `"tibble"` or `"data.frame"` |
-| `verbose` | `TRUE` | Print validation reports and messages |
+| `verbose` | `FALSE` | Print column detection and parsing summary messages |
 | `on_issues` | `"fix"` | `"fix"` (auto-clean dirty rows + truncate chimeric rows; print summary), `"warn"` (skip all issue rows → NA; print message), `"stop"` (error on any issue) |
 
 ## Output Columns
@@ -118,7 +118,7 @@ readr::write_csv(result, "parsed.csv")
 | `complex_karyotype` | integer 0/1 | 1 if ≥3 unique aberrations |
 | `monosomal_karyotype` | integer 0/1 | 1 if ≥2 autosomal monosomies, or ≥1 monosomy + ≥1 structural aberration |
 | `mixed_ploidy` | integer 0/1 | 1 if clones span different ploidy categories |
-| `fixable_error` | integer 0/1 | 1 if the row had fixable issues that were not auto-corrected (i.e. under `on_issues = "warn"`); always 0 under `"fix"` |
+| `fixable_error` | integer 0/1 | 1 if the row had at least one fixable issue (dirty marker or chimeric separator), regardless of whether it was auto-fixed. Under `"fix"` the row is still parsed normally; under `"warn"` it is returned as NA. |
 | `unfixable_error` | integer 0/1 | 1 if the row had unfixable structural issues (row is all NA) |
 | `chimeric_karyotype` | integer 0/1 | 1 if the input contained a `//` chimeric separator (truncated to first clone under `"fix"`; `zero_host_chimera` rows are also flagged here and always NA) |
 
@@ -246,9 +246,15 @@ Some data sources include dirty markers that the internal ISCN normalizer cannot
 # Default: auto-fix dirty rows and truncate chimeric rows
 result <- parse_karyo(raw_strings)
 
-# Or clean manually, then parse:
+# Or clean manually, then parse — the preprocessed object is passed directly,
+# no karyotype_column argument needed:
 clean  <- preprocess_karyo(raw_strings)
 result <- parse_karyo(clean)
+
+# Full three-step pipeline with a data frame — id column propagates automatically:
+ck     <- check_karyo(df)
+clean  <- preprocess_karyo(ck)
+result <- parse_karyo(clean)   # sample_id, karyotype column, id all inferred
 
 # Skip all issue rows (return NA) with a message:
 result <- parse_karyo(raw_strings, on_issues = "warn")

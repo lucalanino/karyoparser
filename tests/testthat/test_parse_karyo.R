@@ -1146,7 +1146,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.8.0")
+  expect_equal(attr(r, "karyoparser_version"), "0.9.0")
 })
 
 test_that(".return='data.frame' returns data.frame", {
@@ -1781,20 +1781,20 @@ test_that("parse_karyo: row with both fixable and unfixable issues has both erro
   expect_equal(r$unfixable_error, 1L)
 })
 
-test_that("check_karyo: always prints checking count and summary", {
+test_that("check_karyo: verbose=TRUE prints checking count and summary", {
   expect_message(
-    check_karyo(c("46,XX", ".47,XY,+21", NA)),
+    check_karyo(c("46,XX", ".47,XY,+21", NA), verbose = TRUE),
     "Checking 3 karyotype"
   )
   expect_message(
-    check_karyo(c("46,XX", ".47,XY,+21", NA)),
+    check_karyo(c("46,XX", ".47,XY,+21", NA), verbose = TRUE),
     "Fixable"
   )
 })
 
-test_that("check_karyo: prints 'All clean.' when no issues", {
+test_that("check_karyo: verbose=TRUE prints 'All clean.' when no issues", {
   expect_message(
-    check_karyo("46,XX[20]"),
+    check_karyo("46,XX[20]", verbose = TRUE),
     "All clean"
   )
 })
@@ -1804,16 +1804,6 @@ test_that("check_karyo: verbose=TRUE adds per-type breakdown", {
     check_karyo(c("46,XX", ".47,XY,+21", NA), verbose = TRUE),
     "breakdown"
   )
-})
-
-test_that("check_karyo: data frame input errors with helpful message", {
-  df <- data.frame(karyotype = "46,XX", stringsAsFactors = FALSE)
-  expect_error(check_karyo(df), "data frame")
-})
-
-test_that("preprocess_karyo: data frame input errors with helpful message", {
-  df <- data.frame(karyotype = "46,XX", stringsAsFactors = FALSE)
-  expect_error(preprocess_karyo(df), "data frame")
 })
 
 test_that("parse_karyo: clean row in same batch unaffected by zero_host_chimera row", {
@@ -2170,9 +2160,9 @@ test_that("preprocess -> parse workflow: unfixable rows (zero_host_chimera) retu
     c("46,XX[20]", NA_character_, "46,XX,t(9;22)(q34;q11)[15]")
   )
   expect_equal(proc$status, c("clean", "unfixable", "clean"))
-  # parse on preprocessed: unfixable row returns NA with unfixable_error=1
+  # parse on preprocessed directly (no karyotype_column needed)
   parsed <- suppressMessages(
-    parse_karyo(proc, karyotype_column = "preprocessed", on_issues = "warn")
+    parse_karyo(proc, on_issues = "warn")
   )
   expect_false(is.na(parsed$ploidy_category[1]))
   expect_true(is.na(parsed$ploidy_category[2]))
@@ -2186,7 +2176,7 @@ test_that("preprocess -> parse workflow: fixable rows are parsed, unfixable are 
   expect_equal(proc$status, c("fixed", "unfixable", "clean"))
   expect_equal(proc$preprocessed[2], NA_character_)
   parsed <- suppressMessages(
-    parse_karyo(proc, karyotype_column = "preprocessed", on_issues = "warn")
+    parse_karyo(proc, on_issues = "warn")
   )
   # Row 1 fixed by preprocess -> parses cleanly in "warn" mode
   expect_false(is.na(parsed$ploidy_category[1]))
@@ -2195,4 +2185,220 @@ test_that("preprocess -> parse workflow: fixable rows are parsed, unfixable are 
   expect_equal(parsed$unfixable_error[2], 1L)
   # Row 3 clean -> parses normally
   expect_false(is.na(parsed$ploidy_category[3]))
+})
+
+# =============================================================================
+# 29. Entry-point consistency
+# =============================================================================
+
+# 29a. check_karyo with data frame input --------------------------------------
+
+test_that("check_karyo: accepts data frame, auto-detects karyotype column", {
+  df <- data.frame(
+    karyotype = c("46,XX", ".46,XY[20]"),
+    stringsAsFactors = FALSE
+  )
+  result <- check_karyo(df)
+  expect_s3_class(result, "karyo_check")
+  expect_equal(nrow(result), 2L)
+  expect_equal(result$karyotype, c("46,XX", ".46,XY[20]"))
+  expect_equal(result$leading_dot, c(0L, 1L))
+})
+
+test_that("check_karyo: data frame with id column propagates id as first column", {
+  df <- data.frame(
+    sample_id = c("S1", "S2"),
+    karyotype = c("46,XX", "46,XY"),
+    stringsAsFactors = FALSE
+  )
+  result <- check_karyo(df)
+  expect_equal(names(result)[1], "sample_id")
+  expect_equal(result$sample_id, c("S1", "S2"))
+})
+
+test_that("check_karyo: iscn column name auto-detected", {
+  df <- data.frame(iscn = c("46,XX", "47,XY,+21"), stringsAsFactors = FALSE)
+  result <- check_karyo(df)
+  expect_s3_class(result, "karyo_check")
+  expect_equal(nrow(result), 2L)
+})
+
+test_that("check_karyo: explicit karyotype_column", {
+  df <- data.frame(my_col = c("46,XX", "46,XY"), stringsAsFactors = FALSE)
+  result <- check_karyo(df, karyotype_column = "my_col")
+  expect_equal(nrow(result), 2L)
+})
+
+test_that("check_karyo: explicit id_column", {
+  df <- data.frame(
+    my_id = c("A", "B"),
+    karyotype = c("46,XX", "46,XY"),
+    stringsAsFactors = FALSE
+  )
+  result <- check_karyo(df, id_column = "my_id")
+  expect_equal(names(result)[1], "my_id")
+  expect_equal(result$my_id, c("A", "B"))
+})
+
+# 29b. preprocess_karyo with data frame input ---------------------------------
+
+test_that("preprocess_karyo: accepts data frame, auto-detects karyotype column", {
+  df <- data.frame(karyotype = c("46,XX", ".46,XY"), stringsAsFactors = FALSE)
+  result <- suppressMessages(preprocess_karyo(df, verbose = TRUE))
+  expect_s3_class(result, "karyo_preprocessed")
+  expect_equal(nrow(result), 2L)
+  expect_equal(result$status, c("clean", "fixed"))
+})
+
+test_that("preprocess_karyo: data frame with id column propagates id as first column", {
+  df <- data.frame(
+    sample_id = c("S1", "S2"),
+    karyotype = c("46,XX", "46,XY"),
+    stringsAsFactors = FALSE
+  )
+  result <- suppressMessages(preprocess_karyo(df))
+  expect_equal(names(result)[1], "sample_id")
+  expect_equal(result$sample_id, c("S1", "S2"))
+})
+
+test_that("preprocess_karyo: explicit karyotype_column for non-candidate name", {
+  df <- data.frame(my_iscn = c("46,XX", "46,XY"), stringsAsFactors = FALSE)
+  result <- suppressMessages(preprocess_karyo(df, karyotype_column = "my_iscn"))
+  expect_equal(nrow(result), 2L)
+  expect_equal(result$status, c("clean", "clean"))
+})
+
+# 29c. Full pipeline — no column restating ------------------------------------
+
+test_that("full pipeline check -> preprocess -> parse: no extra args needed", {
+  df <- data.frame(
+    sample_id = c("S1", "S2", "S3"),
+    karyotype = c("46,XX[20]", ".46,XY,+8[10]", ".//46,XX[10]"),
+    stringsAsFactors = FALSE
+  )
+  ck <- check_karyo(df)
+  pp <- suppressMessages(preprocess_karyo(ck))
+  result <- suppressMessages(parse_karyo(pp))
+  # id column propagated without restating
+  expect_true("sample_id" %in% names(result))
+  expect_equal(result$sample_id, c("S1", "S2", "S3"))
+  # clean row parses normally
+  expect_false(is.na(result$ploidy_category[1]))
+  # fixable row (leading_dot) parsed normally in "fix" mode
+  expect_false(is.na(result$ploidy_category[2]))
+  expect_equal(result$fixable_error[2], 1L)
+  # unfixable (zero_host_chimera) returns NA
+  expect_true(is.na(result$ploidy_category[3]))
+  expect_equal(result$unfixable_error[3], 1L)
+})
+
+test_that("full pipeline: original_karyotype in parse output is the raw string, not preprocessed", {
+  df <- data.frame(
+    karyotype = c(".46,XX[20]"),
+    stringsAsFactors = FALSE
+  )
+  ck <- check_karyo(df)
+  pp <- suppressMessages(preprocess_karyo(ck))
+  result <- suppressMessages(parse_karyo(pp))
+  # original_karyotype must be the raw dirty string, not the cleaned one
+  expect_equal(result$original_karyotype, ".46,XX[20]")
+  # normalized_karyotype is the clean preprocessed form
+  expect_equal(result$normalized_karyotype, "46,XX[20]")
+})
+
+# 29d. Type guard -------------------------------------------------------------
+
+test_that("type guard: factor karyotype column triggers warning, still parses", {
+  df <- data.frame(
+    karyotype = factor(c("46,XX", "47,XY,+21")),
+    stringsAsFactors = TRUE
+  )
+  expect_warning(
+    result <- check_karyo(df),
+    regexp = "not character"
+  )
+  expect_equal(nrow(result), 2L)
+})
+
+test_that("type guard: integer column named karyotype triggers warning", {
+  df <- data.frame(karyotype = c(1L, 2L, 3L))
+  expect_warning(
+    check_karyo(df),
+    regexp = "not character"
+  )
+})
+
+test_that("type guard: factor karyotype column in parse_karyo triggers warning", {
+  df <- data.frame(
+    karyotype = factor(c("46,XX", "47,XY,+21")),
+    stringsAsFactors = TRUE
+  )
+  expect_warning(
+    result <- suppressMessages(parse_karyo(df)),
+    regexp = "not character"
+  )
+  expect_equal(nrow(result), 2L)
+})
+
+# 29e. parse_karyo with karyo_preprocessed (no karyotype_column) ---------------
+
+test_that("parse_karyo: karyo_preprocessed accepted without karyotype_column", {
+  pp <- suppressMessages(preprocess_karyo(c("46,XX", "47,XY,+21")))
+  result <- suppressMessages(parse_karyo(pp))
+  expect_equal(nrow(result), 2L)
+  expect_false(is.na(result$ploidy_category[1]))
+  expect_false(is.na(result$ploidy_category[2]))
+})
+
+test_that("parse_karyo: karyo_preprocessed propagates id without re-specification", {
+  df <- data.frame(
+    sample_id = c("A", "B"),
+    karyotype = c("46,XX", "47,XY,+21"),
+    stringsAsFactors = FALSE
+  )
+  pp <- suppressMessages(preprocess_karyo(check_karyo(df)))
+  result <- suppressMessages(parse_karyo(pp))
+  expect_true("sample_id" %in% names(result))
+  expect_equal(result$sample_id, c("A", "B"))
+})
+
+test_that("parse_karyo: original_karyotype shows pre-fix string when using karyo_preprocessed", {
+  raw <- ".46,XX,t(9;22)(q34;q11)[20]"
+  pp <- suppressMessages(preprocess_karyo(raw))
+  result <- suppressMessages(parse_karyo(pp))
+  expect_equal(result$original_karyotype, raw)
+  expect_equal(result$normalized_karyotype, "46,XX,t(9;22)(q34;q11)[20]")
+})
+
+# 29f. verbose alignment -------------------------------------------------------
+
+test_that("check_karyo: verbose=FALSE produces no messages", {
+  expect_silent(check_karyo(c("46,XX", "47,XY,+21"), verbose = FALSE))
+})
+
+test_that("check_karyo: verbose=TRUE produces messages and returns visibly", {
+  msgs <- character(0)
+  withCallingHandlers(
+    {
+      result <- check_karyo(c("46,XX", ".46,XY"), verbose = TRUE)
+    },
+    message = function(m) {
+      msgs <<- c(msgs, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
+  )
+  expect_true(length(msgs) > 0)
+  # Returns visibly (not invisible): result should be a proper karyo_check tibble
+  expect_s3_class(result, "karyo_check")
+})
+
+test_that("preprocess_karyo: verbose=FALSE produces no messages", {
+  expect_silent(preprocess_karyo(c("46,XX", "47,XY,+21"), verbose = FALSE))
+})
+
+test_that("preprocess_karyo: verbose=TRUE produces messages", {
+  expect_message(
+    preprocess_karyo(c("46,XX", ".46,XY"), verbose = TRUE),
+    regexp = "Preprocessing"
+  )
 })

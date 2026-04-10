@@ -183,35 +183,60 @@
 #' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are detected but
 #' not modified — their `fix` list is empty, so the loop skips them. Always NA.
 #'
-#' @param x Character vector of raw karyotype strings, or the `karyo_check`
-#'   tibble returned by `check_karyo()`. When a `karyo_check` tibble is
-#'   supplied, the assessment it already computed is reused directly —
-#'   no re-scanning of the input. Plain data frames are not accepted; extract
-#'   the column first (e.g. `preprocess_karyo(df$karyotype)`).
-#' @return A `karyo_preprocessed` tibble with columns:
-#'   - `original`: raw input string (always unchanged).
-#'   - `preprocessed`: fully normalized, parser-ready string for rows that are
-#'     clean or successfully fixed. `NA_character_` for unfixable rows — rows
-#'     where structural issues remain after all dirty fixes have been applied.
-#'   - `status`: `"clean"` (no issues found), `"fixed"` (one or more dirty
-#'     issues were resolved), or `"unfixable"` (structural issues remain after
-#'     fixing; `preprocessed` is `NA`).
+#' @param x Character vector of raw karyotype strings, the `karyo_check`
+#'   tibble returned by `check_karyo()`, or a data frame containing a karyotype
+#'   column. When a `karyo_check` tibble is supplied, the assessment it already
+#'   computed is reused directly — no re-scanning — and any id column detected
+#'   upstream is propagated automatically. When a plain data frame is supplied,
+#'   the karyotype column is auto-detected or specified via `karyotype_column`.
+#' @param karyotype_column Character. Name of the karyotype column when `x` is
+#'   a plain data frame. Ignored for character vector or `karyo_check` input.
+#' @param id_column Character. Name of the id column when `x` is a plain data
+#'   frame. Ignored for character vector or `karyo_check` input (id is
+#'   propagated automatically from `karyo_check` attrs in that case).
+#' @param verbose Logical. If `TRUE`, prints a processing summary. Default
+#'   `FALSE`.
+#' @return A `karyo_preprocessed` tibble. Columns: optional id column (first,
+#'   when detected or propagated), `original` (raw input, always unchanged),
+#'   `preprocessed` (fully normalized string, `NA_character_` for unfixable
+#'   rows), `status` (`"clean"`, `"fixed"`, or `"unfixable"`).
 #'
-#'   The returned tibble can be passed directly to `parse_karyo()` (without
-#'   specifying `karyotype_column`), which will reuse the cached issue
-#'   classification and skip re-scanning. Alternatively, pass the
-#'   `preprocessed` column to `parse_karyo()` manually.
+#'   The returned tibble can be passed directly to `parse_karyo()` without
+#'   specifying `karyotype_column` or `id_column` — both are inferred
+#'   automatically from the object's class and cached attributes.
 #' @export
-preprocess_karyo <- function(x) {
-  # Accept karyo_check output directly — reuse its cached assessment
+preprocess_karyo <- function(
+  x,
+  karyotype_column = NULL,
+  id_column = NULL,
+  verbose = FALSE
+) {
+  # Input routing
+  id_col_name <- NULL
+  id_values <- NULL
   if (inherits(x, "karyo_check")) {
+    # Reuse cached assessment and propagate id from upstream check_karyo()
     cached_assessment <- attr(x, ".kp_assessment")
+    id_col_name <- attr(x, ".kp_id_col")
+    id_values <- attr(x, ".kp_id_values")
     x <- attr(x, ".kp_raw")
+  } else if (is.data.frame(x)) {
+    extracted <- .extract_df_input(
+      x,
+      karyotype_column,
+      id_column,
+      verbose,
+      "preprocess_karyo"
+    )
+    id_col_name <- extracted$id_col_name
+    id_values <- extracted$id_values
+    x <- extracted$raw_vec
+    cached_assessment <- NULL
   } else {
-    if (is.data.frame(x)) {
+    if (!is.character(x)) {
       stop(
-        "`x` must be a character vector, not a data frame. ",
-        "Extract the column first: preprocess_karyo(df$karyotype)"
+        "`x` must be a character vector, data frame, or karyo_check object.",
+        call. = FALSE
       )
     }
     cached_assessment <- NULL
@@ -223,12 +248,24 @@ preprocess_karyo <- function(x) {
       preprocessed = character(),
       status = character()
     )
+    if (!is.null(id_col_name)) {
+      out[[id_col_name]] <- character()
+      out <- dplyr::relocate(out, dplyr::all_of(id_col_name), .before = 1)
+    }
     class(out) <- c("karyo_preprocessed", class(out))
+    attr(out, ".kp_fixable_rows") <- integer(0)
+    attr(out, ".kp_unfixable_rows") <- integer(0)
+    attr(out, ".kp_chimeric_rows") <- integer(0)
+    attr(out, ".kp_chimeric_all_rows") <- integer(0)
+    attr(out, ".kp_id_col") <- id_col_name
+    attr(out, ".kp_id_values") <- id_values
     return(out)
   }
 
   n <- length(x)
-  message("Preprocessing ", n, " karyotype(s)...")
+  if (isTRUE(verbose)) {
+    message("Preprocessing ", n, " karyotype(s)...")
+  }
 
   assessment <- if (!is.null(cached_assessment)) {
     cached_assessment
@@ -248,26 +285,26 @@ preprocess_karyo <- function(x) {
     ifelse(seq_len(n) %in% fixed_row_indices, "fixed", "clean")
   )
 
-  # Summary
-  n_fixed <- sum(status == "fixed")
-  n_unfixable <- length(assessment$unfixable_row_indices)
-
-  if (n_fixed == 0 && n_unfixable == 0) {
-    message("  All clean.")
-  } else {
-    n_clean <- sum(status == "clean", na.rm = TRUE)
-    if (n_fixed > 0) {
-      message("  Fixed:      ", n_fixed)
-    }
-    if (n_clean > 0) {
-      message("  Clean:      ", n_clean)
-    }
-    if (n_unfixable > 0) {
-      message(
-        "  Unfixable:  ",
-        n_unfixable,
-        "  \u2014 run check_karyo() to investigate"
-      )
+  if (isTRUE(verbose)) {
+    n_fixed <- sum(status == "fixed")
+    n_unfixable <- length(assessment$unfixable_row_indices)
+    if (n_fixed == 0 && n_unfixable == 0) {
+      message("  All clean.")
+    } else {
+      n_clean <- sum(status == "clean", na.rm = TRUE)
+      if (n_fixed > 0) {
+        message("  Fixed:      ", n_fixed)
+      }
+      if (n_clean > 0) {
+        message("  Clean:      ", n_clean)
+      }
+      if (n_unfixable > 0) {
+        message(
+          "  Unfixable:  ",
+          n_unfixable,
+          "  \u2014 run check_karyo() to investigate"
+        )
+      }
     }
   }
 
@@ -276,6 +313,12 @@ preprocess_karyo <- function(x) {
     preprocessed = as.character(processed),
     status = status
   )
+
+  # Add id column as first column when present
+  if (!is.null(id_col_name)) {
+    out[[id_col_name]] <- id_values
+    out <- dplyr::relocate(out, dplyr::all_of(id_col_name), .before = 1)
+  }
 
   # Tag output so parse_karyo() can skip .assess_karyotypes() on the result.
   # Store only the index vectors parse_karyo() needs, not the full assessment.
@@ -293,6 +336,8 @@ preprocess_karyo <- function(x) {
   attr(out, ".kp_chimeric_all_rows") <- unique(
     c(assessment$chimeric_row_indices, zhc_row_indices)
   )
+  attr(out, ".kp_id_col") <- id_col_name
+  attr(out, ".kp_id_values") <- id_values
   out
 }
 

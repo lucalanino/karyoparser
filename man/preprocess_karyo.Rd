@@ -4,31 +4,35 @@
 \alias{preprocess_karyo}
 \title{Clean and Normalize ISCN Karyotype Strings}
 \usage{
-preprocess_karyo(x)
+preprocess_karyo(x, karyotype_column = NULL, id_column = NULL, verbose = FALSE)
 }
 \arguments{
-\item{x}{Character vector of raw karyotype strings, or the \code{karyo_check}
-tibble returned by \code{check_karyo()}. When a \code{karyo_check} tibble is
-supplied, the assessment it already computed is reused directly —
-no re-scanning of the input. Plain data frames are not accepted; extract
-the column first (e.g. \code{preprocess_karyo(df$karyotype)}).}
+\item{x}{Character vector of raw karyotype strings, the \code{karyo_check}
+tibble returned by \code{check_karyo()}, or a data frame containing a karyotype
+column. When a \code{karyo_check} tibble is supplied, the assessment it already
+computed is reused directly — no re-scanning — and any id column detected
+upstream is propagated automatically. When a plain data frame is supplied,
+the karyotype column is auto-detected or specified via \code{karyotype_column}.}
+
+\item{karyotype_column}{Character. Name of the karyotype column when \code{x} is
+a plain data frame. Ignored for character vector or \code{karyo_check} input.}
+
+\item{id_column}{Character. Name of the id column when \code{x} is a plain data
+frame. Ignored for character vector or \code{karyo_check} input (id is
+propagated automatically from \code{karyo_check} attrs in that case).}
+
+\item{verbose}{Logical. If \code{TRUE}, prints a processing summary. Default
+\code{FALSE}.}
 }
 \value{
-A \code{karyo_preprocessed} tibble with columns:
-\itemize{
-\item \code{original}: raw input string (always unchanged).
-\item \code{preprocessed}: fully normalized, parser-ready string for rows that are
-clean or successfully fixed. \code{NA_character_} for unfixable rows — rows
-where structural issues remain after all dirty fixes have been applied.
-\item \code{status}: \code{"clean"} (no issues found), \code{"fixed"} (one or more dirty
-issues were resolved), or \code{"unfixable"} (structural issues remain after
-fixing; \code{preprocessed} is \code{NA}).
-}
+A \code{karyo_preprocessed} tibble. Columns: optional id column (first,
+when detected or propagated), \code{original} (raw input, always unchanged),
+\code{preprocessed} (fully normalized string, \code{NA_character_} for unfixable
+rows), \code{status} (\code{"clean"}, \code{"fixed"}, or \code{"unfixable"}).
 
-The returned tibble can be passed directly to \code{parse_karyo()} (without
-specifying \code{karyotype_column}), which will reuse the cached issue
-classification and skip re-scanning. Alternatively, pass the
-\code{preprocessed} column to \code{parse_karyo()} manually.
+The returned tibble can be passed directly to \code{parse_karyo()} without
+specifying \code{karyotype_column} or \code{id_column} — both are inferred
+automatically from the object's class and cached attributes.
 }
 \description{
 The complete cleaning and normalization pipeline. Fixes dirty markers then

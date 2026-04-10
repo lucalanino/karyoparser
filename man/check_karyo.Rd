@@ -4,28 +4,41 @@
 \alias{check_karyo}
 \title{Check Karyotype Strings for Issues}
 \usage{
-check_karyo(x, verbose = FALSE)
+check_karyo(x, verbose = FALSE, karyotype_column = NULL, id_column = NULL)
 }
 \arguments{
-\item{x}{Character vector of karyotype strings. Data frames are not
-accepted; extract the column first (e.g. \code{check_karyo(df$karyotype)}).}
+\item{x}{Character vector of karyotype strings, or a data frame containing
+a karyotype column. If a data frame, the karyotype column is auto-detected
+from common names (\code{karyotype}, \code{iscn}, etc.) or specified via
+\code{karyotype_column}. An id column is also auto-detected or specified via
+\code{id_column}; when found it is included as the first column of the output
+and propagated through subsequent pipeline steps.}
 
-\item{verbose}{Logical. If \code{TRUE}, also prints a per-issue-type breakdown
-and returns the tibble invisibly. Default \code{FALSE}.}
+\item{verbose}{Logical. If \code{TRUE}, prints a count summary and per-issue-type
+breakdown. Default \code{FALSE}.}
+
+\item{karyotype_column}{Character. Name of the karyotype column when \code{x} is
+a data frame. If \code{NULL} (default), auto-detected from common names.
+Ignored when \code{x} is a character vector.}
+
+\item{id_column}{Character. Name of the id column when \code{x} is a data frame.
+If \code{NULL} (default), auto-detected from common names (\code{sample_id},
+\code{patient_id}, \code{id}, \code{mrn}, etc.). Ignored when \code{x} is a character vector.}
 }
 \value{
-A \code{karyo_check} tibble with \code{length(x)} rows. Columns: \code{row_index},
-\code{karyotype} (full input string), one integer column per issue type (see
-\code{.all_issue_types}), \code{fixable}, \code{unfixable}. The tibble can be passed
-directly to \code{preprocess_karyo()}, which will reuse the cached assessment
-rather than re-scanning the input.
+A \code{karyo_check} tibble with \code{length(x)} rows (or \code{nrow(x)} when
+input is a data frame). Columns: optional id column (first, when detected),
+\code{row_index}, \code{karyotype} (full input string), one integer column per issue
+type (see \code{.all_issue_types}), \code{fixable}, \code{unfixable}. The tibble can be
+passed directly to \code{preprocess_karyo()}, which will reuse the cached
+assessment and propagate the id column without re-scanning.
 }
 \description{
 Checks raw karyotype strings for formatting artifacts and structural errors.
-Always prints a count of karyotypes being checked and a summary of fixable
-and unfixable issues (or "All clean." if none). Returns a wide-format tibble
-with one row per input string: each possible issue type is a column
-(\code{0}/\code{1}), plus summary \code{fixable} and \code{unfixable} columns.
+Returns a wide-format tibble with one row per input string: each possible
+issue type is a column (\code{0}/\code{1}), plus summary \code{fixable} and \code{unfixable}
+columns. When \code{verbose = TRUE}, prints a count summary and per-issue-type
+breakdown.
 }
 \details{
 Fixable issues (resolvable by \code{parse_karyo()} under \code{on_issues = "fix"}):

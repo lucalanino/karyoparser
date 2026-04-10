@@ -10,35 +10,37 @@ parse_karyo(
   karyotype_column = NULL,
   id_column = NULL,
   .return = c("tibble", "data.frame"),
-  verbose = TRUE,
+  verbose = FALSE,
   on_issues = c("fix", "warn", "stop")
 )
 }
 \arguments{
-\item{karyotypes}{Either a character vector of karyotype strings or a data.frame
-containing a karyotype column. If a data.frame, specify the column name via
-karyotype_column parameter.}
+\item{karyotypes}{A character vector of karyotype strings, a data frame
+containing a karyotype column, or a \code{karyo_preprocessed} tibble returned
+by \code{preprocess_karyo()}. When a \code{karyo_preprocessed} object is passed, the
+\code{preprocessed} column is used automatically and cached issue indices and id
+column are reused — no additional arguments required.}
 
 \item{rules}{A data.frame of parsing rules (default: rules_table()). Must contain
 columns: flag_name, regex, category, priority, counts_for_monosomal,
 competition_group. Use custom data.frame for specialized parsing needs.}
 
-\item{karyotype_column}{Character string specifying the column name containing
-karyotypes when input is a data.frame. If NULL (default), tries to auto-detect
-from common names: "karyotype", "Karyotype", "KARYOTYPE", "karyo", "Karyo",
-"iscn", "ISCN".}
+\item{karyotype_column}{Character. Name of the karyotype column when input is
+a plain data frame. If \code{NULL} (default), auto-detected from common names
+(\code{karyotype}, \code{iscn}, etc.). Ignored for character vector or
+\code{karyo_preprocessed} input.}
 
-\item{id_column}{Character string specifying the column name to use as row
-identifier in the output. If NULL (default), tries to auto-detect from common
-names (sample_id, patient_id, id, mrn, subject_id, etc.) and prints a message
-noting which column was selected (or that none was found). The ID column is
-placed first in the output. Ignored when input is a character vector.}
+\item{id_column}{Character. Name of the id column when input is a data frame.
+If \code{NULL} (default), auto-detected from common names (\code{sample_id},
+\code{patient_id}, \code{id}, \code{mrn}, etc.). The id column is placed first in the
+output. For \code{karyo_preprocessed} input, the id is propagated automatically
+from upstream pipeline steps; pass \code{id_column} explicitly only to override.}
 
-\item{.return}{Character string specifying return type: "tibble" (default) or
-"data.frame".}
+\item{.return}{Character string specifying return type: \code{"tibble"} (default)
+or \code{"data.frame"}.}
 
-\item{verbose}{Logical. If TRUE, prints validation reports and parsing messages.
-Default \code{TRUE}.}
+\item{verbose}{Logical. If \code{TRUE}, prints column detection and parsing
+summary messages. Default \code{FALSE}.}
 
 \item{on_issues}{Character string specifying how to handle any karyotype
 issues detected by \code{check_karyo()}. Three classes of issues are handled:

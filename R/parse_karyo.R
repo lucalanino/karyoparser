@@ -1,15 +1,5 @@
 # ---- Internal pipeline helpers ------------------------------------------------
 
-.karyotype_col_candidates <- c(
-  "karyotype",
-  "Karyotype",
-  "KARYOTYPE",
-  "karyo",
-  "Karyo",
-  "iscn",
-  "ISCN"
-)
-
 build_sample_meta <- function(input_df, verbose = FALSE) {
   counts_raw <- input_df |>
     dplyr::mutate(
@@ -365,25 +355,27 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #' Extracts specific translocations, deletions, monosomies, trisomies, and other
 #' chromosomal aberrations according to configurable rules.
 #'
-#' @param karyotypes Either a character vector of karyotype strings or a data.frame
-#'   containing a karyotype column. If a data.frame, specify the column name via
-#'   karyotype_column parameter.
+#' @param karyotypes A character vector of karyotype strings, a data frame
+#'   containing a karyotype column, or a `karyo_preprocessed` tibble returned
+#'   by `preprocess_karyo()`. When a `karyo_preprocessed` object is passed, the
+#'   `preprocessed` column is used automatically and cached issue indices and id
+#'   column are reused — no additional arguments required.
 #' @param rules A data.frame of parsing rules (default: rules_table()). Must contain
 #'   columns: flag_name, regex, category, priority, counts_for_monosomal,
 #'   competition_group. Use custom data.frame for specialized parsing needs.
-#' @param karyotype_column Character string specifying the column name containing
-#'   karyotypes when input is a data.frame. If NULL (default), tries to auto-detect
-#'   from common names: "karyotype", "Karyotype", "KARYOTYPE", "karyo", "Karyo",
-#'   "iscn", "ISCN".
-#' @param id_column Character string specifying the column name to use as row
-#'   identifier in the output. If NULL (default), tries to auto-detect from common
-#'   names (sample_id, patient_id, id, mrn, subject_id, etc.) and prints a message
-#'   noting which column was selected (or that none was found). The ID column is
-#'   placed first in the output. Ignored when input is a character vector.
-#' @param .return Character string specifying return type: "tibble" (default) or
-#'   "data.frame".
-#' @param verbose Logical. If TRUE, prints validation reports and parsing messages.
-#'   Default `TRUE`.
+#' @param karyotype_column Character. Name of the karyotype column when input is
+#'   a plain data frame. If `NULL` (default), auto-detected from common names
+#'   (`karyotype`, `iscn`, etc.). Ignored for character vector or
+#'   `karyo_preprocessed` input.
+#' @param id_column Character. Name of the id column when input is a data frame.
+#'   If `NULL` (default), auto-detected from common names (`sample_id`,
+#'   `patient_id`, `id`, `mrn`, etc.). The id column is placed first in the
+#'   output. For `karyo_preprocessed` input, the id is propagated automatically
+#'   from upstream pipeline steps; pass `id_column` explicitly only to override.
+#' @param .return Character string specifying return type: `"tibble"` (default)
+#'   or `"data.frame"`.
+#' @param verbose Logical. If `TRUE`, prints column detection and parsing
+#'   summary messages. Default `FALSE`.
 #' @param on_issues Character string specifying how to handle any karyotype
 #'   issues detected by `check_karyo()`. Three classes of issues are handled:
 #'   - **Dirty markers** (e.g. leading dots, HTML entities, missing sex comma):
@@ -456,7 +448,7 @@ parse_karyo <- function(
   karyotype_column = NULL,
   id_column = NULL,
   .return = c("tibble", "data.frame"),
-  verbose = TRUE,
+  verbose = FALSE,
   on_issues = c("fix", "warn", "stop")
 ) {
   .return <- match.arg(.return)
@@ -514,25 +506,53 @@ parse_karyo <- function(
     if (.return == "tibble") out else as.data.frame(out)
   }
 
-  # Guard: run unified check on raw input ------------------------------------
-  raw_vec <- if (is.data.frame(karyotypes)) {
-    if (!is.null(karyotype_column) && karyotype_column %in% names(karyotypes)) {
-      as.character(karyotypes[[karyotype_column]])
-    } else {
-      kc_found <- intersect(.karyotype_col_candidates, names(karyotypes))[1]
-      if (!is.na(kc_found)) {
-        as.character(karyotypes[[kc_found]])
-      } else {
-        character(0)
-      }
-    }
-  } else {
-    as.character(karyotypes)
-  }
-  original_vec <- raw_vec
-  # Detect karyo_preprocessed input — cached indices available, skip assessment
+  # ---- Input routing: extract raw_vec, original_vec, id info ----------------
+  # karyo_preprocessed detection MUST happen before raw_vec is set so the
+  # "preprocessed" column is used automatically (it is not in
+  # .karyotype_col_candidates).
   is_preprocessed <- is.data.frame(karyotypes) &&
     inherits(karyotypes, "karyo_preprocessed")
+
+  id_values <- NULL
+  id_col_name <- NULL
+
+  if (is_preprocessed) {
+    raw_vec <- as.character(karyotypes[["preprocessed"]])
+    original_vec <- as.character(karyotypes[["original"]])
+    # id: explicit id_column param overrides cached attrs
+    if (!is.null(id_column)) {
+      if (!id_column %in% names(karyotypes)) {
+        stop(
+          sprintf(
+            "ID column '%s' not found in karyo_preprocessed input.",
+            id_column
+          ),
+          call. = FALSE
+        )
+      }
+      id_col_name <- id_column
+      id_values <- as.character(karyotypes[[id_column]])
+    } else {
+      id_col_name <- attr(karyotypes, ".kp_id_col")
+      id_values <- attr(karyotypes, ".kp_id_values")
+    }
+  } else if (is.data.frame(karyotypes)) {
+    extracted <- .extract_df_input(
+      karyotypes,
+      karyotype_column,
+      id_column,
+      verbose,
+      "parse_karyo"
+    )
+    raw_vec <- extracted$raw_vec
+    original_vec <- raw_vec
+    id_col_name <- extracted$id_col_name
+    id_values <- extracted$id_values
+    karyotype_column <- extracted$karyotype_col_name
+  } else {
+    raw_vec <- as.character(karyotypes)
+    original_vec <- raw_vec
+  }
 
   if (length(raw_vec) > 0) {
     n_total_vec <- length(raw_vec)
@@ -711,89 +731,13 @@ parse_karyo <- function(
   }
 
   # Ingest --------------------------------------------------------------------
-  id_values <- NULL
-  id_col_name <- NULL
-
-  if (is.data.frame(karyotypes)) {
-    if (is.null(karyotype_column)) {
-      karyotype_column <- intersect(
-        .karyotype_col_candidates,
-        names(karyotypes)
-      )[1]
-      if (is.na(karyotype_column)) {
-        stop("Could not auto-detect karyotype column. Set 'karyotype_column'.")
-      }
-      if (isTRUE(verbose)) {
-        message("Auto-detected karyotype column: ", karyotype_column)
-      }
-    } else {
-      if (isTRUE(verbose)) {
-        message("Using karyotype column: ", karyotype_column)
-      }
-    }
-    if (!karyotype_column %in% names(karyotypes)) {
-      stop(sprintf("Column '%s' not found", karyotype_column))
-    }
-
-    # ID column detection -------------------------------------------------------
-    if (is.null(id_column)) {
-      possible_ids <- c(
-        "sample_id",
-        "Sample_ID",
-        "SampleID",
-        "sample",
-        "patient_id",
-        "Patient_ID",
-        "PatientID",
-        "patient",
-        "id",
-        "ID",
-        "Id",
-        "mrn",
-        "MRN",
-        "subject_id",
-        "SubjectID",
-        "subject"
-      )
-      id_column <- intersect(possible_ids, names(karyotypes))[1]
-      if (!is.na(id_column)) {
-        if (isTRUE(verbose)) {
-          message(
-            "Auto-detected ID column: ",
-            id_column,
-            ". Use id_column= to specify explicitly."
-          )
-        }
-      } else {
-        if (isTRUE(verbose)) {
-          message("No ID column detected. Use id_column= to specify one.")
-        }
-        id_column <- NA_character_
-      }
-    } else {
-      if (!id_column %in% names(karyotypes)) {
-        stop(sprintf("ID column '%s' not found", id_column))
-      }
-      if (isTRUE(verbose)) message("Using ID column: ", id_column)
-    }
-
-    if (!is.na(id_column) && !is.null(id_column)) {
-      id_values <- as.character(karyotypes[[id_column]])
-      id_col_name <- id_column
-    }
-
-    input_df <- tibble::tibble(
-      .pk_row_id = seq_len(nrow(karyotypes)),
-      original_karyotype = original_vec,
-      normalized_karyotype = raw_vec
-    )
-  } else {
-    input_df <- tibble::tibble(
-      .pk_row_id = seq_along(raw_vec),
-      original_karyotype = original_vec,
-      normalized_karyotype = raw_vec
-    )
-  }
+  # raw_vec, original_vec, id_values, id_col_name were all resolved in the
+  # input-routing block above. Just build input_df here.
+  input_df <- tibble::tibble(
+    .pk_row_id = seq_along(raw_vec),
+    original_karyotype = original_vec,
+    normalized_karyotype = raw_vec
+  )
 
   # Apply issue-row filtering -------------------------------------------------
   if (length(issue_row_indices) > 0) {
