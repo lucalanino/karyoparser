@@ -414,10 +414,8 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   - monosomal_karyotype: 1 if meets monosomal criteria, else 0
 #'   - mixed_ploidy: 1 if clones have different ploidy categories, else 0
 #'   - fixable_error: 1 if the row had at least one fixable issue (dirty marker
-#'     or chimeric separator), regardless of whether it was auto-fixed. In
-#'     `"fix"` mode, rows with `fixable_error = 1` are parsed normally (the
-#'     issue was resolved). In `"warn"`/`"stop"` mode, such rows are returned
-#'     as NA (nothing was fixed).
+#'     or chimeric separator) and no unfixable issue, regardless of whether the
+#'     fixable issue was auto-corrected. 0 when `unfixable_error = 1`.
 #'   - unfixable_error: 1 if row had unfixable structural issues (row is NA), else 0
 #'   - chimeric_karyotype: 1 if row contained a `//` chimeric separator (regular
 #'     chimeric rows are truncated to the host clone; `zero_host_chimera` rows
@@ -755,7 +753,11 @@ parse_karyo <- function(
       # All rows had issues - return blank rows with issues attached
       out <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
       out$.pk_row_id <- issue_rows_df$.pk_row_id
-      out$fixable_error <- as.integer(out$.pk_row_id %in% fixable_row_indices)
+      out$fixable_error <- as.integer(
+        out$.pk_row_id %in%
+          fixable_row_indices &
+          !out$.pk_row_id %in% unfixable_row_indices
+      )
       out$unfixable_error <- as.integer(
         out$.pk_row_id %in% unfixable_row_indices
       )
@@ -975,7 +977,11 @@ parse_karyo <- function(
   }
 
   # Error flag columns ---------------------------------------------------------
-  out$fixable_error <- as.integer(out$.pk_row_id %in% fixable_row_indices)
+  out$fixable_error <- as.integer(
+    out$.pk_row_id %in%
+      fixable_row_indices &
+      !out$.pk_row_id %in% unfixable_row_indices
+  )
   out$unfixable_error <- as.integer(out$.pk_row_id %in% unfixable_row_indices)
   out$chimeric_karyotype <- as.integer(out$.pk_row_id %in% chimeric_all_indices)
 

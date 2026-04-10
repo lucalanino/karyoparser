@@ -1774,10 +1774,11 @@ test_that("parse_karyo: zero_host_chimera with other dirty patterns still return
   expect_true(is.na(r$ploidy_category))
 })
 
-test_that("parse_karyo: row with both fixable and unfixable issues has both error columns = 1", {
-  # zero_host_chimera (unfixable) + trailing_narrative (fixable) co-occur
+test_that("parse_karyo: row with both fixable and unfixable issues — unfixable wins", {
+  # zero_host_chimera (unfixable) + trailing_narrative (fixable) co-occur.
+  # unfixable_error takes precedence: fixable_error = 0, unfixable_error = 1.
   r <- pk(".//46,XX[10] .Female karyotype")
-  expect_equal(r$fixable_error, 1L)
+  expect_equal(r$fixable_error, 0L)
   expect_equal(r$unfixable_error, 1L)
 })
 
