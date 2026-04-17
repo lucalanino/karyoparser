@@ -10,7 +10,7 @@ parse_karyo(
   karyotype_column = NULL,
   id_column = NULL,
   verbose = FALSE,
-  on_issues = c("fix", "warn", "stop"),
+  on_issues = c("stop", "fix", "warn"),
   .return = c("tibble", "data.frame")
 )
 }
@@ -55,13 +55,15 @@ unfixable — these rows always return NA regardless of \code{on_issues}.
 
 Values:
 \itemize{
-\item \code{"fix"} (default): Apply \code{preprocess_karyo()} to dirty rows; truncate
-chimeric rows to the first clone. Rows that still have issues after
-these corrections are returned as NA. A message is printed summarising
-how many rows were fixed and how many could not be fixed.
+\item \code{"stop"} (default): Raise an error immediately if any issues are found,
+listing fixable and unfixable issue types and counts, and suggesting next
+steps. No fixing is attempted. Use this to catch data quality problems
+early; switch to \code{"fix"} or run \code{check_karyo()} once you understand them.
+\item \code{"fix"}: Apply \code{preprocess_karyo()} to dirty rows; truncate chimeric rows
+to the first clone. Rows that still have issues after these corrections
+are returned as NA. A message is printed summarising how many rows were
+fixed and how many could not be fixed.
 \item \code{"warn"}: Return NA for all issue rows and emit a message. No fixing
-is attempted.
-\item \code{"stop"}: Raise an error immediately if any issues are found. No fixing
 is attempted.
 }}
 

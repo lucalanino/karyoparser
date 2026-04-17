@@ -387,13 +387,15 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'     unfixable — these rows always return NA regardless of `on_issues`.
 #'
 #'   Values:
-#'   - `"fix"` (default): Apply `preprocess_karyo()` to dirty rows; truncate
-#'     chimeric rows to the first clone. Rows that still have issues after
-#'     these corrections are returned as NA. A message is printed summarising
-#'     how many rows were fixed and how many could not be fixed.
+#'   - `"stop"` (default): Raise an error immediately if any issues are found,
+#'     listing fixable and unfixable issue types and counts, and suggesting next
+#'     steps. No fixing is attempted. Use this to catch data quality problems
+#'     early; switch to `"fix"` or run `check_karyo()` once you understand them.
+#'   - `"fix"`: Apply `preprocess_karyo()` to dirty rows; truncate chimeric rows
+#'     to the first clone. Rows that still have issues after these corrections
+#'     are returned as NA. A message is printed summarising how many rows were
+#'     fixed and how many could not be fixed.
 #'   - `"warn"`: Return NA for all issue rows and emit a message. No fixing
-#'     is attempted.
-#'   - `"stop"`: Raise an error immediately if any issues are found. No fixing
 #'     is attempted.
 #' @param .return Character string specifying return type: `"tibble"` (default)
 #'   or `"data.frame"`.
@@ -448,7 +450,7 @@ parse_karyo <- function(
   karyotype_column = NULL,
   id_column = NULL,
   verbose = FALSE,
-  on_issues = c("fix", "warn", "stop"),
+  on_issues = c("stop", "fix", "warn"),
   .return = c("tibble", "data.frame")
 ) {
   .return <- match.arg(.return)
@@ -580,10 +582,13 @@ parse_karyo <- function(
         na_indices <- which(is.na(raw_vec))
         if (length(na_indices) > 0) {
           stop(
-            sprintf(
-              "%d of %d karyotype(s) are unfixable (NA in preprocessed input). Use on_issues = \"fix\" or \"warn\".",
-              length(na_indices),
-              n_total_vec
+            paste0(
+              sprintf(
+                "parse_karyo() stopped: %d of %d karyotype(s) are unfixable (NA in preprocessed input).\n",
+                length(na_indices),
+                n_total_vec
+              ),
+              "Rerun with on_issues = \"warn\" to skip these rows."
             ),
             call. = FALSE
           )
@@ -648,18 +653,63 @@ parse_karyo <- function(
           issue_counts <- assessment$reported_issues |>
             dplyr::count(issue_type, name = "n") |>
             dplyr::arrange(dplyr::desc(n))
-          stop(
-            sprintf(
-              "%d of %d karyotype(s) have issues (%s). Use on_issues = \"fix\" or \"warn\", or call check_karyo() for details.",
-              length(unique(assessment$reported_issues$row_index)),
-              n_total_vec,
-              paste(
-                paste0(issue_counts$issue_type, ": ", issue_counts$n),
-                collapse = ", "
-              )
-            ),
-            call. = FALSE
+          n_issue_rows <- length(unique(assessment$reported_issues$row_index))
+          fixable_counts <- issue_counts[
+            issue_counts$issue_type %in% .fixable_issue_types,
+            ,
+            drop = FALSE
+          ]
+          unfixable_counts <- issue_counts[
+            !issue_counts$issue_type %in% .fixable_issue_types,
+            ,
+            drop = FALSE
+          ]
+          msg_lines <- sprintf(
+            "parse_karyo() stopped: %d of %d karyotype(s) have data quality issues.",
+            n_issue_rows,
+            n_total_vec
           )
+          if (nrow(fixable_counts) > 0) {
+            msg_lines <- c(
+              msg_lines,
+              paste0(
+                "  Fixable:   ",
+                paste(
+                  paste0(
+                    fixable_counts$issue_type,
+                    " (",
+                    fixable_counts$n,
+                    ")"
+                  ),
+                  collapse = ", "
+                )
+              )
+            )
+          }
+          if (nrow(unfixable_counts) > 0) {
+            msg_lines <- c(
+              msg_lines,
+              paste0(
+                "  Unfixable: ",
+                paste(
+                  paste0(
+                    unfixable_counts$issue_type,
+                    " (",
+                    unfixable_counts$n,
+                    ")"
+                  ),
+                  collapse = ", "
+                )
+              )
+            )
+          }
+          msg_lines <- c(
+            msg_lines,
+            "Rerun with on_issues = \"fix\" to auto-correct fixable rows (unfixable rows will be NA).",
+            "Rerun with on_issues = \"warn\" to return NA for all issue rows without fixing.",
+            "Call check_karyo() for a full per-row quality report."
+          )
+          stop(paste(msg_lines, collapse = "\n"), call. = FALSE)
         }
         raw_vec <- normalize_iscn(raw_vec)
         issue_row_indices <- integer(0)

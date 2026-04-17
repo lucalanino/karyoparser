@@ -950,14 +950,14 @@ test_that("on_issues='stop': throws error for dirty input", {
   dirty <- c("46,XX", ".47,XY,+21")
   expect_error(
     parse_karyo(dirty, on_issues = "stop", verbose = FALSE),
-    regexp = "have issues"
+    regexp = "data quality issues"
   )
 })
 
 test_that("on_issues='stop': throws error for invalid input", {
   expect_error(
     parse_karyo(c("46,XX", NA), on_issues = "stop", verbose = FALSE),
-    regexp = "have issues"
+    regexp = "data quality issues"
   )
 })
 
@@ -2297,13 +2297,13 @@ test_that("full pipeline check -> preprocess -> parse: no extra args needed", {
   )
   ck <- check_karyo(df)
   pp <- suppressMessages(preprocess_karyo(ck))
-  result <- suppressMessages(parse_karyo(pp))
+  result <- suppressMessages(parse_karyo(pp, on_issues = "fix"))
   # id column propagated without restating
   expect_true("sample_id" %in% names(result))
   expect_equal(result$sample_id, c("S1", "S2", "S3"))
   # clean row parses normally
   expect_false(is.na(result$ploidy_category[1]))
-  # fixable row (leading_dot) parsed normally in "fix" mode
+  # fixable row (leading_dot) auto-corrected and parsed
   expect_false(is.na(result$ploidy_category[2]))
   expect_equal(result$fixable_error[2], 1L)
   # unfixable (zero_host_chimera) returns NA
