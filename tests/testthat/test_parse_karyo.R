@@ -1966,6 +1966,24 @@ test_that("preprocess_karyo: trailing narrative rule 3 does not fire when bracke
   )
 })
 
+# 26b2. bracket + space + Capital (no dot, no paren) --------------------------
+
+test_that("trailing_narrative: detected when Capital follows bracket without dot", {
+  # e.g. "46,XX[20] Female karyotype" — no dot, no closing paren before Capital
+  result <- suppressMessages(check_karyo("46,XX[20] Female karyotype"))
+  expect_equal(result$trailing_narrative, 1L)
+  expect_equal(result$fixable, 1L)
+})
+
+test_that("preprocess_karyo: strips narrative after bracket when no dot present", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XX[20] Female karyotype"
+    ))$preprocessed,
+    "46,XX[20]"
+  )
+})
+
 # 26c. B5: space before '[' normalized ----------------------------------------
 
 test_that("normalize_iscn: collapses space before opening bracket", {

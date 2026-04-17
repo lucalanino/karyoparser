@@ -65,7 +65,12 @@
     detail = "FISH / nuc ish suffix after last clone bracket (e.g. '[12] .nuc ish(PDGFRA x3)[20/200]' or '[1].ish t(...)')"
   ),
   trailing_narrative = list(
-    detect = c("\\]\\s*\\.", "\\s+\\.\\s*[A-Z]", "\\)\\s+[A-Z][a-z]"),
+    detect = c(
+      "\\]\\s*\\.",
+      "\\]\\s+[A-Z][a-z]",
+      "\\s+\\.\\s*[A-Z]",
+      "\\)\\s+[A-Z][a-z]"
+    ),
     use_trimmed = FALSE,
     fix = list(
       # Rule 1: strip everything after the last metaphase-count bracket.
@@ -357,8 +362,9 @@ preprocess_karyo <- function(
 #' - `html_entities`: contains `&lt;`, `&gt;`, or `&amp;`
 #' - `leading_dot`: string starts with dot(s) before a digit
 #' - `fish_notation`: FISH/nuc ish suffix after last clone bracket
-#' - `trailing_narrative`: bracket followed by dot (`] .text`) OR
-#'   space-dot-capital pattern (` .Text`, no bracket required)
+#' - `trailing_narrative`: bracket followed by dot (`] .text`), bracket
+#'   followed by space and capital letter (`] Text`), space-dot-capital
+#'   pattern (` .Text`), or closing paren followed by capital (`) Text`)
 #' - `midstring_linewrap`: `, .lowercase` or `, .+` mid-string line-wrap artifact
 #' - `missing_sex_comma`: sex complement followed by space instead of comma
 #'   (e.g. `46,XX der(...)` → `46,XX,der(...)`)

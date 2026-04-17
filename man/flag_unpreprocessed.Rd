@@ -29,8 +29,9 @@ fullwidth characters
 \item \code{html_entities}: contains \verb{&lt;}, \verb{&gt;}, or \verb{&amp;}
 \item \code{leading_dot}: string starts with dot(s) before a digit
 \item \code{fish_notation}: FISH/nuc ish suffix after last clone bracket
-\item \code{trailing_narrative}: bracket followed by dot (\verb{] .text}) OR
-space-dot-capital pattern (\code{ .Text}, no bracket required)
+\item \code{trailing_narrative}: bracket followed by dot (\verb{] .text}), bracket
+followed by space and capital letter (\verb{] Text}), space-dot-capital
+pattern (\code{ .Text}), or closing paren followed by capital (\verb{) Text})
 \item \code{midstring_linewrap}: \verb{, .lowercase} or \verb{, .+} mid-string line-wrap artifact
 \item \code{missing_sex_comma}: sex complement followed by space instead of comma
 (e.g. \verb{46,XX der(...)} → \verb{46,XX,der(...)})
