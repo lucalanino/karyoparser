@@ -374,8 +374,6 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   placed first in the output. For `karyo_preprocessed` input, the id is
 #'   propagated automatically
 #'   from upstream pipeline steps; pass `id_column` explicitly only to override.
-#' @param .return Character string specifying return type: `"tibble"` (default)
-#'   or `"data.frame"`.
 #' @param verbose Logical. If `TRUE`, prints column detection and parsing
 #'   summary messages. Default `FALSE`.
 #' @param on_issues Character string specifying how to handle any karyotype
@@ -397,6 +395,8 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'     is attempted.
 #'   - `"stop"`: Raise an error immediately if any issues are found. No fixing
 #'     is attempted.
+#' @param .return Character string specifying return type: `"tibble"` (default)
+#'   or `"data.frame"`.
 #'
 #' @return A tibble or data.frame with columns:
 #'   - original_karyotype: Input karyotype string (always the raw input)
@@ -447,9 +447,9 @@ parse_karyo <- function(
   rules = rules_table(),
   karyotype_column = NULL,
   id_column = NULL,
-  .return = c("tibble", "data.frame"),
   verbose = FALSE,
-  on_issues = c("fix", "warn", "stop")
+  on_issues = c("fix", "warn", "stop"),
+  .return = c("tibble", "data.frame")
 ) {
   .return <- match.arg(.return)
   on_issues <- match.arg(on_issues)
@@ -650,7 +650,7 @@ parse_karyo <- function(
             dplyr::arrange(dplyr::desc(n))
           stop(
             sprintf(
-              "%d of %d karyotype(s) have issues (%s). Use on_issues='fix' or 'warn', or call check_karyo() for details.",
+              "%d of %d karyotype(s) have issues (%s). Use on_issues = \"fix\" or \"warn\", or call check_karyo() for details.",
               length(unique(assessment$reported_issues$row_index)),
               n_total_vec,
               paste(

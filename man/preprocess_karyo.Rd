@@ -4,11 +4,17 @@
 \alias{preprocess_karyo}
 \title{Clean and Normalize ISCN Karyotype Strings}
 \usage{
-preprocess_karyo(x, karyotype_column = NULL, id_column = NULL, verbose = FALSE)
+preprocess_karyo(
+  karyotypes,
+  karyotype_column = NULL,
+  id_column = NULL,
+  verbose = FALSE
+)
 }
 \arguments{
-\item{x}{Character vector of raw karyotype strings, the \code{karyo_check}
-tibble returned by \code{check_karyo()}, or a data frame containing a karyotype
+\item{karyotypes}{Character vector of raw karyotype strings, the
+\code{karyo_check} tibble returned by \code{check_karyo()}, or a data frame
+containing a karyotype
 column. When a \code{karyo_check} tibble is supplied, the assessment it already
 computed is reused directly — no re-scanning — and any id column detected
 upstream is propagated automatically. When a plain data frame is supplied,

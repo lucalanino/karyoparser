@@ -188,8 +188,9 @@
 #' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are detected but
 #' not modified — their `fix` list is empty, so the loop skips them. Always NA.
 #'
-#' @param x Character vector of raw karyotype strings, the `karyo_check`
-#'   tibble returned by `check_karyo()`, or a data frame containing a karyotype
+#' @param karyotypes Character vector of raw karyotype strings, the
+#'   `karyo_check` tibble returned by `check_karyo()`, or a data frame
+#'   containing a karyotype
 #'   column. When a `karyo_check` tibble is supplied, the assessment it already
 #'   computed is reused directly — no re-scanning — and any id column detected
 #'   upstream is propagated automatically. When a plain data frame is supplied,
@@ -214,7 +215,7 @@
 #'   automatically from the object's class and cached attributes.
 #' @export
 preprocess_karyo <- function(
-  x,
+  karyotypes,
   karyotype_column = NULL,
   id_column = NULL,
   verbose = FALSE
@@ -222,15 +223,15 @@ preprocess_karyo <- function(
   # Input routing
   id_col_name <- NULL
   id_values <- NULL
-  if (inherits(x, "karyo_check")) {
+  if (inherits(karyotypes, "karyo_check")) {
     # Reuse cached assessment and propagate id from upstream check_karyo()
-    cached_assessment <- attr(x, ".kp_assessment")
-    id_col_name <- attr(x, ".kp_id_col")
-    id_values <- attr(x, ".kp_id_values")
-    x <- attr(x, ".kp_raw")
-  } else if (is.data.frame(x)) {
+    cached_assessment <- attr(karyotypes, ".kp_assessment")
+    id_col_name <- attr(karyotypes, ".kp_id_col")
+    id_values <- attr(karyotypes, ".kp_id_values")
+    karyotypes <- attr(karyotypes, ".kp_raw")
+  } else if (is.data.frame(karyotypes)) {
     extracted <- .extract_df_input(
-      x,
+      karyotypes,
       karyotype_column,
       id_column,
       verbose,
@@ -238,19 +239,19 @@ preprocess_karyo <- function(
     )
     id_col_name <- extracted$id_col_name
     id_values <- extracted$id_values
-    x <- extracted$raw_vec
+    karyotypes <- extracted$raw_vec
     cached_assessment <- NULL
   } else {
-    if (!is.character(x)) {
+    if (!is.character(karyotypes)) {
       stop(
-        "`x` must be a character vector, data frame, or karyo_check object.",
+        "`karyotypes` must be a character vector, data frame, or karyo_check object.",
         call. = FALSE
       )
     }
     cached_assessment <- NULL
   }
 
-  if (length(x) == 0) {
+  if (length(karyotypes) == 0) {
     out <- tibble::tibble(
       original = character(),
       preprocessed = character(),
@@ -270,7 +271,7 @@ preprocess_karyo <- function(
     return(out)
   }
 
-  n <- length(x)
+  n <- length(karyotypes)
   if (isTRUE(verbose)) {
     message("Preprocessing ", n, " karyotype(s)...")
   }
@@ -278,7 +279,7 @@ preprocess_karyo <- function(
   assessment <- if (!is.null(cached_assessment)) {
     cached_assessment
   } else {
-    .assess_karyotypes(x)
+    .assess_karyotypes(karyotypes)
   }
   processed <- assessment$processed
 
@@ -317,7 +318,7 @@ preprocess_karyo <- function(
   }
 
   out <- tibble::tibble(
-    original = as.character(x),
+    original = as.character(karyotypes),
     preprocessed = as.character(processed),
     status = status
   )

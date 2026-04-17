@@ -9,9 +9,9 @@ parse_karyo(
   rules = rules_table(),
   karyotype_column = NULL,
   id_column = NULL,
-  .return = c("tibble", "data.frame"),
   verbose = FALSE,
-  on_issues = c("fix", "warn", "stop")
+  on_issues = c("fix", "warn", "stop"),
+  .return = c("tibble", "data.frame")
 )
 }
 \arguments{
@@ -37,9 +37,6 @@ If \code{NULL} (default), auto-detected from common names (\code{sample_id},
 placed first in the output. For \code{karyo_preprocessed} input, the id is
 propagated automatically
 from upstream pipeline steps; pass \code{id_column} explicitly only to override.}
-
-\item{.return}{Character string specifying return type: \code{"tibble"} (default)
-or \code{"data.frame"}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints column detection and parsing
 summary messages. Default \code{FALSE}.}
@@ -67,6 +64,9 @@ is attempted.
 \item \code{"stop"}: Raise an error immediately if any issues are found. No fixing
 is attempted.
 }}
+
+\item{.return}{Character string specifying return type: \code{"tibble"} (default)
+or \code{"data.frame"}.}
 }
 \value{
 A tibble or data.frame with columns:

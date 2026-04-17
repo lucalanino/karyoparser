@@ -129,46 +129,47 @@
 #' `unbalanced_parentheses`, `unbalanced_brackets`, `no_sex_complement`,
 #' `invalid_idem`, `unparseable_bracket`.
 #'
-#' @param x Character vector of karyotype strings, or a data frame containing
-#'   a karyotype column. If a data frame, the karyotype column is auto-detected
-#'   from common names (`karyotype`, `iscn`, etc.) or specified via
+#' @param karyotypes Character vector of karyotype strings, or a data frame
+#'   containing a karyotype column. If a data frame, the karyotype column is
+#'   auto-detected from common names (`karyotype`, `iscn`, etc.) or specified via
 #'   `karyotype_column`. An id column is also auto-detected or specified via
 #'   `id_column`; when found it is included as the first column of the output
 #'   and propagated through subsequent pipeline steps.
+#' @param karyotype_column Character. Name of the karyotype column when
+#'   `karyotypes` is a data frame. If `NULL` (default), auto-detected from
+#'   common names; in an interactive session the detected column is shown with a
+#'   preview and confirmed before use. Ignored when `karyotypes` is a character
+#'   vector.
+#' @param id_column Character. Name of the id column when `karyotypes` is a
+#'   data frame. If `NULL` (default), auto-detected from common names
+#'   (`sample_id`, `patient_id`, `id`, `mrn`, etc.) and used silently. Ignored
+#'   when `karyotypes` is a character vector.
 #' @param verbose Logical. If `TRUE`, prints a count summary and per-issue-type
 #'   breakdown. Default `FALSE`.
-#' @param karyotype_column Character. Name of the karyotype column when `x` is
-#'   a data frame. If `NULL` (default), auto-detected from common names; in an
-#'   interactive session the detected column is shown with a preview and
-#'   confirmed before use. Ignored when `x` is a character vector.
-#' @param id_column Character. Name of the id column when `x` is a data frame.
-#'   If `NULL` (default), auto-detected from common names (`sample_id`,
-#'   `patient_id`, `id`, `mrn`, etc.) and used silently. Ignored when `x` is
-#'   a character vector.
-#' @return A `karyo_check` tibble with `length(x)` rows (or `nrow(x)` when
-#'   input is a data frame). Columns: optional id column (first, when detected),
+#' @return A `karyo_check` tibble with `length(karyotypes)` rows (or
+#'   `nrow(karyotypes)` when input is a data frame). Columns: optional id column (first, when detected),
 #'   `row_index`, `karyotype` (full input string), one integer column per issue
 #'   type (see `.all_issue_types`), `fixable`, `unfixable`. The tibble can be
 #'   passed directly to `preprocess_karyo()`, which will reuse the cached
 #'   assessment and propagate the id column without re-scanning.
 #' @export
 check_karyo <- function(
-  x,
-  verbose = FALSE,
+  karyotypes,
   karyotype_column = NULL,
-  id_column = NULL
+  id_column = NULL,
+  verbose = FALSE
 ) {
-  if (inherits(x, "karyo_check")) {
-    stop("`x` is already a karyo_check object.", call. = FALSE)
+  if (inherits(karyotypes, "karyo_check")) {
+    stop("`karyotypes` is already a karyo_check object.", call. = FALSE)
   }
 
   # Input routing: data frame → extract raw vector + id info
   id_col_name <- NULL
   id_values <- NULL
   karyotype_col_name <- NULL
-  if (is.data.frame(x)) {
+  if (is.data.frame(karyotypes)) {
     extracted <- .extract_df_input(
-      x,
+      karyotypes,
       karyotype_column,
       id_column,
       verbose,
@@ -177,12 +178,15 @@ check_karyo <- function(
     id_col_name <- extracted$id_col_name
     id_values <- extracted$id_values
     karyotype_col_name <- extracted$karyotype_col_name
-    x <- extracted$raw_vec
-  } else if (!is.character(x)) {
-    stop("`x` must be a character vector or data frame.", call. = FALSE)
+    karyotypes <- extracted$raw_vec
+  } else if (!is.character(karyotypes)) {
+    stop(
+      "`karyotypes` must be a character vector or data frame.",
+      call. = FALSE
+    )
   }
 
-  n <- length(x)
+  n <- length(karyotypes)
   all_cols <- c(
     "row_index",
     "karyotype",
@@ -203,7 +207,7 @@ check_karyo <- function(
     }
     class(out) <- c("karyo_check", class(out))
     attr(out, ".kp_assessment") <- NULL
-    attr(out, ".kp_raw") <- x
+    attr(out, ".kp_raw") <- karyotypes
     attr(out, ".kp_karyotype_col") <- karyotype_col_name
     attr(out, ".kp_id_col") <- id_col_name
     attr(out, ".kp_id_values") <- id_values
@@ -214,11 +218,14 @@ check_karyo <- function(
     message("Checking ", n, " karyotype(s)...")
   }
 
-  assessment <- .assess_karyotypes(x)
+  assessment <- .assess_karyotypes(karyotypes)
   long <- assessment$reported_issues
 
   # Build wide matrix: n rows x issue-type columns
-  out <- tibble::tibble(row_index = seq_len(n), karyotype = as.character(x))
+  out <- tibble::tibble(
+    row_index = seq_len(n),
+    karyotype = as.character(karyotypes)
+  )
   for (nm in .all_issue_types) {
     rows_with_type <- long$row_index[long$issue_type == nm]
     out[[nm]] <- as.integer(seq_len(n) %in% rows_with_type)
@@ -276,7 +283,7 @@ check_karyo <- function(
   # Tag output so preprocess_karyo() can reuse the assessment and propagate ids
   class(out) <- c("karyo_check", class(out))
   attr(out, ".kp_assessment") <- assessment
-  attr(out, ".kp_raw") <- x
+  attr(out, ".kp_raw") <- karyotypes
   attr(out, ".kp_karyotype_col") <- karyotype_col_name
   attr(out, ".kp_id_col") <- id_col_name
   attr(out, ".kp_id_values") <- id_values

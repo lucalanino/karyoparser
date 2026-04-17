@@ -4,32 +4,38 @@
 \alias{check_karyo}
 \title{Check Karyotype Strings for Issues}
 \usage{
-check_karyo(x, verbose = FALSE, karyotype_column = NULL, id_column = NULL)
+check_karyo(
+  karyotypes,
+  karyotype_column = NULL,
+  id_column = NULL,
+  verbose = FALSE
+)
 }
 \arguments{
-\item{x}{Character vector of karyotype strings, or a data frame containing
-a karyotype column. If a data frame, the karyotype column is auto-detected
-from common names (\code{karyotype}, \code{iscn}, etc.) or specified via
+\item{karyotypes}{Character vector of karyotype strings, or a data frame
+containing a karyotype column. If a data frame, the karyotype column is
+auto-detected from common names (\code{karyotype}, \code{iscn}, etc.) or specified via
 \code{karyotype_column}. An id column is also auto-detected or specified via
 \code{id_column}; when found it is included as the first column of the output
 and propagated through subsequent pipeline steps.}
 
+\item{karyotype_column}{Character. Name of the karyotype column when
+\code{karyotypes} is a data frame. If \code{NULL} (default), auto-detected from
+common names; in an interactive session the detected column is shown with a
+preview and confirmed before use. Ignored when \code{karyotypes} is a character
+vector.}
+
+\item{id_column}{Character. Name of the id column when \code{karyotypes} is a
+data frame. If \code{NULL} (default), auto-detected from common names
+(\code{sample_id}, \code{patient_id}, \code{id}, \code{mrn}, etc.) and used silently. Ignored
+when \code{karyotypes} is a character vector.}
+
 \item{verbose}{Logical. If \code{TRUE}, prints a count summary and per-issue-type
 breakdown. Default \code{FALSE}.}
-
-\item{karyotype_column}{Character. Name of the karyotype column when \code{x} is
-a data frame. If \code{NULL} (default), auto-detected from common names; in an
-interactive session the detected column is shown with a preview and
-confirmed before use. Ignored when \code{x} is a character vector.}
-
-\item{id_column}{Character. Name of the id column when \code{x} is a data frame.
-If \code{NULL} (default), auto-detected from common names (\code{sample_id},
-\code{patient_id}, \code{id}, \code{mrn}, etc.) and used silently. Ignored when \code{x} is
-a character vector.}
 }
 \value{
-A \code{karyo_check} tibble with \code{length(x)} rows (or \code{nrow(x)} when
-input is a data frame). Columns: optional id column (first, when detected),
+A \code{karyo_check} tibble with \code{length(karyotypes)} rows (or
+\code{nrow(karyotypes)} when input is a data frame). Columns: optional id column (first, when detected),
 \code{row_index}, \code{karyotype} (full input string), one integer column per issue
 type (see \code{.all_issue_types}), \code{fixable}, \code{unfixable}. The tibble can be
 passed directly to \code{preprocess_karyo()}, which will reuse the cached
