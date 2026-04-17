@@ -1,6 +1,6 @@
 # ---- Internal pipeline helpers ------------------------------------------------
 
-build_sample_meta <- function(input_df, verbose = FALSE) {
+build_sample_meta <- function(input_df) {
   counts_raw <- input_df |>
     dplyr::mutate(
       bracket = stringr::str_extract_all(original_karyotype, "\\[[^\\]]+\\]")
@@ -33,21 +33,6 @@ build_sample_meta <- function(input_df, verbose = FALSE) {
         TRUE ~ suppressWarnings(as.numeric(content))
       )
     )
-
-  unparseable <- counts_raw |>
-    dplyr::filter(!is.na(content) & content != "" & is.na(max_count)) |>
-    dplyr::distinct(.pk_row_id, content)
-
-  if (nrow(unparseable) > 0 && isTRUE(verbose)) {
-    warning(
-      sprintf(
-        "Could not parse metaphase count from %d bracket(s): %s. These will be treated as 0.",
-        nrow(unparseable),
-        paste(sprintf("[%s]", unparseable$content), collapse = ", ")
-      ),
-      call. = FALSE
-    )
-  }
 
   counts_tbl <- counts_raw |>
     dplyr::group_by(.pk_row_id) |>
@@ -252,11 +237,7 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   aneuploidy_tbl
 }
 
-compute_comma_counts <- function(
-  tokens_tbl,
-  verbose = FALSE,
-  map_ids = identity
-) {
+compute_comma_counts <- function(tokens_tbl) {
   sex_first_regex <- paste0(
     "^(",
     paste(.sex_complements, collapse = "|"),
@@ -283,27 +264,7 @@ compute_comma_counts <- function(
     dplyr::select(.pk_row_id, stemline_aberr_count = raw_comma_count)
 
   clone_counts <- clone_counts |>
-    dplyr::left_join(stemline_counts, by = ".pk_row_id") |>
-    dplyr::mutate(
-      idem_invalid = has_idem &
-        (clone_id == 1 | is.na(stemline_aberr_count))
-    )
-
-  idem_invalid_samples <- clone_counts |>
-    dplyr::filter(idem_invalid) |>
-    dplyr::distinct(.pk_row_id)
-
-  if (nrow(idem_invalid_samples) > 0 && isTRUE(verbose)) {
-    original_ids <- map_ids(idem_invalid_samples$.pk_row_id)
-    warning(
-      sprintf(
-        "Found 'idem' without valid stemline in %d sample(s) (row indices: %s). 'idem' in clone 1 or without a preceding clone cannot be expanded.",
-        nrow(idem_invalid_samples),
-        paste(original_ids, collapse = ", ")
-      ),
-      call. = FALSE
-    )
-  }
+    dplyr::left_join(stemline_counts, by = ".pk_row_id")
 
   clone_counts |>
     dplyr::mutate(
@@ -847,32 +808,12 @@ parse_karyo <- function(
     )
   }
 
-  # Build dedup -> original row index mapping for diagnostic messages.
-  # When deduped, dedup .pk_row_id (1..n_unique) must be translated back to
-  # the original row indices the user knows. When not deduped, dedup IDs are
-  # already the original IDs so identity suffices.
-  if (deduped) {
-    str_to_orig <- split(input_df$.pk_row_id, input_df$preprocessed_karyotype)
-    did_to_str <- setNames(
-      dedup_df$original_karyotype,
-      as.character(dedup_df$.pk_row_id)
-    )
-    map_dedup_ids <- function(ids) {
-      sort(unlist(
-        lapply(did_to_str[as.character(ids)], function(s) str_to_orig[[s]]),
-        use.names = FALSE
-      ))
-    }
-  } else {
-    map_dedup_ids <- identity
-  }
-
   # ---- Parsing pipeline -------------------------------------------------------
-  sample_meta <- build_sample_meta(dedup_df, verbose)
+  sample_meta <- build_sample_meta(dedup_df)
   tokens <- build_clone_tokens(sample_meta)
   flags <- match_rules(tokens, rules, rule_flag_names)
   aneuploidy <- compute_aneuploidy(tokens, chroms)
-  comma_counts <- compute_comma_counts(tokens, verbose, map_dedup_ids)
+  comma_counts <- compute_comma_counts(tokens)
   unique_aberr <- compute_unique_counts(tokens)
 
   # ---- Assembly --------------------------------------------------------------
