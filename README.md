@@ -99,7 +99,7 @@ readr::write_csv(result, "parsed.csv")
 | `rules` | `rules_table()` | Custom rules data frame (see [Custom Rules](#custom-rules)) |
 | `.return` | `"tibble"` | Return type: `"tibble"` or `"data.frame"` |
 | `verbose` | `FALSE` | Print column detection and parsing summary messages |
-| `on_issues` | `"fix"` | `"fix"` (auto-clean dirty rows + truncate chimeric rows; print summary), `"warn"` (skip all issue rows → NA; print message), `"stop"` (error on any issue) |
+| `on_issues` | `"stop"` | `"stop"` (error on any issue — use this to catch data quality problems early), `"fix"` (auto-clean dirty rows + truncate chimeric rows), `"warn"` (skip all issue rows → NA + warning) |
 
 ## Output Columns
 
@@ -240,11 +240,14 @@ Monosomy and trisomy flags (`mono1`–`mono22`, `monoX`, `monoY`, `tris1`–`tri
 
 Some data sources include dirty markers that the internal ISCN normalizer cannot fix: trailing clinical narrative, database prefixes, and HTML entities.
 
-`parse_karyo()` detects these automatically via `check_karyo()`. The default `on_issues = "fix"` auto-cleans dirty rows and prints a summary of what was fixed. To clean manually before parsing, or to skip all issue rows instead:
+`parse_karyo()` detects these automatically via `check_karyo()`. The default `on_issues = "stop"` errors immediately with a breakdown of issues found — use this to catch data quality problems early. Once you've inspected and handled your data, switch to `"fix"` or run the full check → preprocess → parse pipeline:
 
 ```r
-# Default: auto-fix dirty rows and truncate chimeric rows
+# Default: error if any issues found (good for catching problems early)
 result <- parse_karyo(raw_strings)
+
+# Auto-fix dirty rows and truncate chimeric rows, then parse:
+result <- parse_karyo(raw_strings, on_issues = "fix")
 
 # Or clean manually, then parse — the preprocessed object is passed directly,
 # no karyotype_column argument needed:
@@ -302,11 +305,13 @@ The parser validates all input before parsing and reports issues by type:
 
 | Value | Dirty rows | Chimeric rows (`//`) | Unfixable structural errors |
 |---|---|---|---|
-| `"fix"` (default) | `preprocess_karyo()` applied; still-dirty → NA | Truncated to first clone and parsed | Always NA |
-| `"warn"` | NA + message | NA + message | Always NA |
-| `"stop"` | Error immediately | Error immediately | Error immediately |
+| `"stop"` (default) | Error immediately | Error immediately | Error immediately |
+| `"fix"` | `preprocess_karyo()` applied; still-dirty → NA | Truncated to first clone and parsed | Always NA |
+| `"warn"` | NA + warning | NA + warning | Always NA |
 
-Under `"fix"`, a message is printed summarising how many rows were cleaned and how many could not be fixed. Unfixable issues (`zero_host_chimera`, unbalanced brackets, no chromosome count, `Updated ISCN` marker, etc.) are always NA regardless of `on_issues`.
+When input is a `karyo_preprocessed` object (i.e. you've already run `check_karyo()` and `preprocess_karyo()`), `"stop"` does not error — unfixable rows are returned as NA and a warning is emitted, since you have already inspected the data.
+
+Under `"fix"`, a warning is emitted for chimeric truncation (data loss). Unfixable issues (`zero_host_chimera`, unbalanced brackets, no chromosome count, `Updated ISCN` marker, etc.) are always NA regardless of `on_issues`.
 
 ## Custom Rules
 
