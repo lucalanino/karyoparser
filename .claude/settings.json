@@ -4,7 +4,6 @@
     "defaultMode": "acceptEdits",
     "allow": [
       "Bash(air:*)",
-      "Bash(bash .claude/hooks/check-docs.sh)",
       "Bash(cat:*)",
       "Bash(find:*)",
       "Bash(gh issue list:*)",
@@ -28,10 +27,6 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/check-docs.sh"
-          },
           {
             "type": "command",
             "command": "air format .",
