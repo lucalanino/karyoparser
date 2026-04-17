@@ -704,7 +704,7 @@ test_that("unicode normalization: NBSPs detected and fixed by preprocess_karyo",
   expect_equal(result$preprocessed, "46,XX")
   expect_equal(result$status, "fixed")
   # on_issues="warn": unicode_notation is a flagged issue — row returns NA
-  r_warn <- pk("46,\u00A0XX")
+  r_warn <- suppressWarnings(pk("46,\u00A0XX"))
   expect_true(is.na(r_warn$normal_karyotype))
   # on_issues="fix": preprocessed through .assess_karyotypes — parses correctly
   r_fix <- parse_karyo("46,\u00A0XX", on_issues = "fix", verbose = FALSE)
@@ -930,7 +930,7 @@ test_that("check_karyo: no_sex_complement detected when sex chromosome token abs
 
 test_that("on_issues='warn': issue rows get NA output", {
   dirty <- c("46,XX", ".47,XY,+21")
-  result <- pk(dirty)
+  result <- suppressWarnings(pk(dirty))
   expect_equal(nrow(result), 2L)
   # Row 1 (clean) should have a ploidy_category
   expect_false(is.na(result$ploidy_category[1]))
@@ -938,11 +938,11 @@ test_that("on_issues='warn': issue rows get NA output", {
   expect_true(is.na(result$ploidy_category[2]))
 })
 
-test_that("on_issues='warn': emits message for dirty input", {
+test_that("on_issues='warn': emits warning for dirty input", {
   dirty <- c("46,XX", ".47,XY,+21")
-  expect_message(
-    parse_karyo(dirty, on_issues = "warn", verbose = TRUE),
-    regexp = "issues"
+  expect_warning(
+    suppressMessages(parse_karyo(dirty, on_issues = "warn", verbose = FALSE)),
+    regexp = "had issues"
   )
 })
 
@@ -962,7 +962,7 @@ test_that("on_issues='stop': throws error for invalid input", {
 })
 
 test_that("on_issues='warn': invalid rows get NA", {
-  r <- pk(c("46,XX", NA))
+  r <- suppressWarnings(pk(c("46,XX", NA)))
   expect_equal(r$normal_karyotype[1], 1L)
   expect_true(is.na(r$normal_karyotype[2]))
 })
@@ -985,14 +985,14 @@ test_that("error columns: clean row has both = 0", {
 })
 
 test_that("error columns: dirty row under on_issues='warn' has fixable_error=1, unfixable_error=0", {
-  r <- pk(c("46,XX", ".47,XY,+21"))
+  r <- suppressWarnings(pk(c("46,XX", ".47,XY,+21")))
   expect_equal(r$fixable_error[1], 0L)
   expect_equal(r$fixable_error[2], 1L)
   expect_equal(r$unfixable_error[2], 0L)
 })
 
 test_that("error columns: structural error row has unfixable_error=1, fixable_error=0", {
-  r <- pk(c("46,XX", NA))
+  r <- suppressWarnings(pk(c("46,XX", NA)))
   expect_equal(r$unfixable_error[1], 0L)
   expect_equal(r$unfixable_error[2], 1L)
   expect_equal(r$fixable_error[2], 0L)
@@ -1011,7 +1011,7 @@ test_that("error columns: present in empty result", {
 })
 
 test_that("error columns: survive dplyr::filter()", {
-  r <- pk(c("46,XX", NA, "47,XY,+8"))
+  r <- suppressWarnings(pk(c("46,XX", NA, "47,XY,+8")))
   filtered <- dplyr::filter(r, !is.na(normal_karyotype))
   expect_equal(nrow(filtered), 2L)
   expect_true("fixable_error" %in% names(filtered))
@@ -1050,7 +1050,7 @@ test_that("character vector input has no ID column", {
 
 test_that("parse_karyo: data.frame with all invalid rows and ID column preserves ID in output", {
   df <- data.frame(sample_id = "A", karyotype = "XX,+8")
-  r <- pk(df)
+  r <- suppressWarnings(pk(df))
   expect_equal(r$sample_id, "A")
   expect_true(is.na(r$ploidy_category))
   expect_equal(names(r)[1], "sample_id")
@@ -1215,7 +1215,7 @@ test_that("dedup works with data.frame input and ID column", {
 
 test_that("dedup handles mix of valid and invalid karyotypes", {
   input <- c("46,XX", NA, "46,XX", "47,XY,+8", NA)
-  r <- pk(input)
+  r <- suppressWarnings(pk(input))
   expect_equal(nrow(r), 5)
   expect_equal(r$normal_karyotype[1], 1L)
   expect_equal(r$normal_karyotype[3], 1L)
@@ -1380,10 +1380,10 @@ test_that("on_issues='fix': structural errors still produce NA", {
   expect_true(is.na(r$ploidy_category[2]))
 })
 
-test_that("on_issues='fix': verbose message reports parsed/fixed counts", {
+test_that("on_issues='fix': verbose message reports fixed count", {
   expect_message(
     parse_karyo(c("46,XX", ".47,XY,+21"), on_issues = "fix", verbose = TRUE),
-    "fixed"
+    "Fixed"
   )
 })
 
@@ -1410,20 +1410,20 @@ test_that("on_issues='fix': multiple dirty rows all cleaned", {
 # 23b. on_issues = "warn" ------------------------------------------------------
 
 test_that("on_issues='warn': dirty row returns NA", {
-  r <- parse_karyo(
+  r <- suppressWarnings(parse_karyo(
     c("46,XX", ".47,XY,+21"),
     on_issues = "warn",
     verbose = FALSE
-  )
+  ))
   expect_true(is.na(r$ploidy_category[2]))
 })
 
 test_that("on_issues='warn': clean row in same batch unaffected", {
-  r <- parse_karyo(
+  r <- suppressWarnings(parse_karyo(
     c("46,XX", ".47,XY,+21"),
     on_issues = "warn",
     verbose = FALSE
-  )
+  ))
   expect_equal(r$normal_karyotype[1], 1L)
 })
 
@@ -1656,7 +1656,7 @@ test_that("check_karyo updated_iscn is case-insensitive", {
 })
 
 test_that("updated_iscn rows become NA in parse_karyo", {
-  r <- pk("46,XX Updated ISCN new")
+  r <- suppressWarnings(pk("46,XX Updated ISCN new"))
   expect_true(is.na(r$ploidy_category))
 })
 
@@ -1668,12 +1668,16 @@ test_that("updated_iscn rows stay NA even with on_issues='fix'", {
 # 24f. chimeric: on_issues = "warn" ------------------------------------------
 
 test_that("on_issues='warn': chimeric row returns NA", {
-  r <- parse_karyo("46,XX[15]//46,XY[5]", on_issues = "warn", verbose = FALSE)
+  r <- suppressWarnings(
+    parse_karyo("46,XX[15]//46,XY[5]", on_issues = "warn", verbose = FALSE)
+  )
   expect_true(is.na(r$ploidy_category))
 })
 
 test_that("on_issues='warn': chimeric row has fixable_error=1", {
-  r <- parse_karyo("46,XX[15]//46,XY[5]", on_issues = "warn", verbose = FALSE)
+  r <- suppressWarnings(
+    parse_karyo("46,XX[15]//46,XY[5]", on_issues = "warn", verbose = FALSE)
+  )
   expect_equal(r$fixable_error, 1L)
   expect_equal(r$unfixable_error, 0L)
 })
@@ -1681,34 +1685,34 @@ test_that("on_issues='warn': chimeric row has fixable_error=1", {
 # 24g. chimeric: on_issues = "fix" (truncate) ---------------------------------
 
 test_that("on_issues='fix': chimeric row truncated and parsed", {
-  r <- parse_karyo(
+  r <- suppressWarnings(parse_karyo(
     "46,XX,t(9;22)(q34;q11)[15]//46,XX[5]",
     on_issues = "fix",
     verbose = FALSE
-  )
+  ))
   expect_false(is.na(r$ploidy_category))
   expect_equal(r$`t(9;22)(q34;q11)`, 1L)
 })
 
 test_that("on_issues='fix': clean row in same batch unaffected by chimeric truncation", {
-  r <- parse_karyo(
+  r <- suppressWarnings(parse_karyo(
     c("46,XX[20]", "46,XX,t(9;22)(q34;q11)[15]//46,XX[5]"),
     on_issues = "fix",
     verbose = FALSE
-  )
+  ))
   expect_equal(r$normal_karyotype[1], 1L)
   expect_false(is.na(r$ploidy_category[2]))
 })
 
 test_that("on_issues='fix': verbose message reports fixed count for chimeric row", {
-  expect_message(
+  suppressWarnings(expect_message(
     parse_karyo(
       "46,XX,t(9;22)(q34;q11)[15]//46,XX[5]",
       on_issues = "fix",
       verbose = TRUE
     ),
-    "fixed"
-  )
+    "Fixed"
+  ))
 })
 
 test_that("on_issues='fix': chimeric row with residual structural issue after truncation becomes NA", {
@@ -1749,12 +1753,12 @@ test_that("check_karyo: normal karyotype does not trigger zero_host_chimera", {
 })
 
 test_that("parse_karyo: zero_host_chimera returns NA", {
-  r <- pk(".//46,XX[10]")
+  r <- suppressWarnings(pk(".//46,XX[10]"))
   expect_true(is.na(r$ploidy_category))
 })
 
 test_that("parse_karyo: zero_host_chimera has unfixable_error=1, fixable_error=0", {
-  r <- pk(".//46,XX[10]")
+  r <- suppressWarnings(pk(".//46,XX[10]"))
   expect_equal(r$unfixable_error, 1L)
   expect_equal(r$fixable_error, 0L)
 })
@@ -1777,7 +1781,7 @@ test_that("parse_karyo: zero_host_chimera with other dirty patterns still return
 test_that("parse_karyo: row with both fixable and unfixable issues — unfixable wins", {
   # zero_host_chimera (unfixable) + trailing_narrative (fixable) co-occur.
   # unfixable_error takes precedence: fixable_error = 0, unfixable_error = 1.
-  r <- pk(".//46,XX[10] .Female karyotype")
+  r <- suppressWarnings(pk(".//46,XX[10] .Female karyotype"))
   expect_equal(r$fixable_error, 0L)
   expect_equal(r$unfixable_error, 1L)
 })
@@ -1808,7 +1812,7 @@ test_that("check_karyo: verbose=TRUE adds per-type breakdown", {
 })
 
 test_that("parse_karyo: clean row in same batch unaffected by zero_host_chimera row", {
-  r <- pk(c("46,XX[20]", ".//46,XY[10]"))
+  r <- suppressWarnings(pk(c("46,XX[20]", ".//46,XY[10]")))
   expect_equal(r$normal_karyotype[1], 1L)
   expect_true(is.na(r$ploidy_category[2]))
 })
@@ -2009,24 +2013,24 @@ test_that("parse_karyo: clean row has chimeric_karyotype=0", {
 })
 
 test_that("parse_karyo on_issues='fix': chimeric row has chimeric_karyotype=1", {
-  result <- suppressMessages(
+  result <- suppressWarnings(suppressMessages(
     parse_karyo(
       "46,XX,t(9;22)(q34;q11.2)[3]//46,XY[12]",
       on_issues = "fix",
       verbose = FALSE
     )
-  )
+  ))
   expect_equal(result$chimeric_karyotype, 1L)
 })
 
 test_that("parse_karyo on_issues='warn': chimeric row has chimeric_karyotype=1", {
-  result <- suppressMessages(
+  result <- suppressWarnings(suppressMessages(
     parse_karyo(
       "46,XX,t(9;22)(q34;q11.2)[3]//46,XY[12]",
       on_issues = "warn",
       verbose = FALSE
     )
-  )
+  ))
   expect_equal(result$chimeric_karyotype, 1L)
 })
 
@@ -2046,13 +2050,13 @@ test_that("parse_karyo: zero_host_chimera has both unfixable_error=1 and chimeri
 })
 
 test_that("parse_karyo: non-chimeric row in chimeric batch has chimeric_karyotype=0", {
-  result <- suppressMessages(
+  result <- suppressWarnings(suppressMessages(
     parse_karyo(
       c("46,XX,t(9;22)(q34;q11.2)[3]//46,XY[12]", "46,XY"),
       on_issues = "fix",
       verbose = FALSE
     )
-  )
+  ))
   expect_equal(result$chimeric_karyotype, c(1L, 0L))
 })
 
@@ -2134,8 +2138,12 @@ test_that("fixable_error=1 for a fixed row in on_issues='fix' mode", {
 
 test_that("fixable_error consistent: same fixable row gives fixable_error=1 in both modes", {
   x <- ".46,XX,t(9;22)(q34;q11.2)[20]"
-  r_fix <- parse_karyo(x, on_issues = "fix", verbose = FALSE)
-  r_warn <- parse_karyo(x, on_issues = "warn", verbose = FALSE)
+  r_fix <- suppressWarnings(parse_karyo(x, on_issues = "fix", verbose = FALSE))
+  r_warn <- suppressWarnings(parse_karyo(
+    x,
+    on_issues = "warn",
+    verbose = FALSE
+  ))
   expect_equal(r_fix$fixable_error, 1L)
   expect_equal(r_warn$fixable_error, 1L)
   # In "fix" mode the row is parsed; in "warn" mode it is NA
@@ -2150,11 +2158,11 @@ test_that("parse_karyo on_issues='warn': missing_sex_comma does not false-positi
   # structural check ran on the dirty string: comma-split gave "XX der(...)"
   # as a single token (not a valid sex complement) -> false-positive no_sex_complement.
   # With dirty fixes applied before structural checks, this is eliminated.
-  r <- parse_karyo(
+  r <- suppressWarnings(parse_karyo(
     "46,XX der(7)t(7;12)(q36;q24)[10]",
     on_issues = "warn",
     verbose = FALSE
-  )
+  ))
   # fixable_error (missing_sex_comma) but NOT unfixable_error
   expect_equal(r$fixable_error, 1L)
   expect_equal(r$unfixable_error, 0L)
@@ -2297,7 +2305,8 @@ test_that("full pipeline check -> preprocess -> parse: no extra args needed", {
   )
   ck <- check_karyo(df)
   pp <- suppressMessages(preprocess_karyo(ck))
-  result <- suppressMessages(parse_karyo(pp, on_issues = "fix"))
+  # Default on_issues="stop" does not error for karyo_preprocessed input
+  result <- suppressWarnings(suppressMessages(parse_karyo(pp)))
   # id column propagated without restating
   expect_true("sample_id" %in% names(result))
   expect_equal(result$sample_id, c("S1", "S2", "S3"))
@@ -2309,6 +2318,30 @@ test_that("full pipeline check -> preprocess -> parse: no extra args needed", {
   # unfixable (zero_host_chimera) returns NA
   expect_true(is.na(result$ploidy_category[3]))
   expect_equal(result$unfixable_error[3], 1L)
+})
+
+test_that("karyo_preprocessed with unfixable rows: default on_issues='stop' warns, not errors", {
+  pp <- suppressMessages(preprocess_karyo(c("46,XX", NA)))
+  expect_warning(
+    result <- parse_karyo(pp),
+    regexp = "unfixable"
+  )
+  expect_false(is.na(result$ploidy_category[1]))
+  expect_true(is.na(result$ploidy_category[2]))
+  expect_equal(result$unfixable_error[2], 1L)
+})
+
+test_that("karyo_preprocessed: on_issues='stop' warning message cites count", {
+  pp <- suppressMessages(preprocess_karyo(c("46,XX", NA, NA)))
+  expect_warning(
+    parse_karyo(pp),
+    regexp = "2 of 3"
+  )
+})
+
+test_that("karyo_preprocessed: clean-only input with on_issues='stop' is silent", {
+  pp <- suppressMessages(preprocess_karyo(c("46,XX", "47,XY,+21")))
+  expect_silent(parse_karyo(pp))
 })
 
 test_that("full pipeline: original_karyotype in parse output is the raw string, not preprocessed", {
