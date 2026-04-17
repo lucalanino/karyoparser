@@ -243,7 +243,7 @@ check_karyo <- function(
     n_fix_rows <- sum(out$fixable & !out$unfixable)
     n_unfix_rows <- sum(out$unfixable)
     if (n_fix_rows == 0 && n_unfix_rows == 0) {
-      message("All clean.")
+      message("  All clean.")
     } else {
       message("  Fixable:   ", n_fix_rows)
       message("  Unfixable: ", n_unfix_rows)
