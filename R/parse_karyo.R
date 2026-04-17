@@ -252,7 +252,11 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   aneuploidy_tbl
 }
 
-compute_comma_counts <- function(tokens_tbl, verbose = FALSE) {
+compute_comma_counts <- function(
+  tokens_tbl,
+  verbose = FALSE,
+  map_ids = identity
+) {
   sex_first_regex <- paste0(
     "^(",
     paste(.sex_complements, collapse = "|"),
@@ -290,11 +294,12 @@ compute_comma_counts <- function(tokens_tbl, verbose = FALSE) {
     dplyr::distinct(.pk_row_id)
 
   if (nrow(idem_invalid_samples) > 0 && isTRUE(verbose)) {
+    original_ids <- map_ids(idem_invalid_samples$.pk_row_id)
     warning(
       sprintf(
         "Found 'idem' without valid stemline in %d sample(s) (row indices: %s). 'idem' in clone 1 or without a preceding clone cannot be expanded.",
         nrow(idem_invalid_samples),
-        paste(idem_invalid_samples$.pk_row_id, collapse = ", ")
+        paste(original_ids, collapse = ", ")
       ),
       call. = FALSE
     )
@@ -842,12 +847,32 @@ parse_karyo <- function(
     )
   }
 
+  # Build dedup -> original row index mapping for diagnostic messages.
+  # When deduped, dedup .pk_row_id (1..n_unique) must be translated back to
+  # the original row indices the user knows. When not deduped, dedup IDs are
+  # already the original IDs so identity suffices.
+  if (deduped) {
+    str_to_orig <- split(input_df$.pk_row_id, input_df$preprocessed_karyotype)
+    did_to_str <- setNames(
+      dedup_df$original_karyotype,
+      as.character(dedup_df$.pk_row_id)
+    )
+    map_dedup_ids <- function(ids) {
+      sort(unlist(
+        lapply(did_to_str[as.character(ids)], function(s) str_to_orig[[s]]),
+        use.names = FALSE
+      ))
+    }
+  } else {
+    map_dedup_ids <- identity
+  }
+
   # ---- Parsing pipeline -------------------------------------------------------
   sample_meta <- build_sample_meta(dedup_df, verbose)
   tokens <- build_clone_tokens(sample_meta)
   flags <- match_rules(tokens, rules, rule_flag_names)
   aneuploidy <- compute_aneuploidy(tokens, chroms)
-  comma_counts <- compute_comma_counts(tokens, verbose)
+  comma_counts <- compute_comma_counts(tokens, verbose, map_dedup_ids)
   unique_aberr <- compute_unique_counts(tokens)
 
   # ---- Assembly --------------------------------------------------------------
