@@ -35,10 +35,11 @@ breakdown. Default \code{FALSE}.}
 }
 \value{
 A \code{karyo_check} tibble with \code{length(karyotypes)} rows (or
-\code{nrow(karyotypes)} when input is a data frame). Columns: optional id column (first, when detected),
-\code{row_index}, \code{karyotype} (full input string), one integer column per issue
-type (see \code{.all_issue_types}), \code{fixable}, \code{unfixable}. The tibble can be
-passed directly to \code{preprocess_karyo()}, which will reuse the cached
+\code{nrow(karyotypes)} when input is a data frame). Columns: optional id column
+(first, when detected), \code{karyotype} (full input string), \code{fixable},
+\code{unfixable}, then one integer column per unfixable issue type (alphabetical),
+then one integer column per fixable issue type (alphabetical). The tibble can
+be passed directly to \code{preprocess_karyo()}, which will reuse the cached
 assessment and propagate the id column without re-scanning.
 }
 \description{
@@ -49,7 +50,7 @@ columns. When \code{verbose = TRUE}, prints a count summary and per-issue-type
 breakdown.
 }
 \details{
-Fixable issues (resolvable by \code{parse_karyo()} under \code{on_issues = "fix"}):
+Fixable issues (resolvable by \code{parse_karyo()} under \code{on_issues = "preprocess"}):
 dirty markers (\code{unicode_notation}, \code{embedded_newline}, \code{html_entities},
 \code{leading_dot}, \code{fish_notation}, \code{trailing_narrative}, \code{midstring_linewrap},
 \code{missing_sex_comma}, \code{mar_space}) and \code{chimeric_separator}.

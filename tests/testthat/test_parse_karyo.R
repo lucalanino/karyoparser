@@ -808,14 +808,22 @@ test_that("check_karyo: clean input returns one row per string, all zeros", {
   expect_equal(result$unfixable, c(0L, 0L))
 })
 
-test_that("check_karyo: column schema matches .all_issue_types", {
+test_that("check_karyo: column schema — fixable/unfixable first, then sorted issue cols", {
   result <- suppressMessages(check_karyo("46,XX"))
-  expected_cols <- c(
-    "row_index",
-    "karyotype",
+  unfixable_cols <- sort(setdiff(
     karyoparser:::.all_issue_types,
+    karyoparser:::.fixable_issue_types
+  ))
+  fixable_cols <- sort(intersect(
+    karyoparser:::.fixable_issue_types,
+    karyoparser:::.all_issue_types
+  ))
+  expected_cols <- c(
+    "karyotype",
     "fixable",
-    "unfixable"
+    "unfixable",
+    unfixable_cols,
+    fixable_cols
   )
   expect_named(result, expected_cols)
 })
@@ -1154,7 +1162,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.9.5")
+  expect_equal(attr(r, "karyoparser_version"), "0.9.6")
 })
 
 test_that("parse_karyo() always returns a tibble", {

@@ -2,7 +2,7 @@
 
 An R package for parsing ISCN karyotype strings into structured binary features. Designed for analysis of myeloid neoplasm-related chromosomal aberrations.
 
-**Version**: 0.9.5
+**Version**: 0.9.6
 
 ## Installation
 
@@ -58,11 +58,11 @@ check_karyo(c(".46,XX", "bad string"), verbose = TRUE)
 #> Checking 2 karyotype(s)...
 #>   Fixable:   1
 #>   Unfixable: 1
-#> # A tibble: 2 × 23
-#>   row_index karyotype  leading_dot no_chromosome_count … fixable unfixable
-#>       <int> <chr>            <int>               <int>     <int>     <int>
-#> 1         1 .46,XX               1                   0 …       1         0
-#> 2         2 bad string           0                   1 …       0         1
+#> # A tibble: 2 × 22
+#>   karyotype  fixable unfixable … no_chromosome_count … leading_dot …
+#>   <chr>        <int>     <int>               <int>           <int>
+#> 1 .46,XX           1         0                   0               1 …
+#> 2 bad string       0         1                   1               0 …
 
 # Export
 readr::write_csv(result, "parsed.csv")
