@@ -347,8 +347,8 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   - **Dirty markers** (e.g. leading dots, HTML entities, missing sex comma):
 #'     formatting artifacts that `preprocess_karyo()` can fix automatically.
 #'   - **Chimeric separators** (`//`): karyotypes containing independent cell
-#'     populations. Under `"fix"`, only the portion before the first `//` is
-#'     kept (the dominant clone). Information about secondary clones is lost.
+#'     populations. Under `"preprocess"`, only the portion before the first `//`
+#'     is kept (the dominant clone). Information about secondary clones is lost.
 #'   - **Structural errors** (e.g. no chromosome count, `Updated ISCN` marker):
 #'     unfixable — these rows always return NA regardless of `on_issues`.
 #'
@@ -356,24 +356,22 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   - `"stop"` (default): Raise an error immediately if any issues are found,
 #'     listing fixable and unfixable issue types and counts, and suggesting next
 #'     steps. No fixing is attempted. Use this to catch data quality problems
-#'     early; switch to `"fix"` or run `check_karyo()` once you understand them.
-#'     **Exception**: when input is a `karyo_preprocessed` object (i.e. the user
-#'     has already run `check_karyo()` and `preprocess_karyo()`), `"stop"` does
-#'     not error — unfixable rows are returned as NA and a warning is emitted.
-#'   - `"fix"`: Apply `preprocess_karyo()` to dirty rows; truncate chimeric rows
-#'     to the first clone. Rows that still have issues after these corrections
+#'     early; switch to `"preprocess"` or run `check_karyo()` once you understand
+#'     them. **Exception**: when input is a `karyo_preprocessed` object (i.e. the
+#'     user has already run `check_karyo()` and `preprocess_karyo()`), `"stop"`
+#'     does not error — unfixable rows are returned as NA and a warning is emitted.
+#'   - `"preprocess"`: Apply `preprocess_karyo()` to dirty rows; truncate chimeric
+#'     rows to the first clone. Rows that still have issues after these corrections
 #'     are returned as NA. A message is printed summarising how many rows were
 #'     fixed and how many could not be fixed.
 #'   - `"warn"`: Return NA for all issue rows and emit a warning. No fixing
 #'     is attempted.
-#' @param .return Character string specifying return type: `"tibble"` (default)
-#'   or `"data.frame"`.
 #'
-#' @return A tibble or data.frame with columns:
+#' @return A tibble with columns:
 #'   - original_karyotype: Input karyotype string (always the raw input)
 #'   - preprocessed_karyotype: `normalize_iscn()` output of the karyotype string,
-#'     consistent across all `on_issues` modes. In `"fix"` mode this is also
-#'     dirty-fixed and chimeric-truncated; in `"warn"`/`"stop"` modes only
+#'     consistent across all `on_issues` modes. In `"preprocess"` mode this is
+#'     also dirty-fixed and chimeric-truncated; in `"warn"`/`"stop"` modes only
 #'     `normalize_iscn()` is applied. `NA_character_` for issue rows.
 #'   - ploidy_category: Classification (diploid, hyperdiploid, etc.) based on most abnormal clone
 #'   - chromosome_count: Integer chromosome count extracted from the karyotype
@@ -406,9 +404,6 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #' )
 #' result <- parse_karyo(df, karyotype_column = "iscn")
 #'
-#' # Return as data.frame instead of tibble
-#' result <- parse_karyo(df, karyotype_column = "iscn", .return = "data.frame")
-#'
 #' # Use verbose mode for debugging
 #' result <- parse_karyo(df, karyotype_column = "iscn", verbose = TRUE)
 #'
@@ -419,10 +414,8 @@ parse_karyo <- function(
   karyotype_column = NULL,
   id_column = NULL,
   verbose = FALSE,
-  on_issues = c("stop", "fix", "warn"),
-  .return = c("tibble", "data.frame")
+  on_issues = c("stop", "preprocess", "warn")
 ) {
-  .return <- match.arg(.return)
   on_issues <- match.arg(on_issues)
 
   # Validate rules early (needed for empty result structure) ------------------
@@ -467,7 +460,7 @@ parse_karyo <- function(
       out[[nm]] <- integer()
     }
     attr(out, "karyoparser_version") <- .karyoparser_version
-    if (.return == "tibble") out else as.data.frame(out)
+    out
   }
 
   # ---- Input routing: extract raw_vec, original_vec, id info ----------------
@@ -652,7 +645,7 @@ parse_karyo <- function(
           }
           msg_lines <- c(
             msg_lines,
-            "Rerun with on_issues = \"fix\" to auto-correct fixable rows (unfixable rows will be NA).",
+            "Rerun with on_issues = \"preprocess\" to auto-correct fixable rows (unfixable rows will be NA).",
             "Rerun with on_issues = \"warn\" to return NA for all issue rows without fixing.",
             "Call check_karyo() for a full per-row quality report."
           )
@@ -663,7 +656,7 @@ parse_karyo <- function(
         fixable_row_indices <- integer(0)
         unfixable_row_indices <- integer(0)
         chimeric_all_indices <- integer(0)
-      } else if (on_issues == "fix") {
+      } else if (on_issues == "preprocess") {
         raw_vec <- assessment$processed
         issue_row_indices <- unfixable_row_indices
 
@@ -762,9 +755,7 @@ parse_karyo <- function(
         dplyr::select(-.pk_row_id) |>
         dplyr::relocate(preprocessed_karyotype, .after = original_karyotype)
       attr(out, "karyoparser_version") <- .karyoparser_version
-      return(
-        if (.return == "tibble") tibble::as_tibble(out) else as.data.frame(out)
-      )
+      return(tibble::as_tibble(out))
     }
     if (isTRUE(verbose)) {
       message("Input is empty. Returning empty result.")
@@ -987,5 +978,5 @@ parse_karyo <- function(
 
   # Provenance
   attr(out, "karyoparser_version") <- .karyoparser_version
-  if (.return == "tibble") tibble::as_tibble(out) else as.data.frame(out)
+  tibble::as_tibble(out)
 }

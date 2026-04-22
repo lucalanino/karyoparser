@@ -2,7 +2,7 @@
 
 An R package for parsing ISCN karyotype strings into structured binary features. Designed for analysis of myeloid neoplasm-related chromosomal aberrations.
 
-**Version**: 0.9.4
+**Version**: 0.9.5
 
 ## Installation
 
@@ -50,8 +50,8 @@ df <- data.frame(
 )
 result <- parse_karyo(df)   # sample_id carried through automatically
 
-# Dirty strings? Use on_issues = "fix" to auto-clean before parsing:
-result <- parse_karyo(c(".46,XX", "47,XY,+21[10] .Lab note"), on_issues = "fix")
+# Dirty strings? Use on_issues = "preprocess" to auto-clean before parsing:
+result <- parse_karyo(c(".46,XX", "47,XY,+21[10] .Lab note"), on_issues = "preprocess")
 
 # Inspect what issues were found without parsing:
 check_karyo(c(".46,XX", "bad string"), verbose = TRUE)
@@ -96,10 +96,9 @@ readr::write_csv(result, "parsed.csv")
 | `karyotypes` | — | Character vector or data frame |
 | `karyotype_column` | `NULL` | Column name when input is a data frame (auto-detected if `NULL`) |
 | `id_column` | `NULL` | ID column to carry through to output (auto-detected from sample_id, patient_id, id, mrn, etc.) |
-| `rules` | `rules_table()` | Custom rules data frame (see [Custom Rules](#custom-rules)) |
-| `.return` | `"tibble"` | Return type: `"tibble"` or `"data.frame"` |
+| `rules` | `myeloid_rules` | Rules object — pass `myeloid_rules`, `lymphoid_rules`, or a custom `karyo_rules` object built with `validate_rules()` |
 | `verbose` | `FALSE` | Print column detection and parsing summary messages |
-| `on_issues` | `"stop"` | `"stop"` (error on any issue — use this to catch data quality problems early), `"fix"` (auto-clean dirty rows + truncate chimeric rows), `"warn"` (skip all issue rows → NA + warning) |
+| `on_issues` | `"stop"` | `"stop"` (error on any issue — use this to catch data quality problems early), `"preprocess"` (auto-clean dirty rows + truncate chimeric rows via `preprocess_karyo()`), `"warn"` (skip all issue rows → NA + warning) |
 
 ## Output Columns
 
@@ -118,9 +117,9 @@ readr::write_csv(result, "parsed.csv")
 | `complex_karyotype` | integer 0/1 | 1 if ≥3 unique aberrations |
 | `monosomal_karyotype` | integer 0/1 | 1 if ≥2 autosomal monosomies, or ≥1 monosomy + ≥1 structural aberration |
 | `mixed_ploidy` | integer 0/1 | 1 if clones span different ploidy categories |
-| `fixable_error` | integer 0/1 | 1 if the row had at least one fixable issue (dirty marker or chimeric separator), regardless of whether it was auto-fixed. Under `"fix"` the row is still parsed normally; under `"warn"` it is returned as NA. |
+| `fixable_error` | integer 0/1 | 1 if the row had at least one fixable issue (dirty marker or chimeric separator), regardless of whether it was auto-fixed. Under `"preprocess"` the row is still parsed normally; under `"warn"` it is returned as NA. |
 | `unfixable_error` | integer 0/1 | 1 if the row had unfixable structural issues (row is all NA) |
-| `chimeric_karyotype` | integer 0/1 | 1 if the input contained a `//` chimeric separator (truncated to first clone under `"fix"`; `zero_host_chimera` rows are also flagged here and always NA) |
+| `chimeric_karyotype` | integer 0/1 | 1 if the input contained a `//` chimeric separator (truncated to first clone under `"preprocess"`; `zero_host_chimera` rows are also flagged here and always NA) |
 
 ## How Rule Matching Works
 
@@ -240,14 +239,14 @@ Monosomy and trisomy flags (`mono1`–`mono22`, `monoX`, `monoY`, `tris1`–`tri
 
 Some data sources include dirty markers that the internal ISCN normalizer cannot fix: trailing clinical narrative, database prefixes, and HTML entities.
 
-`parse_karyo()` detects these automatically via `check_karyo()`. The default `on_issues = "stop"` errors immediately with a breakdown of issues found — use this to catch data quality problems early. Once you've inspected and handled your data, switch to `"fix"` or run the full check → preprocess → parse pipeline:
+`parse_karyo()` detects these automatically via `check_karyo()`. The default `on_issues = "stop"` errors immediately with a breakdown of issues found — use this to catch data quality problems early. Once you've inspected and handled your data, switch to `"preprocess"` or run the full check → preprocess → parse pipeline:
 
 ```r
 # Default: error if any issues found (good for catching problems early)
 result <- parse_karyo(raw_strings)
 
-# Auto-fix dirty rows and truncate chimeric rows, then parse:
-result <- parse_karyo(raw_strings, on_issues = "fix")
+# Auto-clean dirty rows and truncate chimeric rows, then parse:
+result <- parse_karyo(raw_strings, on_issues = "preprocess")
 
 # Or clean manually, then parse — the preprocessed object is passed directly,
 # no karyotype_column argument needed:
@@ -281,16 +280,16 @@ The parser validates all input before parsing and reports issues by type:
 
 | Issue type | Fixable? | Effect |
 |---|---|---|
-| `unicode_notation` | Yes | Auto-normalized under `"fix"` |
-| `embedded_newline` | Yes | Auto-normalized under `"fix"` |
-| `html_entities` | Yes | Auto-normalized under `"fix"` |
-| `leading_dot` | Yes | Auto-normalized under `"fix"` |
-| `fish_notation` | Yes | Auto-normalized under `"fix"` |
-| `trailing_narrative` | Yes | Auto-normalized under `"fix"` |
-| `midstring_linewrap` | Yes | Auto-normalized under `"fix"` |
-| `missing_sex_comma` | Yes | Auto-normalized under `"fix"` |
-| `mar_space` | Yes | Auto-normalized under `"fix"` |
-| `chimeric_separator` | Yes | Truncated to first clone under `"fix"`; row parsed normally |
+| `unicode_notation` | Yes | Auto-normalized under `"preprocess"` |
+| `embedded_newline` | Yes | Auto-normalized under `"preprocess"` |
+| `html_entities` | Yes | Auto-normalized under `"preprocess"` |
+| `leading_dot` | Yes | Auto-normalized under `"preprocess"` |
+| `fish_notation` | Yes | Auto-normalized under `"preprocess"` |
+| `trailing_narrative` | Yes | Auto-normalized under `"preprocess"` |
+| `midstring_linewrap` | Yes | Auto-normalized under `"preprocess"` |
+| `missing_sex_comma` | Yes | Auto-normalized under `"preprocess"` |
+| `mar_space` | Yes | Auto-normalized under `"preprocess"` |
+| `chimeric_separator` | Yes | Truncated to first clone under `"preprocess"`; row parsed normally |
 | `zero_host_chimera` | No | Row always NA (no host clone to parse) |
 | `empty` | No | Row always NA |
 | `no_chromosome_count` | No | Row always NA |
@@ -306,26 +305,27 @@ The parser validates all input before parsing and reports issues by type:
 | Value | Dirty rows | Chimeric rows (`//`) | Unfixable structural errors |
 |---|---|---|---|
 | `"stop"` (default) | Error immediately | Error immediately | Error immediately |
-| `"fix"` | `preprocess_karyo()` applied; still-dirty → NA | Truncated to first clone and parsed | Always NA |
+| `"preprocess"` | `preprocess_karyo()` applied; still-dirty → NA | Truncated to first clone and parsed | Always NA |
 | `"warn"` | NA + warning | NA + warning | Always NA |
 
 When input is a `karyo_preprocessed` object (i.e. you've already run `check_karyo()` and `preprocess_karyo()`), `"stop"` does not error — unfixable rows are returned as NA and a warning is emitted, since you have already inspected the data.
 
-Under `"fix"`, a warning is emitted for chimeric truncation (data loss). Unfixable issues (`zero_host_chimera`, unbalanced brackets, no chromosome count, `Updated ISCN` marker, etc.) are always NA regardless of `on_issues`.
+Under `"preprocess"`, a warning is emitted for chimeric truncation (data loss). Unfixable issues (`zero_host_chimera`, unbalanced brackets, no chromosome count, `Updated ISCN` marker, etc.) are always NA regardless of `on_issues`.
 
 ## Custom Rules
 
 ```r
-my_rules <- rules_table()
-
-# Add a new rule
-my_rules <- dplyr::bind_rows(my_rules, tibble::tibble(
-  flag_name            = "t(X;18)(p11;q11)",
-  regex                = "t\\(X;18\\)\\(p11;q11\\)|t\\(18;X\\)\\(q11;p11\\)",
-  category             = "specific_tx",
-  priority             = 100,
-  counts_for_monosomal = TRUE,
-  competition_group    = "translocation"
+# Start from the built-in myeloid rules and add a custom rule
+my_rules <- validate_rules(dplyr::bind_rows(
+  as.data.frame(myeloid_rules),
+  data.frame(
+    flag_name            = "t(X;18)(p11;q11)",
+    regex                = "t\\(X;18\\)\\(p11;q11\\)|t\\(18;X\\)\\(q11;p11\\)",
+    category             = "specific_tx",
+    priority             = 100,
+    counts_for_monosomal = TRUE,
+    competition_group    = "translocation"
+  )
 ))
 
 result <- parse_karyo(df, rules = my_rules)
@@ -369,6 +369,6 @@ The following are outside the current scope. Some are deliberate design decision
 - *Per-clone output*: Splitting composite karyotypes into one row per clone, with a `clone_abundance` column (fraction of metaphases). Useful for clonal evolution analyses.
 - *Cytogenetic risk group assignment*: Derived output columns for established schemas (ELN 2022, MRC, IPSS-R, IPSS-M) based on the parsed flags.
 - *Gene-fusion annotation*: Mapping specific translocation flags to predicted gene partners (e.g. `t(9;22)` → BCR-ABL1), useful for linking cytogenetics to molecular data.
-- *Lymphoid / solid-tumor rule sets*: Separate `rules_table()` variants for ALL, CLL, lymphoma, or sarcoma.
+- *Lymphoid / solid-tumor rule sets*: Separate `karyo_rules` objects (e.g. `lymphoid_rules`) for ALL, CLL, lymphoma, or sarcoma.
 - *Gain/loss count columns*: Integer copy-number columns (e.g. `n_gains`, `n_losses`) distinct from the existing `comma_count_aberrations`.
 - *Structural variant scoring*: A weighted aberration score integrating clinical weights (e.g. down-weighting sex chromosome loss in scoring models).

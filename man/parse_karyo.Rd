@@ -10,8 +10,7 @@ parse_karyo(
   karyotype_column = NULL,
   id_column = NULL,
   verbose = FALSE,
-  on_issues = c("stop", "fix", "warn"),
-  .return = c("tibble", "data.frame")
+  on_issues = c("stop", "preprocess", "warn")
 )
 }
 \arguments{
@@ -47,8 +46,8 @@ issues detected by \code{check_karyo()}. Three classes of issues are handled:
 \item \strong{Dirty markers} (e.g. leading dots, HTML entities, missing sex comma):
 formatting artifacts that \code{preprocess_karyo()} can fix automatically.
 \item \strong{Chimeric separators} (\verb{//}): karyotypes containing independent cell
-populations. Under \code{"fix"}, only the portion before the first \verb{//} is
-kept (the dominant clone). Information about secondary clones is lost.
+populations. Under \code{"preprocess"}, only the portion before the first \verb{//}
+is kept (the dominant clone). Information about secondary clones is lost.
 \item \strong{Structural errors} (e.g. no chromosome count, \verb{Updated ISCN} marker):
 unfixable — these rows always return NA regardless of \code{on_issues}.
 }
@@ -58,28 +57,25 @@ Values:
 \item \code{"stop"} (default): Raise an error immediately if any issues are found,
 listing fixable and unfixable issue types and counts, and suggesting next
 steps. No fixing is attempted. Use this to catch data quality problems
-early; switch to \code{"fix"} or run \code{check_karyo()} once you understand them.
-\strong{Exception}: when input is a \code{karyo_preprocessed} object (i.e. the user
-has already run \code{check_karyo()} and \code{preprocess_karyo()}), \code{"stop"} does
-not error — unfixable rows are returned as NA and a warning is emitted.
-\item \code{"fix"}: Apply \code{preprocess_karyo()} to dirty rows; truncate chimeric rows
-to the first clone. Rows that still have issues after these corrections
+early; switch to \code{"preprocess"} or run \code{check_karyo()} once you understand
+them. \strong{Exception}: when input is a \code{karyo_preprocessed} object (i.e. the
+user has already run \code{check_karyo()} and \code{preprocess_karyo()}), \code{"stop"}
+does not error — unfixable rows are returned as NA and a warning is emitted.
+\item \code{"preprocess"}: Apply \code{preprocess_karyo()} to dirty rows; truncate chimeric
+rows to the first clone. Rows that still have issues after these corrections
 are returned as NA. A message is printed summarising how many rows were
 fixed and how many could not be fixed.
 \item \code{"warn"}: Return NA for all issue rows and emit a warning. No fixing
 is attempted.
 }}
-
-\item{.return}{Character string specifying return type: \code{"tibble"} (default)
-or \code{"data.frame"}.}
 }
 \value{
-A tibble or data.frame with columns:
+A tibble with columns:
 \itemize{
 \item original_karyotype: Input karyotype string (always the raw input)
 \item preprocessed_karyotype: \code{normalize_iscn()} output of the karyotype string,
-consistent across all \code{on_issues} modes. In \code{"fix"} mode this is also
-dirty-fixed and chimeric-truncated; in \code{"warn"}/\code{"stop"} modes only
+consistent across all \code{on_issues} modes. In \code{"preprocess"} mode this is
+also dirty-fixed and chimeric-truncated; in \code{"warn"}/\code{"stop"} modes only
 \code{normalize_iscn()} is applied. \code{NA_character_} for issue rows.
 \item ploidy_category: Classification (diploid, hyperdiploid, etc.) based on most abnormal clone
 \item chromosome_count: Integer chromosome count extracted from the karyotype
@@ -117,9 +113,6 @@ df <- data.frame(
   iscn = c("46,XX", "47,XY,+21", "46,XX,t(15;17)(q24;q21)")
 )
 result <- parse_karyo(df, karyotype_column = "iscn")
-
-# Return as data.frame instead of tibble
-result <- parse_karyo(df, karyotype_column = "iscn", .return = "data.frame")
 
 # Use verbose mode for debugging
 result <- parse_karyo(df, karyotype_column = "iscn", verbose = TRUE)
