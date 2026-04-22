@@ -1146,7 +1146,7 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.9.3")
+  expect_equal(attr(r, "karyoparser_version"), "0.9.4")
 })
 
 test_that(".return='data.frame' returns data.frame", {
@@ -2061,13 +2061,13 @@ test_that("parse_karyo: non-chimeric row in chimeric batch has chimeric_karyotyp
 })
 
 # =============================================================================
-# 27. API surface: rules_table(), preprocessed_karyotype
+# 27. API surface: myeloid_rules, validate_rules(), preprocessed_karyotype
 # =============================================================================
 
-test_that("rules_table() returns a tibble with expected columns", {
-  rt <- rules_table()
-  expect_true(tibble::is_tibble(rt))
-  expect_true(nrow(rt) > 0L)
+test_that("myeloid_rules has karyo_rules class and expected columns", {
+  expect_s3_class(myeloid_rules, "karyo_rules")
+  expect_true(tibble::is_tibble(myeloid_rules))
+  expect_true(nrow(myeloid_rules) > 0L)
   expect_true(all(
     c(
       "flag_name",
@@ -2077,14 +2077,45 @@ test_that("rules_table() returns a tibble with expected columns", {
       "counts_for_monosomal",
       "competition_group"
     ) %in%
-      names(rt)
+      names(myeloid_rules)
   ))
 })
 
-test_that("rules_table() priorities are positive integers", {
-  rt <- rules_table()
-  expect_true(is.integer(rt$priority) || is.numeric(rt$priority))
-  expect_true(all(rt$priority >= 1L))
+test_that("myeloid_rules priorities are positive numeric", {
+  expect_true(
+    is.integer(myeloid_rules$priority) || is.numeric(myeloid_rules$priority)
+  )
+  expect_true(all(myeloid_rules$priority >= 1L))
+})
+
+test_that("validate_rules() attaches karyo_rules class to a valid data frame", {
+  df <- as.data.frame(myeloid_rules)
+  class(df) <- setdiff(class(df), "karyo_rules")
+  vr <- validate_rules(df)
+  expect_s3_class(vr, "karyo_rules")
+})
+
+test_that("validate_rules() errors on missing columns", {
+  bad <- myeloid_rules[, c("flag_name", "regex")]
+  class(bad) <- setdiff(class(bad), "karyo_rules")
+  expect_error(validate_rules(bad), "missing required columns")
+})
+
+test_that("validate_rules() errors on non-data-frame input", {
+  expect_error(validate_rules("not a data frame"), "must be a data frame")
+})
+
+test_that("validate_rules() errors on invalid priority", {
+  bad <- as.data.frame(myeloid_rules)
+  class(bad) <- setdiff(class(bad), "karyo_rules")
+  bad$priority[1] <- -1
+  expect_error(validate_rules(bad), "priority")
+})
+
+test_that("parse_karyo() errors when rules is a plain data frame", {
+  df <- as.data.frame(myeloid_rules)
+  class(df) <- setdiff(class(df), "karyo_rules")
+  expect_error(parse_karyo("46,XX", rules = df), "karyo_rules")
 })
 
 test_that("preprocessed_karyotype under on_issues='warn' is normalize_iscn() of input", {

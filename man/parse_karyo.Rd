@@ -6,7 +6,7 @@
 \usage{
 parse_karyo(
   karyotypes,
-  rules = rules_table(),
+  rules = myeloid_rules,
   karyotype_column = NULL,
   id_column = NULL,
   verbose = FALSE,
@@ -21,9 +21,9 @@ by \code{preprocess_karyo()}. When a \code{karyo_preprocessed} object is passed,
 \code{preprocessed} column is used automatically and cached issue indices and id
 column are reused — no additional arguments required.}
 
-\item{rules}{A data.frame of parsing rules (default: rules_table()). Must contain
-columns: flag_name, regex, category, priority, counts_for_monosomal,
-competition_group. Use custom data.frame for specialized parsing needs.}
+\item{rules}{A \code{karyo_rules} object (default: \link{myeloid_rules}). Use
+\code{\link[=validate_rules]{validate_rules()}} to validate and convert a custom data frame into an
+accepted rules object.}
 
 \item{karyotype_column}{Character. Name of the karyotype column when input is
 a plain data frame. If \code{NULL} (default), auto-detected from common names

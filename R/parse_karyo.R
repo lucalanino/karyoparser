@@ -326,9 +326,9 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   by `preprocess_karyo()`. When a `karyo_preprocessed` object is passed, the
 #'   `preprocessed` column is used automatically and cached issue indices and id
 #'   column are reused — no additional arguments required.
-#' @param rules A data.frame of parsing rules (default: rules_table()). Must contain
-#'   columns: flag_name, regex, category, priority, counts_for_monosomal,
-#'   competition_group. Use custom data.frame for specialized parsing needs.
+#' @param rules A `karyo_rules` object (default: [myeloid_rules]). Use
+#'   [validate_rules()] to validate and convert a custom data frame into an
+#'   accepted rules object.
 #' @param karyotype_column Character. Name of the karyotype column when input is
 #'   a plain data frame. If `NULL` (default), auto-detected from common names
 #'   (`karyotype`, `iscn`, etc.); in an interactive session the detected column
@@ -415,7 +415,7 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #' @export
 parse_karyo <- function(
   karyotypes,
-  rules = rules_table(),
+  rules = myeloid_rules,
   karyotype_column = NULL,
   id_column = NULL,
   verbose = FALSE,
@@ -426,18 +426,11 @@ parse_karyo <- function(
   on_issues <- match.arg(on_issues)
 
   # Validate rules early (needed for empty result structure) ------------------
-  required <- c(
-    "flag_name",
-    "regex",
-    "category",
-    "priority",
-    "counts_for_monosomal",
-    "competition_group"
-  )
-  if (!all(required %in% names(rules))) {
+  if (!inherits(rules, "karyo_rules")) {
     stop(
-      "Rules missing required columns: ",
-      paste(setdiff(required, names(rules)), collapse = ", ")
+      "`rules` must be a `karyo_rules` object. ",
+      "Pass `myeloid_rules` or use `validate_rules()` to validate a custom rules table.",
+      call. = FALSE
     )
   }
   rule_flag_names <- unique(rules$flag_name)
