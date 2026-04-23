@@ -4,8 +4,8 @@ Version: 0.9.6
 Authors@R:
     person("Luca", "Lanino", role = c("aut", "cre"), email = "luca@lanino.me")
 Description: Parses ISCN (International System for Human Cytogenomic
-    Nomenclature) karyotype strings into structured binary features for
-    analysis. Focused on myeloid neoplasm-related chromosomal aberrations.
+    Nomenclature) karyotype strings into structured features for 
+    analysis.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

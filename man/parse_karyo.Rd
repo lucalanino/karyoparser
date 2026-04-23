@@ -57,14 +57,16 @@ Values:
 \item \code{"stop"} (default): Raise an error immediately if any issues are found,
 listing fixable and unfixable issue types and counts, and suggesting next
 steps. No fixing is attempted. Use this to catch data quality problems
-early; switch to \code{"preprocess"} or run \code{check_karyo()} once you understand
-them. \strong{Exception}: when input is a \code{karyo_preprocessed} object (i.e. the
-user has already run \code{check_karyo()} and \code{preprocess_karyo()}), \code{"stop"}
-does not error — unfixable rows are returned as NA and a warning is emitted.
-\item \code{"preprocess"}: Apply \code{preprocess_karyo()} to dirty rows; truncate chimeric
-rows to the first clone. Rows that still have issues after these corrections
-are returned as NA. A message is printed summarising how many rows were
-fixed and how many could not be fixed.
+early; switch to \code{"preprocess"} or run \code{check_karyo()} once
+you understand them. \strong{Exception}: when input is a
+\code{karyo_preprocessed} object (i.e. the user has already run
+\code{check_karyo()} and \code{preprocess_karyo()}), \code{"stop"} does not
+error — unfixable rows are returned as NA and a warning is emitted.
+\item \code{"preprocess"}: Apply \code{preprocess_karyo()} to dirty rows;
+truncate chimeric rows to the first clone. Rows that still have
+issues after these corrections are returned as NA. A message is
+printed summarising how many rows were fixed and how many could
+not be fixed.
 \item \code{"warn"}: Return NA for all issue rows and emit a warning. No fixing
 is attempted.
 }}
@@ -73,11 +75,13 @@ is attempted.
 A tibble with columns:
 \itemize{
 \item original_karyotype: Input karyotype string (always the raw input)
-\item preprocessed_karyotype: \code{normalize_iscn()} output of the karyotype string,
-consistent across all \code{on_issues} modes. In \code{"preprocess"} mode this is
+\item preprocessed_karyotype: \code{normalize_iscn()} output of the
+karyotype string, consistent across all \code{on_issues} modes. In
+\code{"preprocess"} mode this is
 also dirty-fixed and chimeric-truncated; in \code{"warn"}/\code{"stop"} modes only
 \code{normalize_iscn()} is applied. \code{NA_character_} for issue rows.
-\item ploidy_category: Classification (diploid, hyperdiploid, etc.) based on most abnormal clone
+\item ploidy_category: Classification (diploid, hyperdiploid, etc.)
+based on most abnormal clone
 \item chromosome_count: Integer chromosome count extracted from the karyotype
 \item One column per aberration flag (0/1 binary)
 \item monoX, monoY, mono1-22: Monosomy flags for each chromosome
@@ -91,7 +95,8 @@ also dirty-fixed and chimeric-truncated; in \code{"warn"}/\code{"stop"} modes on
 \item fixable_error: 1 if the row had at least one fixable issue (dirty marker
 or chimeric separator) and no unfixable issue, regardless of whether the
 fixable issue was auto-corrected. 0 when \code{unfixable_error = 1}.
-\item unfixable_error: 1 if row had unfixable structural issues (row is NA), else 0
+\item unfixable_error: 1 if row had unfixable structural issues
+(row is NA), else 0
 \item chimeric_karyotype: 1 if row contained a \verb{//} chimeric separator (regular
 chimeric rows are truncated to the host clone; \code{zero_host_chimera} rows
 are also flagged here and returned as NA via \code{unfixable_error})

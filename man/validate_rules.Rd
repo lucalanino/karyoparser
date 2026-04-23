@@ -15,6 +15,7 @@ validate_rules(rules)
 A \code{karyo_rules} object (tibble subclass) accepted by \code{\link[=parse_karyo]{parse_karyo()}}.
 }
 \description{
-Validates a data frame against the required schema for karyotype parsing rules
-and returns it as a \code{karyo_rules} object accepted by \code{\link[=parse_karyo]{parse_karyo()}}.
+Validates a data frame against the required schema for karyotype
+parsing rules and returns it as a \code{karyo_rules} object accepted by
+\code{\link[=parse_karyo]{parse_karyo()}}.
 }

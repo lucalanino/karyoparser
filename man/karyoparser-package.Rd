@@ -8,7 +8,7 @@
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Parses ISCN (International System for Human Cytogenomic Nomenclature) karyotype strings into structured binary features for analysis. Focused on myeloid neoplasm-related chromosomal aberrations.
+Parses ISCN (International System for Human Cytogenomic Nomenclature) karyotype strings into structured features for analysis.
 }
 \author{
 \strong{Maintainer}: Luca Lanino \email{luca@lanino.me}

@@ -14,8 +14,9 @@ check_karyo(
 \arguments{
 \item{karyotypes}{Character vector of karyotype strings, or a data frame
 containing a karyotype column. If a data frame, the karyotype column is
-auto-detected from common names (\code{karyotype}, \code{iscn}, etc.) or specified via
-\code{karyotype_column}. An id column is also auto-detected or specified via
+auto-detected from common names (\code{karyotype}, \code{iscn}, etc.) or
+specified via \code{karyotype_column}. An id column is also auto-detected
+or specified via
 \code{id_column}; when found it is included as the first column of the output
 and propagated through subsequent pipeline steps.}
 
@@ -37,10 +38,11 @@ breakdown. Default \code{FALSE}.}
 A \code{karyo_check} tibble with \code{length(karyotypes)} rows (or
 \code{nrow(karyotypes)} when input is a data frame). Columns: optional id column
 (first, when detected), \code{karyotype} (full input string), \code{fixable},
-\code{unfixable}, then one integer column per unfixable issue type (alphabetical),
-then one integer column per fixable issue type (alphabetical). The tibble can
-be passed directly to \code{preprocess_karyo()}, which will reuse the cached
-assessment and propagate the id column without re-scanning.
+\code{unfixable}, then one integer column per unfixable issue type
+(alphabetical), then one integer column per fixable issue type
+(alphabetical). The tibble can be passed directly to
+\code{preprocess_karyo()}, which will reuse the cached assessment and
+propagate the id column without re-scanning.
 }
 \description{
 Checks raw karyotype strings for formatting artifacts and structural errors.
@@ -50,7 +52,8 @@ columns. When \code{verbose = TRUE}, prints a count summary and per-issue-type
 breakdown.
 }
 \details{
-Fixable issues (resolvable by \code{parse_karyo()} under \code{on_issues = "preprocess"}):
+Fixable issues (resolvable by \code{parse_karyo()} under
+\code{on_issues = "preprocess"}):
 dirty markers (\code{unicode_notation}, \code{embedded_newline}, \code{html_entities},
 \code{leading_dot}, \code{fish_notation}, \code{trailing_narrative}, \code{midstring_linewrap},
 \code{missing_sex_comma}, \code{mar_space}) and \code{chimeric_separator}.
