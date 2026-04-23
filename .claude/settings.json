@@ -8,32 +8,22 @@
       "Bash(find:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr view:*)",
+      "Bash(git checkout:*)",
       "Bash(git grep:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(R:*)",
-      "Bash(rm:*)",
       "Bash(Rscript:*)",
       "Bash(sed:*)",
-      "Skill(update-config)"
+      "WebFetch(domain:cran.r-project.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [
       "Read(.Renviron)",
       "Read(.env)"
-    ]
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "air format .",
-            "statusMessage": "air format"
-          }
-        ]
-      }
     ]
   }
 }
