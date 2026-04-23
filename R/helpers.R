@@ -20,7 +20,6 @@ normalize_token <- function(x) {
   x <- stringr::str_replace_all(x, "(^\\?|\\?$|~)", "")
   x <- strip_bands(x)
   out <- x
-  # vectorized classification
   is_marker <- tidyr::replace_na(stringr::str_detect(x, "^[+-]?\\d*mar"), FALSE)
   out[is_marker] <- "marker_chromosomes"
 
@@ -106,7 +105,6 @@ normalize_token <- function(x) {
   cols <- names(x)
 
   if (!is.na(detected)) {
-    # Auto-detected — ask user to confirm or redirect
     preview <- paste(
       sprintf('"%s"', utils::head(as.character(x[[detected]]), 3)),
       collapse = ", "
@@ -124,17 +122,14 @@ normalize_token <- function(x) {
     if (tolower(answer) == "stop") {
       .abort_column_selection(caller)
     }
-    # If user typed a column name directly (not "n"/"no"), try to use it
     if (!tolower(answer) %in% c("n", "no")) {
       if (answer %in% cols) {
         return(answer)
       }
       stop(sprintf("Column '%s' not found in input.", answer), call. = FALSE)
     }
-    # User said "n" — fall through to pick-from-list
     candidate_cols <- setdiff(cols, detected)
   } else {
-    # Nothing auto-detected — must pick one
     message(sprintf(
       '\nCould not auto-detect karyotype column in `%s()`.',
       caller
@@ -142,7 +137,6 @@ normalize_token <- function(x) {
     candidate_cols <- cols
   }
 
-  # Pick-from-list
   message("  Available columns: ", paste(candidate_cols, collapse = ", "))
   message("  Enter column name,  stop = abort")
   answer2 <- trimws(readline("> "))

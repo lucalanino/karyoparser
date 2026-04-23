@@ -139,7 +139,6 @@ match_rules <- function(tokens_tbl, rules, rule_flag_names) {
   n_tokens <- length(match_text)
   n_rules <- nrow(rules)
 
-  # Stage 1: logical matrix (n_tokens x n_rules)
   match_mat <- matrix(FALSE, nrow = n_tokens, ncol = n_rules)
   for (j in seq_len(n_rules)) {
     hits <- stringr::str_detect(match_text, rules$regex[j])
@@ -147,8 +146,7 @@ match_rules <- function(tokens_tbl, rules, rule_flag_names) {
     match_mat[, j] <- hits
   }
 
-  # Stage 2: per-token best rule per competition group (highest priority wins
-  # within each group; groups fire independently)
+  # Groups fire independently; within each group the highest priority wins.
   priorities <- rules$priority
   groups <- rules$competition_group
 
@@ -183,7 +181,6 @@ match_rules <- function(tokens_tbl, rules, rule_flag_names) {
     dplyr::slice_head(n = 1) |>
     dplyr::ungroup()
 
-  # Stage 3: pivot to sample-level flags
   flags_by_sample <- resolved |>
     dplyr::distinct(.pk_row_id, flag_name) |>
     dplyr::mutate(value = 1L) |>
@@ -433,7 +430,6 @@ parse_karyo <- function(
   }
   rule_flag_names <- unique(rules$flag_name)
 
-  # Helper to create empty result with correct structure ----------------------
   chroms <- c(as.character(1:22), "X", "Y")
   all_output_cols <- c(
     "original_karyotype",
@@ -469,9 +465,7 @@ parse_karyo <- function(
   }
 
   # ---- Input routing: extract raw_vec, original_vec, id info ----------------
-  # karyo_preprocessed detection MUST happen before raw_vec is set so the
-  # "preprocessed" column is used automatically (it is not in
-  # .karyotype_col_candidates).
+  # Detection before raw_vec is set: "preprocessed" column is not in .karyotype_col_candidates.
   is_preprocessed <- is.data.frame(karyotypes) &&
     inherits(karyotypes, "karyo_preprocessed")
 
@@ -481,7 +475,6 @@ parse_karyo <- function(
   if (is_preprocessed) {
     raw_vec <- as.character(karyotypes[["preprocessed"]])
     original_vec <- as.character(karyotypes[["original"]])
-    # id: explicit id_column param overrides cached attrs
     if (!is.null(id_column)) {
       if (!id_column %in% names(karyotypes)) {
         stop(
@@ -538,9 +531,7 @@ parse_karyo <- function(
         chimeric_rows_cached <- integer(0)
       }
 
-      # karyo_preprocessed has already been through check -> preprocess.
-      # Override "stop": treat unfixable (NA) rows as NA rather than erroring —
-      # the user has already inspected them. Emit a warning for transparency.
+      # Override "stop" for karyo_preprocessed: user has already inspected; NA rows warn, don't error.
       issue_row_indices <- which(is.na(raw_vec))
       if (on_issues == "stop" && length(issue_row_indices) > 0) {
         warning(
@@ -562,8 +553,7 @@ parse_karyo <- function(
         if (n_fixed > 0) {
           message("  Fixed:      ", n_fixed)
         }
-        # "stop" mode already emits an unconditional warning for unfixable rows;
-        # skip the verbose message to avoid surfacing the same info twice.
+        # Skip verbose message in "stop" mode — the unconditional warning already covers it.
         if (n_final_issues > 0 && on_issues != "stop") {
           message("  Unfixable:  ", n_final_issues, "  (returned as NA)")
         }
@@ -578,7 +568,6 @@ parse_karyo <- function(
         )
       }
     } else {
-      # Standard path: run unified assessment
       assessment <- .assess_karyotypes(raw_vec)
 
       fixable_row_indices <- unique(
@@ -692,7 +681,6 @@ parse_karyo <- function(
           )
         }
       } else {
-        # "warn": detect issues on raw, no fixing; all issue rows become NA
         raw_vec <- normalize_iscn(raw_vec)
         issue_row_indices <- unique(assessment$reported_issues$row_index)
 
@@ -717,8 +705,6 @@ parse_karyo <- function(
   }
 
   # Ingest --------------------------------------------------------------------
-  # raw_vec, original_vec, id_values, id_col_name were all resolved in the
-  # input-routing block above. Just build input_df here.
   input_df <- tibble::tibble(
     .pk_row_id = seq_along(raw_vec),
     original_karyotype = original_vec,
@@ -738,7 +724,6 @@ parse_karyo <- function(
   # Check for empty input -----------------------------------------------------
   if (nrow(input_df) == 0) {
     if (nrow(issue_rows_df) > 0) {
-      # All rows had issues - return blank rows with issues attached
       out <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
       out$.pk_row_id <- issue_rows_df$.pk_row_id
       out$fixable_error <- as.integer(
@@ -782,7 +767,6 @@ parse_karyo <- function(
         n_total
       ))
     }
-    # Parse unique normalized strings only, then join back
     dedup_df <- tibble::tibble(
       .pk_row_id = seq_along(unique_karyotypes),
       original_karyotype = unique_karyotypes
@@ -864,8 +848,7 @@ parse_karyo <- function(
       -structural_aberrations_sample
     )
 
-  # CBF-AML override: cases with t(8;21), inv(16)(p13q22), or t(16;16) are
-  # never monosomal per clinical guidelines, regardless of co-firing rules.
+  # CBF-AML cases are never monosomal per clinical guidelines, regardless of co-firing rules.
   cbf_flags <- c("t(8;21)(q22;q22)", "inv(16)(p13q22)", "t(16;16)(p13;q22)")
   available_cbf <- intersect(cbf_flags, names(result))
   if (length(available_cbf) > 0) {

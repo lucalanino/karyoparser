@@ -22,7 +22,6 @@ extract_clone_data <- function(karyotype) {
   # Split into clones before removing brackets
   clones <- stringr::str_split(karyotype, "/")[[1]]
   lapply(clones, function(cl) {
-    # Extract metaphase count from bracket
     bracket <- stringr::str_extract(cl, "\\[[^\\]]+\\]")
     metaphases <- NA_real_
     if (!is.na(bracket)) {
@@ -35,7 +34,6 @@ extract_clone_data <- function(karyotype) {
         metaphases <- suppressWarnings(as.numeric(content))
       }
     }
-    # Extract chromosome count
     clean <- stringr::str_replace_all(cl, "\\[[^\\]]+\\]", "")
     raw_count <- stringr::str_extract(clean, "^\\d+(?:~\\d+)?")
     chrom_count <- NA_real_

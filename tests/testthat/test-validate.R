@@ -1,0 +1,134 @@
+test_that("check_karyo: clean input returns one row per string, all zeros", {
+  result <- suppressMessages(check_karyo(c("46,XX", "47,XY,+21[10]")))
+  expect_equal(nrow(result), 2L)
+  expect_equal(result$fixable, c(0L, 0L))
+  expect_equal(result$unfixable, c(0L, 0L))
+})
+
+test_that("check_karyo: column schema — fixable/unfixable first, then sorted issue cols", {
+  result <- suppressMessages(check_karyo("46,XX"))
+  unfixable_cols <- sort(setdiff(
+    karyoparser:::.all_issue_types,
+    karyoparser:::.fixable_issue_types
+  ))
+  fixable_cols <- sort(intersect(
+    karyoparser:::.fixable_issue_types,
+    karyoparser:::.all_issue_types
+  ))
+  expected_cols <- c(
+    "karyotype",
+    "fixable",
+    "unfixable",
+    unfixable_cols,
+    fixable_cols
+  )
+  expect_named(result, expected_cols)
+})
+
+test_that("check_karyo: empty/NA detected as unfixable", {
+  result <- suppressMessages(check_karyo(c(NA, "")))
+  expect_equal(result$empty, c(1L, 1L))
+  expect_equal(result$unfixable, c(1L, 1L))
+})
+
+test_that("check_karyo: no chromosome count detected", {
+  result <- suppressMessages(check_karyo("XX,+8"))
+  expect_equal(result$no_chromosome_count, 1L)
+  expect_equal(result$unfixable, 1L)
+})
+
+test_that("check_karyo: unbalanced parentheses detected", {
+  result <- suppressMessages(check_karyo("46,XX,del(5)(q13"))
+  expect_equal(result$unbalanced_parentheses, 1L)
+  expect_equal(result$unfixable, 1L)
+})
+
+test_that("check_karyo: unbalanced brackets detected", {
+  result <- suppressMessages(check_karyo("46,XX[10"))
+  expect_equal(result$unbalanced_brackets, 1L)
+  expect_equal(result$unfixable, 1L)
+})
+
+test_that("check_karyo: dirty markers detected as fixable", {
+  result <- suppressMessages(check_karyo(".47,XY,+21"))
+  expect_equal(result$leading_dot, 1L)
+  expect_equal(result$fixable, 1L)
+  expect_equal(result$unfixable, 0L)
+})
+
+test_that("check_karyo: trailing narrative detected as fixable", {
+  result <- suppressMessages(check_karyo("46,XX[20] .some text"))
+  expect_equal(result$trailing_narrative, 1L)
+  expect_equal(result$fixable, 1L)
+})
+
+test_that("check_karyo: html entities detected as fixable", {
+  result <- suppressMessages(check_karyo("46,XX,t(9;22)(q34;q11) &lt;AML&gt;"))
+  expect_equal(result$html_entities, 1L)
+  expect_equal(result$fixable, 1L)
+})
+
+test_that("check_karyo: one row per input; clean/dirty rows correctly flagged", {
+  x <- c("46,XX", ".47,XY,+21", "46,XX[5] .note", "46,XY")
+  result <- suppressMessages(check_karyo(x))
+  expect_equal(nrow(result), 4L)
+  expect_equal(result$fixable, c(0L, 1L, 1L, 0L))
+})
+
+test_that("check_karyo: multiple issues on same row all flagged", {
+  result <- suppressMessages(check_karyo(".46,XX[10] .note"))
+  expect_equal(result$leading_dot, 1L)
+  expect_equal(result$trailing_narrative, 1L)
+  expect_equal(result$fixable, 1L)
+})
+
+test_that("check_karyo: NA input detected as unfixable empty", {
+  result <- suppressMessages(check_karyo(c("46,XX", NA, "47,XY,+21")))
+  expect_equal(nrow(result), 3L)
+  expect_equal(result$empty[2], 1L)
+  expect_equal(result$unfixable[2], 1L)
+  expect_equal(result$fixable[1], 0L)
+  expect_equal(result$fixable[3], 0L)
+})
+
+test_that("check_karyo: empty vector returns zero-row tibble with full schema", {
+  result <- check_karyo(character(0))
+  expect_equal(nrow(result), 0L)
+  expect_true("fixable" %in% names(result))
+  expect_true("unfixable" %in% names(result))
+})
+
+test_that("check_karyo detects invalid_idem when idem appears in clone 1", {
+  result <- suppressMessages(check_karyo("46,XX,idem[10]"))
+  expect_equal(result$invalid_idem, 1L)
+  expect_equal(result$unfixable, 1L)
+})
+
+test_that("check_karyo detects unparseable_bracket for non-numeric bracket content", {
+  result <- suppressMessages(check_karyo("46,XX[abc]"))
+  expect_equal(result$unparseable_bracket, 1L)
+  expect_equal(result$unfixable, 1L)
+})
+
+test_that("XXYY and XXXY are valid sex complements (no no_sex_complement fired)", {
+  expect_equal(
+    suppressMessages(check_karyo("48,XXYY,+1[10]"))$no_sex_complement,
+    0L
+  )
+  expect_equal(
+    suppressMessages(check_karyo("48,XXXY,+1[10]"))$no_sex_complement,
+    0L
+  )
+})
+
+test_that("parse_karyo handles 48,XXYY karyotype", {
+  r <- pk("48,XXYY,+1[10]")
+  expect_false(is.na(r$ploidy_category))
+  expect_equal(r$tris1, 1L)
+})
+
+test_that("check_karyo: no_sex_complement detected when sex chromosome token absent", {
+  result <- suppressMessages(check_karyo("46,+8"))
+  expect_equal(result$no_sex_complement, 1L)
+  expect_equal(result$unfixable, 1L)
+})

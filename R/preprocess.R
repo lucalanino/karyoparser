@@ -1,18 +1,10 @@
-# Sex complement alternation derived from the canonical constant, longest variants
-# first so the regex engine doesn't match a shorter prefix before a longer one.
+# Longest-first so the regex engine can't match a shorter prefix before a longer one.
 .sex_alt <- paste(
   .sex_complements[order(-nchar(.sex_complements))],
   collapse = "|"
 )
 
-# Single source of truth for all pre-normalization issue patterns.
-# Both preprocess_karyo() and flag_unpreprocessed() loop over this list.
-# Each entry:
-#   detect      - character vector; fires if ANY element matches (via str_detect)
-#   use_trimmed - if TRUE, detect against trimws(s) rather than raw s
-#   fix         - list of list(pattern, replacement) applied in order via str_replace_all
-#               - empty list means the issue is detected but NOT fixable by preprocess_karyo()
-#   detail      - human-readable description used in issue reports
+# detect/fix/detail entries; empty fix list means detected-only (unfixable).
 .dirty_patterns <- list(
   unicode_notation = list(
     detect = "[\u00A0\u2007\u202F\u2212\u2012\u2013\u2014\uFE63\uFF0D\uFF0B]",
@@ -132,9 +124,7 @@
     ),
     detail = "Space between count and 'mar' token (e.g. '+1~4 mar' should be '+1~4mar')"
   ),
-  # Detected in flag_unpreprocessed() on the RAW string, before any fixes or
-  # normalize_iscn() runs. normalize_iscn() strips leading punctuation
-  # (^[,;/.]+) which would destroy the signal.
+  # Detected on the raw string before normalize_iscn() strips leading punctuation.
   zero_host_chimera = list(
     detect = "^[.]*//",
     use_trimmed = TRUE,
@@ -143,14 +133,12 @@
   )
 )
 
-# Issue types resolvable by parse_karyo() under on_issues="fix".
-# Defined here (after .dirty_patterns) so load order is guaranteed.
+# Defined after .dirty_patterns so load order is guaranteed.
 .fixable_issue_types <- c(
   names(Filter(\(p) length(p$fix) > 0, .dirty_patterns)),
   "chimeric_separator"
 )
 
-# Complete fixed schema of all detectable issue types, in display order.
 .all_issue_types <- c(
   names(.dirty_patterns),
   "empty",
@@ -220,11 +208,9 @@ preprocess_karyo <- function(
   id_column = NULL,
   verbose = FALSE
 ) {
-  # Input routing
   id_col_name <- NULL
   id_values <- NULL
   if (inherits(karyotypes, "karyo_check")) {
-    # Reuse cached assessment and propagate id from upstream check_karyo()
     cached_assessment <- attr(karyotypes, ".kp_assessment")
     id_col_name <- attr(karyotypes, ".kp_id_col")
     id_values <- attr(karyotypes, ".kp_id_values")
@@ -323,7 +309,6 @@ preprocess_karyo <- function(
     status = status
   )
 
-  # Add id column as first column when present
   if (!is.null(id_col_name)) {
     out[[id_col_name]] <- id_values
     out <- dplyr::relocate(out, dplyr::all_of(id_col_name), .before = 1)
@@ -387,26 +372,22 @@ normalize_iscn <- function(x) {
   if (length(x) == 0) {
     return(x)
   }
-  # normalize unicode spaces and signs
-  x <- stringr::str_replace_all(x, "[\u00A0\u2007\u202F]", " ") # NBSPs
+  x <- stringr::str_replace_all(x, "[\u00A0\u2007\u202F]", " ")
   x <- stringr::str_replace_all(
     x,
     "[\u2212\u2012\u2013\u2014\uFE63\uFF0D]",
     "-"
   ) # minus/dashes -> '-'
-  x <- stringr::str_replace_all(x, "[\uFF0B]", "+") # fullwidth '+' -> '+'
-  # minimal whitespace policy
+  x <- stringr::str_replace_all(x, "[\uFF0B]", "+")
   x <- stringr::str_replace_all(x, "\n|\r|\t", " ")
   x <- stringr::str_replace_all(x, " +", " ")
   x <- stringr::str_trim(x)
-  # tighten around delimiters
   x <- stringr::str_replace_all(x, "\\s*,\\s*", ",")
   x <- stringr::str_replace_all(x, "\\s*/\\s*", "/")
   x <- stringr::str_replace_all(x, "\\s*;\\s*", ";")
   x <- stringr::str_replace_all(x, "\\s*\\)\\s*", ")")
   x <- stringr::str_replace_all(x, "\\s*\\(\\s*", "(")
   x <- stringr::str_replace_all(x, "\\s+\\[", "[")
-  # normalizations
   x <- stringr::str_replace_all(x, "(?i)\\bpsu\\s*dic\\b", "psu dic")
   x <- stringr::str_replace_all(x, "\\s*\\bcp\\s*\\[(\\d+)\\]", "[cp\\1]")
   x <- stringr::str_replace_all(x, "\\[cp\\s*(\\d+)\\]", "[cp\\1]")
@@ -414,7 +395,6 @@ normalize_iscn <- function(x) {
   x <- stringr::str_replace_all(x, "(/)(\\d+)-(\\d+)(?=,)", "\\1\\2~\\3")
   x <- stringr::str_replace_all(x, "(?i)\\bIDEM\\b", "idem")
   x <- stringr::str_replace_all(x, "(?i)\\bSL\\b", "sl")
-  # collapse duplicate commas; drop leading/trailing delimiters
   x <- stringr::str_replace_all(x, ",{2,}", ",")
   x <- stringr::str_replace_all(x, "^[,;/\\.]+", "")
   x <- stringr::str_replace_all(x, "[,;/\\.]+$", "")

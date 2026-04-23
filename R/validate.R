@@ -2,18 +2,14 @@
 .assess_karyotypes <- function(x) {
   DIRTY_TYPES <- setdiff(.fixable_issue_types, "chimeric_separator")
 
-  # Step 1: detect dirty-pattern issues on the raw input --------------------
   dirty_issues <- flag_unpreprocessed(x)
   dirty_row_indices <- unique(
     dirty_issues$row_index[dirty_issues$issue_type %in% DIRTY_TYPES]
   )
 
-  # Step 2: apply dirty fixes → partially_fixed ----------------------------
   partially_fixed <- .apply_dirty_fixes(x)
 
-  # Step 3: detect chimeric in partially_fixed (before truncation) ----------
-  # Mirrors validate_karyotypes(): must start with a digit (i.e. pass the
-  # no_chromosome_count guard) and contain '//' after normalization.
+  # Mirrors validate_karyotypes(): must start with a digit and contain '//' after normalization.
   norm_partial <- normalize_iscn(partially_fixed)
   chimeric_row_indices <- which(
     !is.na(norm_partial) &
@@ -33,7 +29,6 @@
     empty_issues_tibble()
   }
 
-  # Step 4: truncate chimeric → fully_fixed --------------------------------
   fully_fixed <- partially_fixed
   if (length(chimeric_row_indices) > 0) {
     fully_fixed[chimeric_row_indices] <- stringr::str_replace(
@@ -43,11 +38,9 @@
     )
   }
 
-  # Step 5: structural issues REMAINING after all fixes --------------------
   norm_fully_fixed <- normalize_iscn(fully_fixed)
   struct_issues <- validate_karyotypes(norm_fully_fixed)
 
-  # Step 6: combine all reported issues and classify -----------------------
   reported_issues <- dplyr::bind_rows(
     dirty_issues,
     chimeric_issues,
@@ -72,8 +65,7 @@
   )
 }
 
-# Apply all dirty-pattern fixes to a character vector.
-# Single source of truth for the fix loop.
+# Single source of truth for the dirty-fix loop.
 .apply_dirty_fixes <- function(x) {
   x <- stringr::str_trim(x)
   x <- stringr::str_replace_all(x, "[\n\r\t]+", " ")
@@ -143,7 +135,6 @@ check_karyo <- function(
     stop("`karyotypes` is already a karyo_check object.", call. = FALSE)
   }
 
-  # Input routing: data frame → extract raw vector + id info
   id_col_name <- NULL
   id_values <- NULL
   karyotype_col_name <- NULL
@@ -208,7 +199,6 @@ check_karyo <- function(
   assessment <- .assess_karyotypes(karyotypes)
   long <- assessment$reported_issues
 
-  # Build wide matrix: n rows x issue-type columns
   out <- tibble::tibble(karyotype = as.character(karyotypes))
   for (nm in c(unfixable_issue_cols, fixable_issue_cols)) {
     rows_with_type <- long$row_index[long$issue_type == nm]
@@ -253,13 +243,11 @@ check_karyo <- function(
     }
   }
 
-  # Add id column as first column when present
   if (!is.null(id_col_name)) {
     out[[id_col_name]] <- id_values
     out <- dplyr::relocate(out, dplyr::all_of(id_col_name), .before = 1)
   }
 
-  # Tag output so preprocess_karyo() can reuse the assessment and propagate ids
   class(out) <- c("karyo_check", class(out))
   attr(out, ".kp_assessment") <- assessment
   attr(out, ".kp_raw") <- karyotypes
