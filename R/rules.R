@@ -1,7 +1,8 @@
 #' Validate and Create a Custom Rules Table
 #'
-#' Validates a data frame against the required schema for karyotype parsing rules
-#' and returns it as a `karyo_rules` object accepted by [parse_karyo()].
+#' Validates a data frame against the required schema for karyotype
+#' parsing rules and returns it as a `karyo_rules` object accepted by
+#' [parse_karyo()].
 #'
 #' @param rules A data frame with columns: `flag_name` (character), `regex`
 #'   (character), `category` (character), `priority` (positive numeric),
@@ -56,7 +57,6 @@ validate_rules <- function(rules) {
 #' @export
 myeloid_rules <- validate_rules(tibble::tribble(
   ~flag_name              , ~regex                                                                        , ~category             , ~priority , ~counts_for_monosomal , ~competition_group ,
-  # Specific translocations (both orientations)
   "t(15;17)(q24;q21)"     , "t\\(15;17\\)\\((q24|q22);q21\\)|t\\(17;15\\)\\(q21;(q24|q22)\\)"             , "specific_tx"         ,       100 , TRUE                  , "translocation"    ,
   "t(8;21)(q22;q22)"      , "t\\(8;21\\)\\((q22|q21(\\.3)?);q22\\)|t\\(21;8\\)\\(q22;(q22|q21(\\.3)?)\\)" , "specific_tx"         ,       100 , FALSE                 , "translocation"    ,
   "inv(16)(p13q22)"       , "inv\\(16\\)\\(p13q22\\)"                                                     , "specific_tx"         ,       100 , FALSE                 , "inversion"        ,
@@ -77,17 +77,14 @@ myeloid_rules <- validate_rules(tibble::tribble(
   "t(16;21)(p11;q22)"     , "t\\(16;21\\)\\(p11;q22\\)|t\\(21;16\\)\\(q22;p11\\)"                         , "specific_tx"         ,       100 , TRUE                  , "translocation"    ,
   "t(16;21)(q24;q22)"     , "t\\(16;21\\)\\(q24;q22\\)|t\\(21;16\\)\\(q22;q24\\)"                         , "specific_tx"         ,       100 , TRUE                  , "translocation"    ,
   "inv(16)(p13q24)"       , "inv\\(16\\)\\(p13q24\\)"                                                     , "specific_tx"         ,       100 , TRUE                  , "inversion"        ,
-  # Specific translocations - variant bands (same chromosomes/arms, different sub-bands)
   "t(6;9)_other"          , "t\\(6;9\\)\\(p[^;)]*;q[^)]*\\)|t\\(9;6\\)\\(q[^;)]*;p[^)]*\\)"               , "specific_tx"         ,        95 , TRUE                  , "translocation"    ,
   "t(9;11)_other"         , "t\\(9;11\\)\\(p[^;)]*;q[^)]*\\)|t\\(11;9\\)\\(q[^;)]*;p[^)]*\\)"             , "specific_tx"         ,        95 , TRUE                  , "translocation"    ,
   "t(9;22)_other"         , "t\\(9;22\\)\\(q[^;)]*;q[^)]*\\)|t\\(22;9\\)\\(q[^;)]*;q[^)]*\\)"             , "specific_tx"         ,        95 , TRUE                  , "translocation"    ,
   "inv(3)_other"          , "inv\\(3\\)\\(q\\d+q\\d+\\)"                                                  , "specific_tx"         ,        95 , TRUE                  , "inversion"        ,
   "t(3;3)_other"          , "t\\(3;3\\)\\(q[^;)]*;q[^)]*\\)"                                              , "specific_tx"         ,        95 , TRUE                  , "translocation"    ,
-  # Variable partner
   "t(v;11p15)"            , "t\\([0-9XY]+;11\\)\\([^)]+;p15\\)|t\\(11;[0-9XY]+\\)\\(p15;[^)]+\\)"         , "variable_partner"    ,        90 , TRUE                  , "translocation"    ,
   "t(v;11q23)"            , "t\\([0-9XY]+;11\\)\\([^)]+;q23\\)|t\\(11;[0-9XY]+\\)\\(q23;[^)]+\\)"         , "variable_partner"    ,        90 , TRUE                  , "translocation"    ,
   "t(3q26;v)"             , "t\\(3;[0-9XY]+\\)\\(q26;[^)]+\\)|t\\([0-9XY]+;3\\)\\([^)]+;q26\\)"           , "variable_partner"    ,        90 , TRUE                  , "translocation"    ,
-  # Chromosome-specific
   "del(5q)"               , "del\\(5q|del\\(5\\)\\(q"                                                     , "chromosome_specific" ,        85 , TRUE                  , "deletion"         ,
   "t(5q)"                 , "t\\(5;[^)]+\\)\\(q[^;)]*;[^)]*\\)|t\\([^;]+;5\\)\\([^;]*;q[^)]*\\)"          , "chromosome_specific" ,        85 , TRUE                  , "translocation"    ,
   "add(5q)"               , "add\\(5q|add\\(5\\)\\(q"                                                     , "chromosome_specific" ,        85 , TRUE                  , "addition"         ,
@@ -101,12 +98,10 @@ myeloid_rules <- validate_rules(tibble::tribble(
   "del(17p)"              , "del\\(17p|del\\(17\\)\\(p"                                                   , "chromosome_specific" ,        85 , TRUE                  , "deletion"         ,
   "del(20q)"              , "del\\(20q|del\\(20\\)\\(q"                                                   , "chromosome_specific" ,        85 , TRUE                  , "deletion"         ,
   "del(11q)"              , "del\\(11q|del\\(11\\)\\(q"                                                   , "chromosome_specific" ,        85 , TRUE                  , "deletion"         ,
-  # Dicentric / idic / psu dic
   "idic(X)(q13)"          , "idic\\(X\\)\\(q13"                                                           , "chromosome_specific" ,        95 , TRUE                  , "isodicentric"     ,
   "dicentric"             , "dic\\("                                                                      , "general"             ,        80 , TRUE                  , "dicentric"        ,
   "isodicentric"          , "idic\\("                                                                     , "general"             ,        85 , TRUE                  , "isodicentric"     ,
   "pseudodicentric"       , "psu dic\\("                                                                  , "general"             ,        85 , TRUE                  , "pseudodicentric"  ,
-  # General structural
   "ring_chromosome"       , "\\br\\("                                                                     , "general"             ,        70 , TRUE                  , "ring"             ,
   "insertion"             , "ins\\("                                                                      , "general"             ,        70 , TRUE                  , "insertion"        ,
   "duplication"           , "dup\\("                                                                      , "general"             ,        70 , TRUE                  , "duplication"      ,

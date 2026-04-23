@@ -1,9 +1,4 @@
-#' Classify Ploidy from Chromosome Count
-#'
-#' @param n Integer chromosome count (or NA).
-#' @return Character string: one of "near_haploid", "low_hypodiploid",
-#'   "high_hypodiploid", "diploid", "hyperdiploid", "other", or "unknown".
-#' @keywords internal
+# Map a chromosome count to its ploidy category string.
 ploidy_from_count <- function(n) {
   if (is.na(n)) {
     return("unknown")
@@ -56,15 +51,7 @@ extract_clone_data <- function(karyotype) {
   })
 }
 
-#' Classify Ploidy for a Karyotype String
-#'
-#' For composite karyotypes, filters to clones with >= 5 metaphases (when
-#' brackets exist), then uses the most abnormal clone (furthest from 46).
-#'
-#' @param karyotype Single karyotype string.
-#' @return A list with elements: ploidy (character), mixed (logical),
-#'   chromosome_count (integer).
-#' @keywords internal
+# Classify ploidy for a single karyotype string using the most abnormal eligible clone.
 ploidy_category <- function(karyotype) {
   clone_data <- extract_clone_data(karyotype)
   chrom_counts <- vapply(clone_data, `[[`, NA_real_, "chrom_count")

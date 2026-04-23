@@ -84,8 +84,7 @@ normalize_token <- function(x) {
   "subject"
 )
 
-# Abort helper: errors with a copy-pasteable manual-call hint.
-# @keywords internal
+# Abort with a copy-pasteable explicit-column hint.
 .abort_column_selection <- function(caller) {
   stop(
     sprintf(
@@ -102,19 +101,7 @@ normalize_token <- function(x) {
   )
 }
 
-# Interactive karyotype column confirmation helper.
-#
-# Shows the auto-detected column (with a short preview) and prompts the user to
-# accept, pick a different column, or abort. Only called for the karyotype
-# column when interactive() is TRUE. The ID column is always auto-detected
-# silently.
-#
-# @param x        Data frame.
-# @param detected Auto-detected column name (character), or NA_character_ when
-#                 none was found.
-# @param caller   Calling function name — used in the abort hint.
-# @return Chosen column name (character).
-# @keywords internal
+# Prompt user to confirm auto-detected karyotype column in interactive sessions.
 .confirm_column <- function(x, detected, caller) {
   cols <- names(x)
 
@@ -169,25 +156,7 @@ normalize_token <- function(x) {
   stop(sprintf("Column '%s' not found in input.", answer2), call. = FALSE)
 }
 
-# Extract karyotype and ID vectors from a plain data frame.
-#
-# Shared by check_karyo(), preprocess_karyo(), and parse_karyo() for the
-# data-frame input path. Handles karyotype column detection (auto or explicit),
-# type guard, and ID column detection (auto or explicit).
-#
-# When karyotype_column is NULL and the session is interactive, the
-# auto-detected karyotype column is confirmed with the user via readline()
-# before use. The ID column is always auto-detected silently regardless of
-# session mode. In non-interactive sessions, both columns are auto-detected
-# silently (verbose=TRUE prints a notice).
-#
-# @param x A data frame.
-# @param karyotype_column Character, or NULL for auto-detection.
-# @param id_column Character, or NULL for auto-detection.
-# @param verbose Logical.
-# @param caller Character string used in error/prompt messages.
-# @return Named list: raw_vec, karyotype_col_name, id_values, id_col_name.
-# @keywords internal
+# Extract karyotype and ID vectors from a data frame; shared by all three exported functions.
 .extract_df_input <- function(
   x,
   karyotype_column,

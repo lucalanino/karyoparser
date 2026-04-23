@@ -146,7 +146,7 @@
 # Issue types resolvable by parse_karyo() under on_issues="fix".
 # Defined here (after .dirty_patterns) so load order is guaranteed.
 .fixable_issue_types <- c(
-  names(Filter(function(p) length(p$fix) > 0, .dirty_patterns)),
+  names(Filter(\(p) length(p$fix) > 0, .dirty_patterns)),
   "chimeric_separator"
 )
 
@@ -349,35 +349,7 @@ preprocess_karyo <- function(
   out
 }
 
-#' Flag Unpreprocessed ISCN Strings
-#'
-#' Detects pre-normalization issues in raw karyotype strings: dirty markers
-#' that `preprocess_karyo()` can fix, and structural issues that must be caught
-#' before `normalize_iscn()` destroys the signal. Called internally by
-#' `check_karyo()`.
-#'
-#' Detected issue types:
-#' - `unicode_notation`: unicode spaces (NBSP), dashes (em/en-dash), or
-#'   fullwidth characters
-#' - `embedded_newline`: embedded `\n`, `\r`, or `\t` characters
-#' - `html_entities`: contains `&lt;`, `&gt;`, or `&amp;`
-#' - `leading_dot`: string starts with dot(s) before a digit
-#' - `fish_notation`: FISH/nuc ish suffix after last clone bracket
-#' - `trailing_narrative`: bracket followed by dot (`] .text`), bracket
-#'   followed by space and capital letter (`] Text`), space-dot-capital
-#'   pattern (` .Text`), or closing paren followed by capital (`) Text`)
-#' - `midstring_linewrap`: `, .lowercase` or `, .+` mid-string line-wrap artifact
-#' - `missing_sex_comma`: sex complement followed by space instead of comma
-#'   (e.g. `46,XX der(...)` → `46,XX,der(...)`)
-#' - `mar_space`: space between count and `mar` token (e.g. `+1~4 mar`)
-#' - `zero_host_chimera`: string starts with `.//` or `//` — donor-only chimera
-#'   with no host metaphases; has `fix = list()` so always unfixable/NA
-#'
-#' @param x Character vector of karyotype strings.
-#' @return A tibble with columns: `row_index`, `karyotype` (truncated to 40
-#'   chars), `issue_type`, `issue_detail`. Each issue generates one row;
-#'   multiple issues on the same input row appear as separate rows.
-#' @keywords internal
+# Scan raw karyotype strings for dirty patterns; returns long issues tibble.
 flag_unpreprocessed <- function(x) {
   issue_list <- vector("list", length(x) * length(.dirty_patterns))
   n_issues <- 0L
@@ -410,17 +382,7 @@ flag_unpreprocessed <- function(x) {
   dplyr::bind_rows(issue_list[seq_len(n_issues)])
 }
 
-#' Normalize ISCN Notation
-#'
-#' Final normalization pass: collapses whitespace, tightens delimiters,
-#' normalizes notation variants (idem, sl, cp, psu dic, range notation).
-#' Called at the end of `preprocess_karyo()` and internally by
-#' `.assess_karyotypes()` for structural validation checks.
-#' Never called directly by `parse_karyo()`.
-#'
-#' @param x Character vector of karyotype strings.
-#' @return Character vector of normalized karyotype strings.
-#' @keywords internal
+# Final normalization: whitespace, delimiters, idem/sl/cp/range variants.
 normalize_iscn <- function(x) {
   if (length(x) == 0) {
     return(x)

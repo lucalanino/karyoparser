@@ -1,28 +1,4 @@
-#' Assess karyotype strings: apply all fixes, classify rows
-#'
-#' Single source of truth for fixable/unfixable classification, shared by
-#' `check_karyo()`, `preprocess_karyo()`, and the `parse_karyo()` guard.
-#'
-#' Detection strategy:
-#' - Dirty issues detected on the RAW string (before fixes), so issue type
-#'   columns report what was actually wrong with the input.
-#' - Structural issues detected on the FULLY-FIXED string (after dirty fixes
-#'   and chimeric truncation), so false positives from dirty-marker
-#'   contamination (e.g. trailing narrative making `no_sex_complement` fire)
-#'   are eliminated.
-#'
-#' @param x Character vector of raw karyotype strings.
-#' @return A named list:
-#'   - `$processed` — fully-fixed character vector (dirty fixed + chimeric truncated)
-#'   - `$reported_issues` — long tibble (row_index, karyotype, issue_type,
-#'     issue_detail) combining dirty issues from raw, chimeric from after dirty
-#'     fix, and structural from after all fixes.
-#'   - `$unfixable_row_indices` — integer: rows with structural issues that
-#'     remain after all fixes.
-#'   - `$dirty_row_indices` — integer: rows that had fixable dirty markers.
-#'   - `$chimeric_row_indices` — integer: rows that had chimeric separator
-#'     (detected after dirty fixes, before truncation).
-#' @keywords internal
+# Run the full fix-and-classify pipeline; shared by check, preprocess, and parse.
 .assess_karyotypes <- function(x) {
   DIRTY_TYPES <- setdiff(.fixable_issue_types, "chimeric_separator")
 
@@ -119,7 +95,8 @@
 #' columns. When `verbose = TRUE`, prints a count summary and per-issue-type
 #' breakdown.
 #'
-#' Fixable issues (resolvable by `parse_karyo()` under `on_issues = "preprocess"`):
+#' Fixable issues (resolvable by `parse_karyo()` under
+#' `on_issues = "preprocess"`):
 #' dirty markers (`unicode_notation`, `embedded_newline`, `html_entities`,
 #' `leading_dot`, `fish_notation`, `trailing_narrative`, `midstring_linewrap`,
 #' `missing_sex_comma`, `mar_space`) and `chimeric_separator`.
@@ -131,8 +108,9 @@
 #'
 #' @param karyotypes Character vector of karyotype strings, or a data frame
 #'   containing a karyotype column. If a data frame, the karyotype column is
-#'   auto-detected from common names (`karyotype`, `iscn`, etc.) or specified via
-#'   `karyotype_column`. An id column is also auto-detected or specified via
+#'   auto-detected from common names (`karyotype`, `iscn`, etc.) or
+#'   specified via `karyotype_column`. An id column is also auto-detected
+#'   or specified via
 #'   `id_column`; when found it is included as the first column of the output
 #'   and propagated through subsequent pipeline steps.
 #' @param karyotype_column Character. Name of the karyotype column when
@@ -149,10 +127,11 @@
 #' @return A `karyo_check` tibble with `length(karyotypes)` rows (or
 #'   `nrow(karyotypes)` when input is a data frame). Columns: optional id column
 #'   (first, when detected), `karyotype` (full input string), `fixable`,
-#'   `unfixable`, then one integer column per unfixable issue type (alphabetical),
-#'   then one integer column per fixable issue type (alphabetical). The tibble can
-#'   be passed directly to `preprocess_karyo()`, which will reuse the cached
-#'   assessment and propagate the id column without re-scanning.
+#'   `unfixable`, then one integer column per unfixable issue type
+#'   (alphabetical), then one integer column per fixable issue type
+#'   (alphabetical). The tibble can be passed directly to
+#'   `preprocess_karyo()`, which will reuse the cached assessment and
+#'   propagate the id column without re-scanning.
 #' @export
 check_karyo <- function(
   karyotypes,
@@ -252,15 +231,11 @@ check_karyo <- function(
       message("  Fixable:   ", n_fix_rows)
       message("  Unfixable: ", n_unfix_rows)
     }
-    fix_counts <- vapply(
-      fixable_issue_cols,
-      function(col) sum(out[[col]]),
-      integer(1)
-    )
+    fix_counts <- vapply(fixable_issue_cols, \(col) sum(out[[col]]), integer(1))
     fix_counts <- fix_counts[fix_counts > 0]
     unfix_counts <- vapply(
       unfixable_issue_cols,
-      function(col) sum(out[[col]]),
+      \(col) sum(out[[col]]),
       integer(1)
     )
     unfix_counts <- unfix_counts[unfix_counts > 0]
@@ -295,14 +270,7 @@ check_karyo <- function(
   out
 }
 
-#' Validate Karyotype Strings
-#'
-#' Checks karyotype strings for common structural issues. Called internally by
-#' `.assess_karyotypes()` after dirty fixes and chimeric truncation.
-#'
-#' @param karyotypes Character vector of karyotype strings (already preprocessed)
-#' @return A tibble with columns: row_index, karyotype (truncated), issue_type, issue_detail
-#' @keywords internal
+# Check normalized karyotype strings for structural errors; returns long issues tibble.
 validate_karyotypes <- function(karyotypes) {
   issue_list <- vector("list", length(karyotypes))
   n_issues <- 0L
@@ -320,13 +288,11 @@ validate_karyotypes <- function(karyotypes) {
   for (i in seq_along(karyotypes)) {
     k <- karyotypes[i]
 
-    # Check 1: NA or empty
     if (is.na(k) || k == "") {
       add_issue(i, if (is.na(k)) "NA" else "", "empty", "NA or empty string")
       next
     }
 
-    # Check 2: No leading chromosome count
     if (!stringr::str_detect(k, "^\\d")) {
       add_issue(
         i,
@@ -337,7 +303,6 @@ validate_karyotypes <- function(karyotypes) {
       next
     }
 
-    # Check 2b: Chimeric separator (//)
     if (stringr::str_detect(k, "//")) {
       add_issue(
         i,
@@ -348,7 +313,6 @@ validate_karyotypes <- function(karyotypes) {
       next
     }
 
-    # Check 2c: Updated ISCN correction marker
     if (stringr::str_detect(k, "(?i)Updated ISCN")) {
       add_issue(
         i,
@@ -359,7 +323,6 @@ validate_karyotypes <- function(karyotypes) {
       next
     }
 
-    # Check 3: Unbalanced parentheses
     open_parens <- stringr::str_count(k, "\\(")
     close_parens <- stringr::str_count(k, "\\)")
     if (open_parens != close_parens) {
@@ -376,7 +339,6 @@ validate_karyotypes <- function(karyotypes) {
       next
     }
 
-    # Check 4: Unbalanced brackets
     open_brackets <- stringr::str_count(k, "\\[")
     close_brackets <- stringr::str_count(k, "\\]")
     if (open_brackets != close_brackets) {
@@ -393,7 +355,6 @@ validate_karyotypes <- function(karyotypes) {
       next
     }
 
-    # Check 5: No sex complement in first clone
     first_clone <- stringr::str_split(k, "/")[[1]][1]
     first_clone_clean <- stringr::str_replace_all(
       first_clone,
@@ -411,7 +372,6 @@ validate_karyotypes <- function(karyotypes) {
       )
     }
 
-    # Check 6: idem in clone 1
     if (length(tokens) > 1 && any(tolower(tokens) == "idem")) {
       add_issue(
         i,
@@ -421,7 +381,6 @@ validate_karyotypes <- function(karyotypes) {
       )
     }
 
-    # Check 7: Unparseable bracket content
     brackets <- stringr::str_extract_all(k, "\\[[^\\]]+\\]")[[1]]
     for (br in brackets) {
       content <- stringr::str_replace_all(br, "\\[|\\]", "")

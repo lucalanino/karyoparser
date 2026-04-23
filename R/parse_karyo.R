@@ -159,7 +159,7 @@ match_rules <- function(tokens_tbl, rules, rule_flag_names) {
     }
     vapply(
       split(matched, groups[matched]),
-      function(grp_idx) grp_idx[which.max(priorities[grp_idx])],
+      \(grp_idx) grp_idx[which.max(priorities[grp_idx])],
       integer(1L)
     )
   })
@@ -356,24 +356,28 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   - `"stop"` (default): Raise an error immediately if any issues are found,
 #'     listing fixable and unfixable issue types and counts, and suggesting next
 #'     steps. No fixing is attempted. Use this to catch data quality problems
-#'     early; switch to `"preprocess"` or run `check_karyo()` once you understand
-#'     them. **Exception**: when input is a `karyo_preprocessed` object (i.e. the
-#'     user has already run `check_karyo()` and `preprocess_karyo()`), `"stop"`
-#'     does not error — unfixable rows are returned as NA and a warning is emitted.
-#'   - `"preprocess"`: Apply `preprocess_karyo()` to dirty rows; truncate chimeric
-#'     rows to the first clone. Rows that still have issues after these corrections
-#'     are returned as NA. A message is printed summarising how many rows were
-#'     fixed and how many could not be fixed.
+#'     early; switch to `"preprocess"` or run `check_karyo()` once
+#'     you understand them. **Exception**: when input is a
+#'     `karyo_preprocessed` object (i.e. the user has already run
+#'     `check_karyo()` and `preprocess_karyo()`), `"stop"` does not
+#'     error — unfixable rows are returned as NA and a warning is emitted.
+#'   - `"preprocess"`: Apply `preprocess_karyo()` to dirty rows;
+#'     truncate chimeric rows to the first clone. Rows that still have
+#'     issues after these corrections are returned as NA. A message is
+#'     printed summarising how many rows were fixed and how many could
+#'     not be fixed.
 #'   - `"warn"`: Return NA for all issue rows and emit a warning. No fixing
 #'     is attempted.
 #'
 #' @return A tibble with columns:
 #'   - original_karyotype: Input karyotype string (always the raw input)
-#'   - preprocessed_karyotype: `normalize_iscn()` output of the karyotype string,
-#'     consistent across all `on_issues` modes. In `"preprocess"` mode this is
+#'   - preprocessed_karyotype: `normalize_iscn()` output of the
+#'     karyotype string, consistent across all `on_issues` modes. In
+#'     `"preprocess"` mode this is
 #'     also dirty-fixed and chimeric-truncated; in `"warn"`/`"stop"` modes only
 #'     `normalize_iscn()` is applied. `NA_character_` for issue rows.
-#'   - ploidy_category: Classification (diploid, hyperdiploid, etc.) based on most abnormal clone
+#'   - ploidy_category: Classification (diploid, hyperdiploid, etc.)
+#'     based on most abnormal clone
 #'   - chromosome_count: Integer chromosome count extracted from the karyotype
 #'   - One column per aberration flag (0/1 binary)
 #'   - monoX, monoY, mono1-22: Monosomy flags for each chromosome
@@ -387,7 +391,8 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
 #'   - fixable_error: 1 if the row had at least one fixable issue (dirty marker
 #'     or chimeric separator) and no unfixable issue, regardless of whether the
 #'     fixable issue was auto-corrected. 0 when `unfixable_error = 1`.
-#'   - unfixable_error: 1 if row had unfixable structural issues (row is NA), else 0
+#'   - unfixable_error: 1 if row had unfixable structural issues
+#'     (row is NA), else 0
 #'   - chimeric_karyotype: 1 if row contained a `//` chimeric separator (regular
 #'     chimeric rows are truncated to the host clone; `zero_host_chimera` rows
 #'     are also flagged here and returned as NA via `unfixable_error`)
