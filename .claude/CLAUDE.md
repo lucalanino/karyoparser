@@ -49,7 +49,7 @@ air format .
 
 ### Documentation
 
-- Every user-facing function should be exported and have roxygen2 documentation.
+- Every user-facing function should be exported and have roxygen2 documentation at the top of the script.
 - Wrap roxygen comments at 80 characters.
 - Internal functions should not have roxygen documentation.
 - Always re-document the package after changing a roxygen2 comment.

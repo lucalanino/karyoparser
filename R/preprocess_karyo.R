@@ -1,157 +1,3 @@
-# Longest-first so the regex engine can't match a shorter prefix before a longer one.
-.sex_alt <- paste(
-  .sex_complements[order(-nchar(.sex_complements))],
-  collapse = "|"
-)
-
-# detect/fix/detail entries; empty fix list means detected-only (unfixable).
-.dirty_patterns <- list(
-  unicode_notation = list(
-    detect = "[\u00A0\u2007\u202F\u2212\u2012\u2013\u2014\uFE63\uFF0D\uFF0B]",
-    use_trimmed = FALSE,
-    fix = list(
-      list(pattern = "[\u00A0\u2007\u202F]", replacement = " "),
-      list(
-        pattern = "[\u2212\u2012\u2013\u2014\uFE63\uFF0D]",
-        replacement = "-"
-      ),
-      list(pattern = "\uFF0B", replacement = "+")
-    ),
-    detail = "Contains unicode spaces (NBSP), dashes (em/en-dash), or fullwidth characters"
-  ),
-  embedded_newline = list(
-    detect = "[\n\r\t]",
-    use_trimmed = FALSE,
-    fix = list(
-      list(pattern = "[\n\r\t]+", replacement = " ")
-    ),
-    detail = "Contains embedded newline or tab characters"
-  ),
-  html_entities = list(
-    detect = "&lt;|&gt;|&amp;",
-    use_trimmed = FALSE,
-    fix = list(
-      list(pattern = "&lt;", replacement = "<"),
-      list(pattern = "&gt;", replacement = ">"),
-      list(pattern = "&amp;", replacement = "&")
-    ),
-    detail = "Contains HTML entities (&lt;, &gt;, or &amp;)"
-  ),
-  leading_dot = list(
-    detect = "^[.]+(?=\\d)",
-    use_trimmed = TRUE,
-    fix = list(
-      list(pattern = "^[.]+(?=\\d)", replacement = "")
-    ),
-    detail = "String starts with dot(s) before chromosome count"
-  ),
-  fish_notation = list(
-    detect = "\\][. ]+(?:nuc )?ish\\b",
-    use_trimmed = FALSE,
-    fix = list(
-      list(
-        pattern = "[. ]+(?:nuc )?ish\\b.*$",
-        replacement = ""
-      )
-    ),
-    detail = "FISH / nuc ish suffix after last clone bracket (e.g. '[12] .nuc ish(PDGFRA x3)[20/200]' or '[1].ish t(...)')"
-  ),
-  trailing_narrative = list(
-    detect = c(
-      "\\]\\s*\\.",
-      "\\]\\s+[A-Z][a-z]",
-      "\\s+\\.\\s*[A-Z]",
-      "\\)\\s+[A-Z][a-z]"
-    ),
-    use_trimmed = FALSE,
-    fix = list(
-      # Rule 1: strip everything after the last metaphase-count bracket.
-      # Greedy .* anchors to the rightmost [n], [cpN], or [n~m] bracket.
-      list(
-        pattern = "^(.*\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]).*$",
-        replacement = "\\1"
-      ),
-      # Rule 2: collapse ] ./ separator artifact left between clones.
-      list(
-        pattern = "\\]\\s*\\./",
-        replacement = "]/"
-      ),
-      # Rule 3: strip narrative after last ')' when no metaphase bracket present
-      # (e.g. "46,XX,t(9;22)(q34;q11.2) Abnormal female karyotype").
-      # Requires Capital+lowercase to avoid false positives on ISCN tokens.
-      list(
-        pattern = "^(.*\\))\\s+[A-Z][a-z].*$",
-        replacement = "\\1"
-      ),
-      # Rule 4: fallback for strings with no metaphase bracket or parens.
-      list(
-        pattern = "\\s+\\.\\s*[A-Z].*$",
-        replacement = ""
-      )
-    ),
-    detail = "Trailing narrative text after last metaphase-count bracket or closing parenthesis"
-  ),
-  midstring_linewrap = list(
-    detect = ",\\s+\\.[a-z(+]",
-    use_trimmed = FALSE,
-    fix = list(
-      list(
-        pattern = ",\\s+\\.?(?=[a-z(+])",
-        replacement = ","
-      )
-    ),
-    detail = "Mid-string line-wrap artifact (e.g. ', .der(...)' or bare ', +8' without dot)"
-  ),
-  missing_sex_comma = list(
-    detect = paste0(",(", .sex_alt, ")\\s+(?=[a-z(+])"),
-    use_trimmed = FALSE,
-    fix = list(
-      list(
-        pattern = paste0("(,(", .sex_alt, "))\\s+(?=[a-z(+])"),
-        replacement = "\\1,"
-      )
-    ),
-    detail = "Missing comma between sex chromosome complement and first aberration (e.g. '46,XX der(...)' should be '46,XX,der(...)')"
-  ),
-  mar_space = list(
-    detect = "[+~0-9-] mar\\b",
-    use_trimmed = FALSE,
-    fix = list(
-      list(
-        pattern = "([+~0-9-]) (mar\\b)",
-        replacement = "\\1\\2"
-      )
-    ),
-    detail = "Space between count and 'mar' token (e.g. '+1~4 mar' should be '+1~4mar')"
-  ),
-  # Detected on the raw string before normalize_iscn() strips leading punctuation.
-  zero_host_chimera = list(
-    detect = "^[.]*//",
-    use_trimmed = TRUE,
-    fix = list(),
-    detail = "String starts with './/'' or '//': donor-only chimera with no host metaphases"
-  )
-)
-
-# Defined after .dirty_patterns so load order is guaranteed.
-.fixable_issue_types <- c(
-  names(Filter(\(p) length(p$fix) > 0, .dirty_patterns)),
-  "chimeric_separator"
-)
-
-.all_issue_types <- c(
-  names(.dirty_patterns),
-  "empty",
-  "no_chromosome_count",
-  "chimeric_separator",
-  "updated_iscn",
-  "unbalanced_parentheses",
-  "unbalanced_brackets",
-  "no_sex_complement",
-  "invalid_idem",
-  "unparseable_bracket"
-)
-
 #' Clean and Normalize ISCN Karyotype Strings
 #'
 #' The complete cleaning and normalization pipeline. Fixes dirty markers then
@@ -297,7 +143,7 @@ preprocess_karyo <- function(
         message(
           "  Unfixable:  ",
           n_unfixable,
-          "  \u2014 run check_karyo() to investigate"
+          "  — run check_karyo() to investigate"
         )
       }
     }
@@ -333,6 +179,160 @@ preprocess_karyo <- function(
   attr(out, ".kp_id_values") <- id_values
   out
 }
+
+# Longest-first so the regex engine can't match a shorter prefix before a longer one.
+.sex_alt <- paste(
+  .sex_complements[order(-nchar(.sex_complements))],
+  collapse = "|"
+)
+
+# detect/fix/detail entries; empty fix list means detected-only (unfixable).
+.dirty_patterns <- list(
+  unicode_notation = list(
+    detect = "[   −‒–—﹣－＋]",
+    use_trimmed = FALSE,
+    fix = list(
+      list(pattern = "[   ]", replacement = " "),
+      list(
+        pattern = "[−‒–—﹣－]",
+        replacement = "-"
+      ),
+      list(pattern = "＋", replacement = "+")
+    ),
+    detail = "Contains unicode spaces (NBSP), dashes (em/en-dash), or fullwidth characters"
+  ),
+  embedded_newline = list(
+    detect = "[\n\r\t]",
+    use_trimmed = FALSE,
+    fix = list(
+      list(pattern = "[\n\r\t]+", replacement = " ")
+    ),
+    detail = "Contains embedded newline or tab characters"
+  ),
+  html_entities = list(
+    detect = "&lt;|&gt;|&amp;",
+    use_trimmed = FALSE,
+    fix = list(
+      list(pattern = "&lt;", replacement = "<"),
+      list(pattern = "&gt;", replacement = ">"),
+      list(pattern = "&amp;", replacement = "&")
+    ),
+    detail = "Contains HTML entities (&lt;, &gt;, or &amp;)"
+  ),
+  leading_dot = list(
+    detect = "^[.]+(?=\\d)",
+    use_trimmed = TRUE,
+    fix = list(
+      list(pattern = "^[.]+(?=\\d)", replacement = "")
+    ),
+    detail = "String starts with dot(s) before chromosome count"
+  ),
+  fish_notation = list(
+    detect = "\\][. ]+(?:nuc )?ish\\b",
+    use_trimmed = FALSE,
+    fix = list(
+      list(
+        pattern = "[. ]+(?:nuc )?ish\\b.*$",
+        replacement = ""
+      )
+    ),
+    detail = "FISH / nuc ish suffix after last clone bracket (e.g. '[12] .nuc ish(PDGFRA x3)[20/200]' or '[1].ish t(...)')"
+  ),
+  trailing_narrative = list(
+    detect = c(
+      "\\]\\s*\\.",
+      "\\]\\s+[A-Z][a-z]",
+      "\\s+\\.\\s*[A-Z]",
+      "\\)\\s+[A-Z][a-z]"
+    ),
+    use_trimmed = FALSE,
+    fix = list(
+      # Rule 1: strip everything after the last metaphase-count bracket.
+      # Greedy .* anchors to the rightmost [n], [cpN], or [n~m] bracket.
+      list(
+        pattern = "^(.*\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]).*$",
+        replacement = "\\1"
+      ),
+      # Rule 2: collapse ] ./ separator artifact left between clones.
+      list(
+        pattern = "\\]\\s*\\./",
+        replacement = "]/"
+      ),
+      # Rule 3: strip narrative after last ')' when no metaphase bracket present
+      # (e.g. "46,XX,t(9;22)(q34;q11.2) Abnormal female karyotype").
+      # Requires Capital+lowercase to avoid false positives on ISCN tokens.
+      list(
+        pattern = "^(.*\\))\\s+[A-Z][a-z].*$",
+        replacement = "\\1"
+      ),
+      # Rule 4: fallback for strings with no metaphase bracket or parens.
+      list(
+        pattern = "\\s+\\.\\s*[A-Z].*$",
+        replacement = ""
+      )
+    ),
+    detail = "Trailing narrative text after last metaphase-count bracket or closing parenthesis"
+  ),
+  midstring_linewrap = list(
+    detect = ",\\s+\\.[a-z(+]",
+    use_trimmed = FALSE,
+    fix = list(
+      list(
+        pattern = ",\\s+\\.?(?=[a-z(+])",
+        replacement = ","
+      )
+    ),
+    detail = "Mid-string line-wrap artifact (e.g. ', .der(...)' or bare ', +8' without dot)"
+  ),
+  missing_sex_comma = list(
+    detect = paste0(",(", .sex_alt, ")\\s+(?=[a-z(+])"),
+    use_trimmed = FALSE,
+    fix = list(
+      list(
+        pattern = paste0("(,(", .sex_alt, "))\\s+(?=[a-z(+])"),
+        replacement = "\\1,"
+      )
+    ),
+    detail = "Missing comma between sex chromosome complement and first aberration (e.g. '46,XX der(...)' should be '46,XX,der(...)')"
+  ),
+  mar_space = list(
+    detect = "[+~0-9-] mar\\b",
+    use_trimmed = FALSE,
+    fix = list(
+      list(
+        pattern = "([+~0-9-]) (mar\\b)",
+        replacement = "\\1\\2"
+      )
+    ),
+    detail = "Space between count and 'mar' token (e.g. '+1~4 mar' should be '+1~4mar')"
+  ),
+  # Detected on the raw string before normalize_iscn() strips leading punctuation.
+  zero_host_chimera = list(
+    detect = "^[.]*//",
+    use_trimmed = TRUE,
+    fix = list(),
+    detail = "String starts with './/'' or '//': donor-only chimera with no host metaphases"
+  )
+)
+
+# Defined after .dirty_patterns so load order is guaranteed.
+.fixable_issue_types <- c(
+  names(Filter(\(p) length(p$fix) > 0, .dirty_patterns)),
+  "chimeric_separator"
+)
+
+.all_issue_types <- c(
+  names(.dirty_patterns),
+  "empty",
+  "no_chromosome_count",
+  "chimeric_separator",
+  "updated_iscn",
+  "unbalanced_parentheses",
+  "unbalanced_brackets",
+  "no_sex_complement",
+  "invalid_idem",
+  "unparseable_bracket"
+)
 
 # Scan raw karyotype strings for dirty patterns; returns long issues tibble.
 flag_unpreprocessed <- function(x) {
@@ -372,13 +372,13 @@ normalize_iscn <- function(x) {
   if (length(x) == 0) {
     return(x)
   }
-  x <- stringr::str_replace_all(x, "[\u00A0\u2007\u202F]", " ")
+  x <- stringr::str_replace_all(x, "[   ]", " ")
   x <- stringr::str_replace_all(
     x,
-    "[\u2212\u2012\u2013\u2014\uFE63\uFF0D]",
+    "[−‒–—﹣－]",
     "-"
   ) # minus/dashes -> '-'
-  x <- stringr::str_replace_all(x, "[\uFF0B]", "+")
+  x <- stringr::str_replace_all(x, "[＋]", "+")
   x <- stringr::str_replace_all(x, "\n|\r|\t", " ")
   x <- stringr::str_replace_all(x, " +", " ")
   x <- stringr::str_trim(x)

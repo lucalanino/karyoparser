@@ -1,84 +1,3 @@
-# Run the full fix-and-classify pipeline; shared by check, preprocess, and parse.
-.assess_karyotypes <- function(x) {
-  DIRTY_TYPES <- setdiff(.fixable_issue_types, "chimeric_separator")
-
-  dirty_issues <- flag_unpreprocessed(x)
-  dirty_row_indices <- unique(
-    dirty_issues$row_index[dirty_issues$issue_type %in% DIRTY_TYPES]
-  )
-
-  partially_fixed <- .apply_dirty_fixes(x)
-
-  # Mirrors validate_karyotypes(): must start with a digit and contain '//' after normalization.
-  norm_partial <- normalize_iscn(partially_fixed)
-  chimeric_row_indices <- which(
-    !is.na(norm_partial) &
-      stringr::str_detect(norm_partial, "^\\d") &
-      stringr::str_detect(norm_partial, "//")
-  )
-  chimeric_issues <- if (length(chimeric_row_indices) > 0) {
-    tibble::tibble(
-      row_index = chimeric_row_indices,
-      karyotype = truncate_str(as.character(partially_fixed[
-        chimeric_row_indices
-      ])),
-      issue_type = "chimeric_separator",
-      issue_detail = "Contains '//' chimeric separator (independent cell populations)"
-    )
-  } else {
-    empty_issues_tibble()
-  }
-
-  fully_fixed <- partially_fixed
-  if (length(chimeric_row_indices) > 0) {
-    fully_fixed[chimeric_row_indices] <- stringr::str_replace(
-      fully_fixed[chimeric_row_indices],
-      "//.*$",
-      ""
-    )
-  }
-
-  norm_fully_fixed <- normalize_iscn(fully_fixed)
-  struct_issues <- validate_karyotypes(norm_fully_fixed)
-
-  reported_issues <- dplyr::bind_rows(
-    dirty_issues,
-    chimeric_issues,
-    struct_issues
-  ) |>
-    dplyr::arrange(row_index)
-
-  unfixable_types <- setdiff(.all_issue_types, .fixable_issue_types)
-  unfixable_row_indices <- unique(
-    reported_issues$row_index[reported_issues$issue_type %in% unfixable_types]
-  )
-
-  processed <- norm_fully_fixed
-  processed[unfixable_row_indices] <- NA_character_
-
-  list(
-    processed = processed,
-    reported_issues = reported_issues,
-    unfixable_row_indices = unfixable_row_indices,
-    dirty_row_indices = dirty_row_indices,
-    chimeric_row_indices = chimeric_row_indices
-  )
-}
-
-# Single source of truth for the dirty-fix loop.
-.apply_dirty_fixes <- function(x) {
-  x <- stringr::str_trim(x)
-  x <- stringr::str_replace_all(x, "[\n\r\t]+", " ")
-  for (nm in names(.dirty_patterns)) {
-    dp <- .dirty_patterns[[nm]]
-    for (fx in dp$fix) {
-      x <- stringr::str_replace_all(x, fx$pattern, fx$replacement)
-    }
-  }
-  stringr::str_trim(x)
-}
-
-
 #' Check Karyotype Strings for Issues
 #'
 #' Checks raw karyotype strings for formatting artifacts and structural errors.
@@ -258,6 +177,86 @@ check_karyo <- function(
   out
 }
 
+# Run the full fix-and-classify pipeline; shared by check, preprocess, and parse.
+.assess_karyotypes <- function(x) {
+  DIRTY_TYPES <- setdiff(.fixable_issue_types, "chimeric_separator")
+
+  dirty_issues <- flag_unpreprocessed(x)
+  dirty_row_indices <- unique(
+    dirty_issues$row_index[dirty_issues$issue_type %in% DIRTY_TYPES]
+  )
+
+  partially_fixed <- .apply_dirty_fixes(x)
+
+  # Mirrors validate_karyotypes(): must start with a digit and contain '//' after normalization.
+  norm_partial <- normalize_iscn(partially_fixed)
+  chimeric_row_indices <- which(
+    !is.na(norm_partial) &
+      stringr::str_detect(norm_partial, "^\\d") &
+      stringr::str_detect(norm_partial, "//")
+  )
+  chimeric_issues <- if (length(chimeric_row_indices) > 0) {
+    tibble::tibble(
+      row_index = chimeric_row_indices,
+      karyotype = truncate_str(as.character(partially_fixed[
+        chimeric_row_indices
+      ])),
+      issue_type = "chimeric_separator",
+      issue_detail = "Contains '//' chimeric separator (independent cell populations)"
+    )
+  } else {
+    empty_issues_tibble()
+  }
+
+  fully_fixed <- partially_fixed
+  if (length(chimeric_row_indices) > 0) {
+    fully_fixed[chimeric_row_indices] <- stringr::str_replace(
+      fully_fixed[chimeric_row_indices],
+      "//.*$",
+      ""
+    )
+  }
+
+  norm_fully_fixed <- normalize_iscn(fully_fixed)
+  struct_issues <- validate_karyotypes(norm_fully_fixed)
+
+  reported_issues <- dplyr::bind_rows(
+    dirty_issues,
+    chimeric_issues,
+    struct_issues
+  ) |>
+    dplyr::arrange(row_index)
+
+  unfixable_types <- setdiff(.all_issue_types, .fixable_issue_types)
+  unfixable_row_indices <- unique(
+    reported_issues$row_index[reported_issues$issue_type %in% unfixable_types]
+  )
+
+  processed <- norm_fully_fixed
+  processed[unfixable_row_indices] <- NA_character_
+
+  list(
+    processed = processed,
+    reported_issues = reported_issues,
+    unfixable_row_indices = unfixable_row_indices,
+    dirty_row_indices = dirty_row_indices,
+    chimeric_row_indices = chimeric_row_indices
+  )
+}
+
+# Single source of truth for the dirty-fix loop.
+.apply_dirty_fixes <- function(x) {
+  x <- stringr::str_trim(x)
+  x <- stringr::str_replace_all(x, "[\n\r\t]+", " ")
+  for (nm in names(.dirty_patterns)) {
+    dp <- .dirty_patterns[[nm]]
+    for (fx in dp$fix) {
+      x <- stringr::str_replace_all(x, fx$pattern, fx$replacement)
+    }
+  }
+  stringr::str_trim(x)
+}
+
 # Check normalized karyotype strings for structural errors; returns long issues tibble.
 validate_karyotypes <- function(karyotypes) {
   issue_list <- vector("list", length(karyotypes))
@@ -306,7 +305,7 @@ validate_karyotypes <- function(karyotypes) {
         i,
         k,
         "updated_iscn",
-        "Contains 'Updated ISCN' correction marker \u2014 original karyotype may be superseded"
+        "Contains 'Updated ISCN' correction marker — original karyotype may be superseded"
       )
       next
     }

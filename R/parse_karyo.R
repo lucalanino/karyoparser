@@ -1,3 +1,660 @@
+#' Parse ISCN Karyotype Strings
+#'
+#' Parses ISCN karyotype notation into structured binary features for analysis.
+#' Extracts specific translocations, deletions, monosomies, trisomies, and other
+#' chromosomal aberrations according to configurable rules.
+#'
+#' @param karyotypes A character vector of karyotype strings, a data frame
+#'   containing a karyotype column, or a `karyo_preprocessed` tibble returned
+#'   by `preprocess_karyo()`. When a `karyo_preprocessed` object is passed, the
+#'   `preprocessed` column is used automatically and cached issue indices and id
+#'   column are reused — no additional arguments required.
+#' @param rules A `karyo_rules` object (default: [myeloid_rules]). Use
+#'   [validate_rules()] to validate and convert a custom data frame into an
+#'   accepted rules object.
+#' @param karyotype_column Character. Name of the karyotype column when input is
+#'   a plain data frame. If `NULL` (default), auto-detected from common names
+#'   (`karyotype`, `iscn`, etc.); in an interactive session the detected column
+#'   is shown with a preview and confirmed before use. Ignored for character
+#'   vector or `karyo_preprocessed` input.
+#' @param id_column Character. Name of the id column when input is a data frame.
+#'   If `NULL` (default), auto-detected from common names (`sample_id`,
+#'   `patient_id`, `id`, `mrn`, etc.) and used silently. The id column is
+#'   placed first in the output. For `karyo_preprocessed` input, the id is
+#'   propagated automatically
+#'   from upstream pipeline steps; pass `id_column` explicitly only to override.
+#' @param verbose Logical. If `TRUE`, prints column detection and parsing
+#'   summary messages. Default `FALSE`.
+#' @param on_issues Character string specifying how to handle any karyotype
+#'   issues detected by `check_karyo()`. Three classes of issues are handled:
+#'   - **Dirty markers** (e.g. leading dots, HTML entities, missing sex comma):
+#'     formatting artifacts that `preprocess_karyo()` can fix automatically.
+#'   - **Chimeric separators** (`//`): karyotypes containing independent cell
+#'     populations. Under `"preprocess"`, only the portion before the first `//`
+#'     is kept (the dominant clone). Information about secondary clones is lost.
+#'   - **Structural errors** (e.g. no chromosome count, `Updated ISCN` marker):
+#'     unfixable — these rows always return NA regardless of `on_issues`.
+#'
+#'   Values:
+#'   - `"stop"` (default): Raise an error immediately if any issues are found,
+#'     listing fixable and unfixable issue types and counts, and suggesting next
+#'     steps. No fixing is attempted. Use this to catch data quality problems
+#'     early; switch to `"preprocess"` or run `check_karyo()` once
+#'     you understand them. **Exception**: when input is a
+#'     `karyo_preprocessed` object (i.e. the user has already run
+#'     `check_karyo()` and `preprocess_karyo()`), `"stop"` does not
+#'     error — unfixable rows are returned as NA and a warning is emitted.
+#'   - `"preprocess"`: Apply `preprocess_karyo()` to dirty rows;
+#'     truncate chimeric rows to the first clone. Rows that still have
+#'     issues after these corrections are returned as NA. A message is
+#'     printed summarising how many rows were fixed and how many could
+#'     not be fixed.
+#'   - `"warn"`: Return NA for all issue rows and emit a warning. No fixing
+#'     is attempted.
+#'
+#' @return A tibble with columns:
+#'   - original_karyotype: Input karyotype string (always the raw input)
+#'   - preprocessed_karyotype: `normalize_iscn()` output of the
+#'     karyotype string, consistent across all `on_issues` modes. In
+#'     `"preprocess"` mode this is
+#'     also dirty-fixed and chimeric-truncated; in `"warn"`/`"stop"` modes only
+#'     `normalize_iscn()` is applied. `NA_character_` for issue rows.
+#'   - ploidy_category: Classification (diploid, hyperdiploid, etc.)
+#'     based on most abnormal clone
+#'   - chromosome_count: Integer chromosome count extracted from the karyotype
+#'   - One column per aberration flag (0/1 binary)
+#'   - monoX, monoY, mono1-22: Monosomy flags for each chromosome
+#'   - trisX, trisY, tris1-22: Trisomy flags for each chromosome
+#'   - normal_karyotype: 1 if 46,XX or 46,XY, else 0
+#'   - total_metaphases: Count from bracket notation
+#'   - comma_count_aberrations: Number of comma-separated aberrations
+#'   - complex_karyotype: 1 if >=3 unique aberrations, else 0
+#'   - monosomal_karyotype: 1 if meets monosomal criteria, else 0
+#'   - mixed_ploidy: 1 if clones have different ploidy categories, else 0
+#'   - fixable_error: 1 if the row had at least one fixable issue (dirty marker
+#'     or chimeric separator) and no unfixable issue, regardless of whether the
+#'     fixable issue was auto-corrected. 0 when `unfixable_error = 1`.
+#'   - unfixable_error: 1 if row had unfixable structural issues
+#'     (row is NA), else 0
+#'   - chimeric_karyotype: 1 if row contained a `//` chimeric separator (regular
+#'     chimeric rows are truncated to the host clone; `zero_host_chimera` rows
+#'     are also flagged here and returned as NA via `unfixable_error`)
+#'
+#' @examples
+#' # Basic usage with character vector
+#' karyotypes <- c("46,XX", "47,XY,+21", "46,XX,t(15;17)(q24;q21)")
+#' result <- parse_karyo(karyotypes)
+#'
+#' # Usage with data.frame
+#' df <- data.frame(
+#'   sample_id = c("S1", "S2", "S3"),
+#'   iscn = c("46,XX", "47,XY,+21", "46,XX,t(15;17)(q24;q21)")
+#' )
+#' result <- parse_karyo(df, karyotype_column = "iscn")
+#'
+#' # Use verbose mode for debugging
+#' result <- parse_karyo(df, karyotype_column = "iscn", verbose = TRUE)
+#'
+#' @export
+parse_karyo <- function(
+  karyotypes,
+  rules = myeloid_rules,
+  karyotype_column = NULL,
+  id_column = NULL,
+  verbose = FALSE,
+  on_issues = c("stop", "preprocess", "warn")
+) {
+  on_issues <- match.arg(on_issues)
+
+  # Validate rules early (needed for empty result structure) ------------------
+  if (!inherits(rules, "karyo_rules")) {
+    stop(
+      "`rules` must be a `karyo_rules` object. ",
+      "Pass `myeloid_rules` or use `validate_rules()` to validate a custom rules table.",
+      call. = FALSE
+    )
+  }
+  rule_flag_names <- unique(rules$flag_name)
+
+  chroms <- c(as.character(1:22), "X", "Y")
+  all_output_cols <- c(
+    "original_karyotype",
+    "preprocessed_karyotype",
+    "ploidy_category",
+    "chromosome_count",
+    rule_flag_names,
+    paste0("mono", chroms),
+    paste0("tris", chroms),
+    "normal_karyotype",
+    "total_metaphases",
+    "comma_count_aberrations",
+    "complex_karyotype",
+    "monosomal_karyotype",
+    "mixed_ploidy",
+    "fixable_error",
+    "unfixable_error",
+    "chimeric_karyotype"
+  )
+
+  empty_result <- function() {
+    out <- tibble::tibble(original_karyotype = character())
+    out$preprocessed_karyotype <- character()
+    out$ploidy_category <- character()
+    for (nm in setdiff(
+      all_output_cols,
+      c("original_karyotype", "preprocessed_karyotype", "ploidy_category")
+    )) {
+      out[[nm]] <- integer()
+    }
+    attr(out, "karyoparser_version") <- .karyoparser_version
+    out
+  }
+
+  # ---- Input routing: extract raw_vec, original_vec, id info ----------------
+  # Detection before raw_vec is set: "preprocessed" column is not in .karyotype_col_candidates.
+  is_preprocessed <- is.data.frame(karyotypes) &&
+    inherits(karyotypes, "karyo_preprocessed")
+
+  id_values <- NULL
+  id_col_name <- NULL
+
+  if (is_preprocessed) {
+    raw_vec <- as.character(karyotypes[["preprocessed"]])
+    original_vec <- as.character(karyotypes[["original"]])
+    if (!is.null(id_column)) {
+      if (!id_column %in% names(karyotypes)) {
+        stop(
+          sprintf(
+            "ID column '%s' not found in karyo_preprocessed input.",
+            id_column
+          ),
+          call. = FALSE
+        )
+      }
+      id_col_name <- id_column
+      id_values <- as.character(karyotypes[[id_column]])
+    } else {
+      id_col_name <- attr(karyotypes, ".kp_id_col")
+      id_values <- attr(karyotypes, ".kp_id_values")
+    }
+  } else if (is.data.frame(karyotypes)) {
+    extracted <- .extract_df_input(
+      karyotypes,
+      karyotype_column,
+      id_column,
+      verbose,
+      "parse_karyo"
+    )
+    raw_vec <- extracted$raw_vec
+    original_vec <- raw_vec
+    id_col_name <- extracted$id_col_name
+    id_values <- extracted$id_values
+    karyotype_column <- extracted$karyotype_col_name
+  } else {
+    raw_vec <- as.character(karyotypes)
+    original_vec <- raw_vec
+  }
+
+  if (length(raw_vec) > 0) {
+    n_total_vec <- length(raw_vec)
+
+    if (is_preprocessed) {
+      # Reuse cached assessment indices — skip .assess_karyotypes() entirely
+      fixable_row_indices <- attr(karyotypes, ".kp_fixable_rows")
+      if (is.null(fixable_row_indices)) {
+        fixable_row_indices <- integer(0)
+      }
+      unfixable_row_indices <- attr(karyotypes, ".kp_unfixable_rows")
+      if (is.null(unfixable_row_indices)) {
+        unfixable_row_indices <- integer(0)
+      }
+      chimeric_all_indices <- attr(karyotypes, ".kp_chimeric_all_rows")
+      if (is.null(chimeric_all_indices)) {
+        chimeric_all_indices <- integer(0)
+      }
+      chimeric_rows_cached <- attr(karyotypes, ".kp_chimeric_rows")
+      if (is.null(chimeric_rows_cached)) {
+        chimeric_rows_cached <- integer(0)
+      }
+
+      # Override "stop" for karyo_preprocessed: user has already inspected; NA rows warn, don't error.
+      issue_row_indices <- which(is.na(raw_vec))
+      if (on_issues == "stop" && length(issue_row_indices) > 0) {
+        warning(
+          sprintf(
+            "%d of %d preprocessed karyotype(s) were unfixable and returned as NA.",
+            length(issue_row_indices),
+            n_total_vec
+          ),
+          call. = FALSE
+        )
+      }
+
+      n_final_issues <- length(unfixable_row_indices)
+      n_fixed <- length(setdiff(fixable_row_indices, unfixable_row_indices))
+      n_chimeric_parsed <- length(
+        setdiff(chimeric_rows_cached, unfixable_row_indices)
+      )
+      if (isTRUE(verbose)) {
+        if (n_fixed > 0) {
+          message("  Fixed:      ", n_fixed)
+        }
+        # Skip verbose message in "stop" mode — the unconditional warning already covers it.
+        if (n_final_issues > 0 && on_issues != "stop") {
+          message("  Unfixable:  ", n_final_issues, "  (returned as NA)")
+        }
+      }
+      if (n_chimeric_parsed > 0) {
+        warning(
+          sprintf(
+            "Chimeric: %d — host clone extracted, donor discarded.",
+            n_chimeric_parsed
+          ),
+          call. = FALSE
+        )
+      }
+    } else {
+      assessment <- .assess_karyotypes(raw_vec)
+
+      fixable_row_indices <- unique(
+        union(assessment$dirty_row_indices, assessment$chimeric_row_indices)
+      )
+      unfixable_row_indices <- assessment$unfixable_row_indices
+      zhc_indices <- unique(assessment$reported_issues$row_index[
+        assessment$reported_issues$issue_type == "zero_host_chimera"
+      ])
+      chimeric_all_indices <- unique(c(
+        assessment$chimeric_row_indices,
+        zhc_indices
+      ))
+
+      if (on_issues == "stop") {
+        if (nrow(assessment$reported_issues) > 0) {
+          issue_counts <- assessment$reported_issues |>
+            dplyr::count(issue_type, name = "n") |>
+            dplyr::arrange(dplyr::desc(n))
+          n_issue_rows <- length(unique(assessment$reported_issues$row_index))
+          fixable_counts <- issue_counts[
+            issue_counts$issue_type %in% .fixable_issue_types,
+            ,
+            drop = FALSE
+          ]
+          unfixable_counts <- issue_counts[
+            !issue_counts$issue_type %in% .fixable_issue_types,
+            ,
+            drop = FALSE
+          ]
+          msg_lines <- sprintf(
+            "parse_karyo() stopped: %d of %d karyotype(s) have data quality issues.",
+            n_issue_rows,
+            n_total_vec
+          )
+          if (nrow(fixable_counts) > 0) {
+            msg_lines <- c(
+              msg_lines,
+              paste0(
+                "  Fixable:   ",
+                paste(
+                  paste0(
+                    fixable_counts$issue_type,
+                    " (",
+                    fixable_counts$n,
+                    ")"
+                  ),
+                  collapse = ", "
+                )
+              )
+            )
+          }
+          if (nrow(unfixable_counts) > 0) {
+            msg_lines <- c(
+              msg_lines,
+              paste0(
+                "  Unfixable: ",
+                paste(
+                  paste0(
+                    unfixable_counts$issue_type,
+                    " (",
+                    unfixable_counts$n,
+                    ")"
+                  ),
+                  collapse = ", "
+                )
+              )
+            )
+          }
+          msg_lines <- c(
+            msg_lines,
+            "Rerun with on_issues = \"preprocess\" to auto-correct fixable rows (unfixable rows will be NA).",
+            "Rerun with on_issues = \"warn\" to return NA for all issue rows without fixing.",
+            "Call check_karyo() for a full per-row quality report."
+          )
+          stop(paste(msg_lines, collapse = "\n"), call. = FALSE)
+        }
+        raw_vec <- normalize_iscn(raw_vec)
+        issue_row_indices <- integer(0)
+        fixable_row_indices <- integer(0)
+        unfixable_row_indices <- integer(0)
+        chimeric_all_indices <- integer(0)
+      } else if (on_issues == "preprocess") {
+        raw_vec <- assessment$processed
+        issue_row_indices <- unfixable_row_indices
+
+        n_chimeric_parsed <- length(setdiff(
+          assessment$chimeric_row_indices,
+          assessment$unfixable_row_indices
+        ))
+        n_fixed <- length(setdiff(
+          fixable_row_indices,
+          assessment$unfixable_row_indices
+        ))
+        n_final_issues <- length(unfixable_row_indices)
+        if (isTRUE(verbose)) {
+          if (n_fixed > 0) {
+            message("  Fixed:      ", n_fixed)
+          }
+          if (n_final_issues > 0) {
+            message("  Unfixable:  ", n_final_issues, "  (returned as NA)")
+          }
+        }
+        if (n_chimeric_parsed > 0) {
+          warning(
+            sprintf(
+              "Chimeric: %d — host clone extracted, donor discarded.",
+              n_chimeric_parsed
+            ),
+            call. = FALSE
+          )
+        }
+      } else {
+        raw_vec <- normalize_iscn(raw_vec)
+        issue_row_indices <- unique(assessment$reported_issues$row_index)
+
+        n_final_issues <- length(issue_row_indices)
+        if (n_final_issues > 0) {
+          warning(
+            sprintf(
+              "%d of %d karyotype(s) had issues and were returned as NA.",
+              n_final_issues,
+              n_total_vec
+            ),
+            call. = FALSE
+          )
+        }
+      }
+    }
+  } else {
+    issue_row_indices <- integer(0)
+    fixable_row_indices <- integer(0)
+    unfixable_row_indices <- integer(0)
+    chimeric_all_indices <- integer(0)
+  }
+
+  # Ingest --------------------------------------------------------------------
+  input_df <- tibble::tibble(
+    .pk_row_id = seq_along(raw_vec),
+    original_karyotype = original_vec,
+    preprocessed_karyotype = raw_vec
+  )
+
+  # Apply issue-row filtering -------------------------------------------------
+  if (length(issue_row_indices) > 0) {
+    issue_rows_df <- input_df |>
+      dplyr::filter(.pk_row_id %in% issue_row_indices)
+    input_df <- input_df |>
+      dplyr::filter(!(.pk_row_id %in% issue_row_indices))
+  } else {
+    issue_rows_df <- input_df[0, ]
+  }
+
+  # Check for empty input -----------------------------------------------------
+  if (nrow(input_df) == 0) {
+    if (nrow(issue_rows_df) > 0) {
+      out <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
+      out$.pk_row_id <- issue_rows_df$.pk_row_id
+      out$fixable_error <- as.integer(
+        out$.pk_row_id %in%
+          fixable_row_indices &
+          !out$.pk_row_id %in% unfixable_row_indices
+      )
+      out$unfixable_error <- as.integer(
+        out$.pk_row_id %in% unfixable_row_indices
+      )
+      out$chimeric_karyotype <- as.integer(
+        out$.pk_row_id %in% chimeric_all_indices
+      )
+      if (!is.null(id_values)) {
+        out[[id_col_name]] <- id_values[out$.pk_row_id]
+        out <- out |> dplyr::relocate(dplyr::all_of(id_col_name), .before = 1)
+      }
+      out <- out |>
+        dplyr::select(-.pk_row_id) |>
+        dplyr::relocate(preprocessed_karyotype, .after = original_karyotype)
+      attr(out, "karyoparser_version") <- .karyoparser_version
+      return(tibble::as_tibble(out))
+    }
+    if (isTRUE(verbose)) {
+      message("Input is empty. Returning empty result.")
+    }
+    return(empty_result())
+  }
+
+  # ---- Deduplication ---------------------------------------------------------
+  n_total <- nrow(input_df)
+  unique_karyotypes <- unique(input_df$preprocessed_karyotype)
+  n_unique <- length(unique_karyotypes)
+  deduped <- n_unique < n_total
+
+  if (deduped) {
+    if (isTRUE(verbose)) {
+      message(sprintf(
+        "Parsing %d unique karyotypes (%d total rows).",
+        n_unique,
+        n_total
+      ))
+    }
+    dedup_df <- tibble::tibble(
+      .pk_row_id = seq_along(unique_karyotypes),
+      original_karyotype = unique_karyotypes
+    )
+  } else {
+    if (isTRUE(verbose)) {
+      message(sprintf("Parsing %d karyotype(s).", n_total))
+    }
+    dedup_df <- tibble::tibble(
+      .pk_row_id = input_df$.pk_row_id,
+      original_karyotype = input_df$preprocessed_karyotype
+    )
+  }
+
+  # ---- Parsing pipeline -------------------------------------------------------
+  sample_meta <- build_sample_meta(dedup_df)
+  tokens <- build_clone_tokens(sample_meta)
+  flags <- match_rules(tokens, rules, rule_flag_names)
+  aneuploidy <- compute_aneuploidy(tokens, chroms)
+  comma_counts <- compute_comma_counts(tokens)
+  unique_aberr <- compute_unique_counts(tokens)
+
+  # ---- Assembly --------------------------------------------------------------
+  mono_cols <- paste0("mono", chroms)
+  tris_cols <- paste0("tris", chroms)
+
+  all_flags <- dedup_df |>
+    dplyr::select(.pk_row_id) |>
+    dplyr::left_join(flags, by = ".pk_row_id") |>
+    dplyr::left_join(aneuploidy, by = ".pk_row_id") |>
+    dplyr::mutate(dplyr::across(-.pk_row_id, ~ tidyr::replace_na(., 0L)))
+
+  structural_flags <- rules |>
+    dplyr::filter(counts_for_monosomal) |>
+    dplyr::pull(flag_name) |>
+    unique()
+
+  autosomal_mono_cols <- paste0("mono", as.character(1:22))
+  available_mono_cols <- intersect(autosomal_mono_cols, names(all_flags))
+  available_struct_flags <- intersect(structural_flags, names(all_flags))
+
+  abnormality_names <- c(
+    rule_flag_names,
+    mono_cols,
+    tris_cols,
+    "normal_karyotype",
+    "comma_count_aberrations",
+    "complex_karyotype",
+    "monosomal_karyotype",
+    "mixed_ploidy"
+  )
+
+  result <- all_flags |>
+    dplyr::mutate(
+      autosomal_monosomies_sample = if (length(available_mono_cols) > 0) {
+        rowSums(
+          dplyr::across(dplyr::all_of(available_mono_cols), as.integer),
+          na.rm = TRUE
+        )
+      } else {
+        0L
+      },
+      structural_aberrations_sample = if (length(available_struct_flags) > 0) {
+        rowSums(
+          dplyr::across(dplyr::all_of(available_struct_flags), as.integer),
+          na.rm = TRUE
+        )
+      } else {
+        0L
+      },
+      monosomal_karyotype = as.integer(
+        autosomal_monosomies_sample >= 2 |
+          (autosomal_monosomies_sample >= 1 &
+            structural_aberrations_sample >= 1)
+      )
+    ) |>
+    dplyr::select(
+      -autosomal_monosomies_sample,
+      -structural_aberrations_sample
+    )
+
+  # CBF-AML cases are never monosomal per clinical guidelines, regardless of co-firing rules.
+  cbf_flags <- c("t(8;21)(q22;q22)", "inv(16)(p13q22)", "t(16;16)(p13;q22)")
+  available_cbf <- intersect(cbf_flags, names(result))
+  if (length(available_cbf) > 0) {
+    result <- result |>
+      dplyr::mutate(
+        monosomal_karyotype = dplyr::if_else(
+          rowSums(
+            dplyr::across(dplyr::all_of(available_cbf), as.integer),
+            na.rm = TRUE
+          ) >=
+            1L,
+          0L,
+          monosomal_karyotype
+        )
+      )
+  }
+
+  result <- result |>
+    dplyr::left_join(
+      unique_aberr |>
+        dplyr::transmute(
+          .pk_row_id,
+          complex_karyotype = as.integer(n_unique_aberr >= 3)
+        ),
+      by = ".pk_row_id"
+    ) |>
+    dplyr::left_join(comma_counts, by = ".pk_row_id") |>
+    dplyr::left_join(
+      sample_meta |>
+        dplyr::select(
+          .pk_row_id,
+          normal_karyotype,
+          ploidy_category,
+          chromosome_count,
+          total_metaphases,
+          mixed_ploidy
+        ),
+      by = ".pk_row_id"
+    )
+
+  for (nm in abnormality_names) {
+    if (!nm %in% names(result)) result[[nm]] <- 0L
+  }
+
+  cols_to_convert <- intersect(abnormality_names, names(result))
+  result <- result |>
+    dplyr::mutate(
+      dplyr::across(
+        dplyr::all_of(cols_to_convert),
+        ~ as.integer(tidyr::replace_na(., 0L))
+      ),
+      ploidy_category = tidyr::replace_na(ploidy_category, "unknown")
+    ) |>
+    dplyr::left_join(dedup_df, by = ".pk_row_id") |>
+    dplyr::rename(preprocessed_karyotype = original_karyotype) |>
+    dplyr::relocate(preprocessed_karyotype, .before = 1) |>
+    dplyr::relocate(ploidy_category, .after = preprocessed_karyotype) |>
+    dplyr::relocate(chromosome_count, .after = ploidy_category)
+
+  keep_cols <- intersect(
+    c(
+      "preprocessed_karyotype",
+      "ploidy_category",
+      "chromosome_count",
+      abnormality_names,
+      "total_metaphases"
+    ),
+    names(result)
+  )
+
+  # ---- Join back to original rows if deduped ---------------------------------
+  if (deduped) {
+    parsed_unique <- result[, keep_cols]
+    valid_out <- input_df |>
+      dplyr::left_join(parsed_unique, by = "preprocessed_karyotype")
+    valid_out <- valid_out[, c(".pk_row_id", "original_karyotype", keep_cols)]
+  } else {
+    valid_out <- dplyr::bind_cols(
+      tibble::tibble(
+        .pk_row_id = input_df$.pk_row_id,
+        original_karyotype = input_df$original_karyotype
+      ),
+      result[, keep_cols]
+    )
+  }
+
+  # Recombine with issue rows --------------------------------------------------
+  if (nrow(issue_rows_df) > 0) {
+    br <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
+    br$.pk_row_id <- issue_rows_df$.pk_row_id
+    out <- dplyr::bind_rows(valid_out, br) |>
+      dplyr::arrange(.pk_row_id)
+  } else {
+    out <- valid_out
+  }
+
+  # Error flag columns ---------------------------------------------------------
+  out$fixable_error <- as.integer(
+    out$.pk_row_id %in%
+      fixable_row_indices &
+      !out$.pk_row_id %in% unfixable_row_indices
+  )
+  out$unfixable_error <- as.integer(out$.pk_row_id %in% unfixable_row_indices)
+  out$chimeric_karyotype <- as.integer(out$.pk_row_id %in% chimeric_all_indices)
+
+  # Attach ID column if available ---------------------------------------------
+  if (!is.null(id_values)) {
+    out[[id_col_name]] <- id_values[out$.pk_row_id]
+    out <- out |> dplyr::relocate(dplyr::all_of(id_col_name), .before = 1)
+  }
+
+  out <- out |>
+    dplyr::select(-.pk_row_id) |>
+    dplyr::relocate(preprocessed_karyotype, .after = original_karyotype)
+
+  # Provenance
+  attr(out, "karyoparser_version") <- .karyoparser_version
+  tibble::as_tibble(out)
+}
+
 # ---- Internal pipeline helpers ------------------------------------------------
 
 build_sample_meta <- function(input_df) {
@@ -310,661 +967,4 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
     out[[nm]] <- rep(NA_integer_, n)
   }
   out
-}
-
-#' Parse ISCN Karyotype Strings
-#'
-#' Parses ISCN karyotype notation into structured binary features for analysis.
-#' Extracts specific translocations, deletions, monosomies, trisomies, and other
-#' chromosomal aberrations according to configurable rules.
-#'
-#' @param karyotypes A character vector of karyotype strings, a data frame
-#'   containing a karyotype column, or a `karyo_preprocessed` tibble returned
-#'   by `preprocess_karyo()`. When a `karyo_preprocessed` object is passed, the
-#'   `preprocessed` column is used automatically and cached issue indices and id
-#'   column are reused — no additional arguments required.
-#' @param rules A `karyo_rules` object (default: [myeloid_rules]). Use
-#'   [validate_rules()] to validate and convert a custom data frame into an
-#'   accepted rules object.
-#' @param karyotype_column Character. Name of the karyotype column when input is
-#'   a plain data frame. If `NULL` (default), auto-detected from common names
-#'   (`karyotype`, `iscn`, etc.); in an interactive session the detected column
-#'   is shown with a preview and confirmed before use. Ignored for character
-#'   vector or `karyo_preprocessed` input.
-#' @param id_column Character. Name of the id column when input is a data frame.
-#'   If `NULL` (default), auto-detected from common names (`sample_id`,
-#'   `patient_id`, `id`, `mrn`, etc.) and used silently. The id column is
-#'   placed first in the output. For `karyo_preprocessed` input, the id is
-#'   propagated automatically
-#'   from upstream pipeline steps; pass `id_column` explicitly only to override.
-#' @param verbose Logical. If `TRUE`, prints column detection and parsing
-#'   summary messages. Default `FALSE`.
-#' @param on_issues Character string specifying how to handle any karyotype
-#'   issues detected by `check_karyo()`. Three classes of issues are handled:
-#'   - **Dirty markers** (e.g. leading dots, HTML entities, missing sex comma):
-#'     formatting artifacts that `preprocess_karyo()` can fix automatically.
-#'   - **Chimeric separators** (`//`): karyotypes containing independent cell
-#'     populations. Under `"preprocess"`, only the portion before the first `//`
-#'     is kept (the dominant clone). Information about secondary clones is lost.
-#'   - **Structural errors** (e.g. no chromosome count, `Updated ISCN` marker):
-#'     unfixable — these rows always return NA regardless of `on_issues`.
-#'
-#'   Values:
-#'   - `"stop"` (default): Raise an error immediately if any issues are found,
-#'     listing fixable and unfixable issue types and counts, and suggesting next
-#'     steps. No fixing is attempted. Use this to catch data quality problems
-#'     early; switch to `"preprocess"` or run `check_karyo()` once
-#'     you understand them. **Exception**: when input is a
-#'     `karyo_preprocessed` object (i.e. the user has already run
-#'     `check_karyo()` and `preprocess_karyo()`), `"stop"` does not
-#'     error — unfixable rows are returned as NA and a warning is emitted.
-#'   - `"preprocess"`: Apply `preprocess_karyo()` to dirty rows;
-#'     truncate chimeric rows to the first clone. Rows that still have
-#'     issues after these corrections are returned as NA. A message is
-#'     printed summarising how many rows were fixed and how many could
-#'     not be fixed.
-#'   - `"warn"`: Return NA for all issue rows and emit a warning. No fixing
-#'     is attempted.
-#'
-#' @return A tibble with columns:
-#'   - original_karyotype: Input karyotype string (always the raw input)
-#'   - preprocessed_karyotype: `normalize_iscn()` output of the
-#'     karyotype string, consistent across all `on_issues` modes. In
-#'     `"preprocess"` mode this is
-#'     also dirty-fixed and chimeric-truncated; in `"warn"`/`"stop"` modes only
-#'     `normalize_iscn()` is applied. `NA_character_` for issue rows.
-#'   - ploidy_category: Classification (diploid, hyperdiploid, etc.)
-#'     based on most abnormal clone
-#'   - chromosome_count: Integer chromosome count extracted from the karyotype
-#'   - One column per aberration flag (0/1 binary)
-#'   - monoX, monoY, mono1-22: Monosomy flags for each chromosome
-#'   - trisX, trisY, tris1-22: Trisomy flags for each chromosome
-#'   - normal_karyotype: 1 if 46,XX or 46,XY, else 0
-#'   - total_metaphases: Count from bracket notation
-#'   - comma_count_aberrations: Number of comma-separated aberrations
-#'   - complex_karyotype: 1 if >=3 unique aberrations, else 0
-#'   - monosomal_karyotype: 1 if meets monosomal criteria, else 0
-#'   - mixed_ploidy: 1 if clones have different ploidy categories, else 0
-#'   - fixable_error: 1 if the row had at least one fixable issue (dirty marker
-#'     or chimeric separator) and no unfixable issue, regardless of whether the
-#'     fixable issue was auto-corrected. 0 when `unfixable_error = 1`.
-#'   - unfixable_error: 1 if row had unfixable structural issues
-#'     (row is NA), else 0
-#'   - chimeric_karyotype: 1 if row contained a `//` chimeric separator (regular
-#'     chimeric rows are truncated to the host clone; `zero_host_chimera` rows
-#'     are also flagged here and returned as NA via `unfixable_error`)
-#'
-#' @examples
-#' # Basic usage with character vector
-#' karyotypes <- c("46,XX", "47,XY,+21", "46,XX,t(15;17)(q24;q21)")
-#' result <- parse_karyo(karyotypes)
-#'
-#' # Usage with data.frame
-#' df <- data.frame(
-#'   sample_id = c("S1", "S2", "S3"),
-#'   iscn = c("46,XX", "47,XY,+21", "46,XX,t(15;17)(q24;q21)")
-#' )
-#' result <- parse_karyo(df, karyotype_column = "iscn")
-#'
-#' # Use verbose mode for debugging
-#' result <- parse_karyo(df, karyotype_column = "iscn", verbose = TRUE)
-#'
-#' @export
-parse_karyo <- function(
-  karyotypes,
-  rules = myeloid_rules,
-  karyotype_column = NULL,
-  id_column = NULL,
-  verbose = FALSE,
-  on_issues = c("stop", "preprocess", "warn")
-) {
-  on_issues <- match.arg(on_issues)
-
-  # Validate rules early (needed for empty result structure) ------------------
-  if (!inherits(rules, "karyo_rules")) {
-    stop(
-      "`rules` must be a `karyo_rules` object. ",
-      "Pass `myeloid_rules` or use `validate_rules()` to validate a custom rules table.",
-      call. = FALSE
-    )
-  }
-  rule_flag_names <- unique(rules$flag_name)
-
-  chroms <- c(as.character(1:22), "X", "Y")
-  all_output_cols <- c(
-    "original_karyotype",
-    "preprocessed_karyotype",
-    "ploidy_category",
-    "chromosome_count",
-    rule_flag_names,
-    paste0("mono", chroms),
-    paste0("tris", chroms),
-    "normal_karyotype",
-    "total_metaphases",
-    "comma_count_aberrations",
-    "complex_karyotype",
-    "monosomal_karyotype",
-    "mixed_ploidy",
-    "fixable_error",
-    "unfixable_error",
-    "chimeric_karyotype"
-  )
-
-  empty_result <- function() {
-    out <- tibble::tibble(original_karyotype = character())
-    out$preprocessed_karyotype <- character()
-    out$ploidy_category <- character()
-    for (nm in setdiff(
-      all_output_cols,
-      c("original_karyotype", "preprocessed_karyotype", "ploidy_category")
-    )) {
-      out[[nm]] <- integer()
-    }
-    attr(out, "karyoparser_version") <- .karyoparser_version
-    out
-  }
-
-  # ---- Input routing: extract raw_vec, original_vec, id info ----------------
-  # Detection before raw_vec is set: "preprocessed" column is not in .karyotype_col_candidates.
-  is_preprocessed <- is.data.frame(karyotypes) &&
-    inherits(karyotypes, "karyo_preprocessed")
-
-  id_values <- NULL
-  id_col_name <- NULL
-
-  if (is_preprocessed) {
-    raw_vec <- as.character(karyotypes[["preprocessed"]])
-    original_vec <- as.character(karyotypes[["original"]])
-    if (!is.null(id_column)) {
-      if (!id_column %in% names(karyotypes)) {
-        stop(
-          sprintf(
-            "ID column '%s' not found in karyo_preprocessed input.",
-            id_column
-          ),
-          call. = FALSE
-        )
-      }
-      id_col_name <- id_column
-      id_values <- as.character(karyotypes[[id_column]])
-    } else {
-      id_col_name <- attr(karyotypes, ".kp_id_col")
-      id_values <- attr(karyotypes, ".kp_id_values")
-    }
-  } else if (is.data.frame(karyotypes)) {
-    extracted <- .extract_df_input(
-      karyotypes,
-      karyotype_column,
-      id_column,
-      verbose,
-      "parse_karyo"
-    )
-    raw_vec <- extracted$raw_vec
-    original_vec <- raw_vec
-    id_col_name <- extracted$id_col_name
-    id_values <- extracted$id_values
-    karyotype_column <- extracted$karyotype_col_name
-  } else {
-    raw_vec <- as.character(karyotypes)
-    original_vec <- raw_vec
-  }
-
-  if (length(raw_vec) > 0) {
-    n_total_vec <- length(raw_vec)
-
-    if (is_preprocessed) {
-      # Reuse cached assessment indices — skip .assess_karyotypes() entirely
-      fixable_row_indices <- attr(karyotypes, ".kp_fixable_rows")
-      if (is.null(fixable_row_indices)) {
-        fixable_row_indices <- integer(0)
-      }
-      unfixable_row_indices <- attr(karyotypes, ".kp_unfixable_rows")
-      if (is.null(unfixable_row_indices)) {
-        unfixable_row_indices <- integer(0)
-      }
-      chimeric_all_indices <- attr(karyotypes, ".kp_chimeric_all_rows")
-      if (is.null(chimeric_all_indices)) {
-        chimeric_all_indices <- integer(0)
-      }
-      chimeric_rows_cached <- attr(karyotypes, ".kp_chimeric_rows")
-      if (is.null(chimeric_rows_cached)) {
-        chimeric_rows_cached <- integer(0)
-      }
-
-      # Override "stop" for karyo_preprocessed: user has already inspected; NA rows warn, don't error.
-      issue_row_indices <- which(is.na(raw_vec))
-      if (on_issues == "stop" && length(issue_row_indices) > 0) {
-        warning(
-          sprintf(
-            "%d of %d preprocessed karyotype(s) were unfixable and returned as NA.",
-            length(issue_row_indices),
-            n_total_vec
-          ),
-          call. = FALSE
-        )
-      }
-
-      n_final_issues <- length(unfixable_row_indices)
-      n_fixed <- length(setdiff(fixable_row_indices, unfixable_row_indices))
-      n_chimeric_parsed <- length(
-        setdiff(chimeric_rows_cached, unfixable_row_indices)
-      )
-      if (isTRUE(verbose)) {
-        if (n_fixed > 0) {
-          message("  Fixed:      ", n_fixed)
-        }
-        # Skip verbose message in "stop" mode — the unconditional warning already covers it.
-        if (n_final_issues > 0 && on_issues != "stop") {
-          message("  Unfixable:  ", n_final_issues, "  (returned as NA)")
-        }
-      }
-      if (n_chimeric_parsed > 0) {
-        warning(
-          sprintf(
-            "Chimeric: %d \u2014 host clone extracted, donor discarded.",
-            n_chimeric_parsed
-          ),
-          call. = FALSE
-        )
-      }
-    } else {
-      assessment <- .assess_karyotypes(raw_vec)
-
-      fixable_row_indices <- unique(
-        union(assessment$dirty_row_indices, assessment$chimeric_row_indices)
-      )
-      unfixable_row_indices <- assessment$unfixable_row_indices
-      zhc_indices <- unique(assessment$reported_issues$row_index[
-        assessment$reported_issues$issue_type == "zero_host_chimera"
-      ])
-      chimeric_all_indices <- unique(c(
-        assessment$chimeric_row_indices,
-        zhc_indices
-      ))
-
-      if (on_issues == "stop") {
-        if (nrow(assessment$reported_issues) > 0) {
-          issue_counts <- assessment$reported_issues |>
-            dplyr::count(issue_type, name = "n") |>
-            dplyr::arrange(dplyr::desc(n))
-          n_issue_rows <- length(unique(assessment$reported_issues$row_index))
-          fixable_counts <- issue_counts[
-            issue_counts$issue_type %in% .fixable_issue_types,
-            ,
-            drop = FALSE
-          ]
-          unfixable_counts <- issue_counts[
-            !issue_counts$issue_type %in% .fixable_issue_types,
-            ,
-            drop = FALSE
-          ]
-          msg_lines <- sprintf(
-            "parse_karyo() stopped: %d of %d karyotype(s) have data quality issues.",
-            n_issue_rows,
-            n_total_vec
-          )
-          if (nrow(fixable_counts) > 0) {
-            msg_lines <- c(
-              msg_lines,
-              paste0(
-                "  Fixable:   ",
-                paste(
-                  paste0(
-                    fixable_counts$issue_type,
-                    " (",
-                    fixable_counts$n,
-                    ")"
-                  ),
-                  collapse = ", "
-                )
-              )
-            )
-          }
-          if (nrow(unfixable_counts) > 0) {
-            msg_lines <- c(
-              msg_lines,
-              paste0(
-                "  Unfixable: ",
-                paste(
-                  paste0(
-                    unfixable_counts$issue_type,
-                    " (",
-                    unfixable_counts$n,
-                    ")"
-                  ),
-                  collapse = ", "
-                )
-              )
-            )
-          }
-          msg_lines <- c(
-            msg_lines,
-            "Rerun with on_issues = \"preprocess\" to auto-correct fixable rows (unfixable rows will be NA).",
-            "Rerun with on_issues = \"warn\" to return NA for all issue rows without fixing.",
-            "Call check_karyo() for a full per-row quality report."
-          )
-          stop(paste(msg_lines, collapse = "\n"), call. = FALSE)
-        }
-        raw_vec <- normalize_iscn(raw_vec)
-        issue_row_indices <- integer(0)
-        fixable_row_indices <- integer(0)
-        unfixable_row_indices <- integer(0)
-        chimeric_all_indices <- integer(0)
-      } else if (on_issues == "preprocess") {
-        raw_vec <- assessment$processed
-        issue_row_indices <- unfixable_row_indices
-
-        n_chimeric_parsed <- length(setdiff(
-          assessment$chimeric_row_indices,
-          assessment$unfixable_row_indices
-        ))
-        n_fixed <- length(setdiff(
-          fixable_row_indices,
-          assessment$unfixable_row_indices
-        ))
-        n_final_issues <- length(unfixable_row_indices)
-        if (isTRUE(verbose)) {
-          if (n_fixed > 0) {
-            message("  Fixed:      ", n_fixed)
-          }
-          if (n_final_issues > 0) {
-            message("  Unfixable:  ", n_final_issues, "  (returned as NA)")
-          }
-        }
-        if (n_chimeric_parsed > 0) {
-          warning(
-            sprintf(
-              "Chimeric: %d \u2014 host clone extracted, donor discarded.",
-              n_chimeric_parsed
-            ),
-            call. = FALSE
-          )
-        }
-      } else {
-        raw_vec <- normalize_iscn(raw_vec)
-        issue_row_indices <- unique(assessment$reported_issues$row_index)
-
-        n_final_issues <- length(issue_row_indices)
-        if (n_final_issues > 0) {
-          warning(
-            sprintf(
-              "%d of %d karyotype(s) had issues and were returned as NA.",
-              n_final_issues,
-              n_total_vec
-            ),
-            call. = FALSE
-          )
-        }
-      }
-    }
-  } else {
-    issue_row_indices <- integer(0)
-    fixable_row_indices <- integer(0)
-    unfixable_row_indices <- integer(0)
-    chimeric_all_indices <- integer(0)
-  }
-
-  # Ingest --------------------------------------------------------------------
-  input_df <- tibble::tibble(
-    .pk_row_id = seq_along(raw_vec),
-    original_karyotype = original_vec,
-    preprocessed_karyotype = raw_vec
-  )
-
-  # Apply issue-row filtering -------------------------------------------------
-  if (length(issue_row_indices) > 0) {
-    issue_rows_df <- input_df |>
-      dplyr::filter(.pk_row_id %in% issue_row_indices)
-    input_df <- input_df |>
-      dplyr::filter(!(.pk_row_id %in% issue_row_indices))
-  } else {
-    issue_rows_df <- input_df[0, ]
-  }
-
-  # Check for empty input -----------------------------------------------------
-  if (nrow(input_df) == 0) {
-    if (nrow(issue_rows_df) > 0) {
-      out <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
-      out$.pk_row_id <- issue_rows_df$.pk_row_id
-      out$fixable_error <- as.integer(
-        out$.pk_row_id %in%
-          fixable_row_indices &
-          !out$.pk_row_id %in% unfixable_row_indices
-      )
-      out$unfixable_error <- as.integer(
-        out$.pk_row_id %in% unfixable_row_indices
-      )
-      out$chimeric_karyotype <- as.integer(
-        out$.pk_row_id %in% chimeric_all_indices
-      )
-      if (!is.null(id_values)) {
-        out[[id_col_name]] <- id_values[out$.pk_row_id]
-        out <- out |> dplyr::relocate(dplyr::all_of(id_col_name), .before = 1)
-      }
-      out <- out |>
-        dplyr::select(-.pk_row_id) |>
-        dplyr::relocate(preprocessed_karyotype, .after = original_karyotype)
-      attr(out, "karyoparser_version") <- .karyoparser_version
-      return(tibble::as_tibble(out))
-    }
-    if (isTRUE(verbose)) {
-      message("Input is empty. Returning empty result.")
-    }
-    return(empty_result())
-  }
-
-  # ---- Deduplication ---------------------------------------------------------
-  n_total <- nrow(input_df)
-  unique_karyotypes <- unique(input_df$preprocessed_karyotype)
-  n_unique <- length(unique_karyotypes)
-  deduped <- n_unique < n_total
-
-  if (deduped) {
-    if (isTRUE(verbose)) {
-      message(sprintf(
-        "Parsing %d unique karyotypes (%d total rows).",
-        n_unique,
-        n_total
-      ))
-    }
-    dedup_df <- tibble::tibble(
-      .pk_row_id = seq_along(unique_karyotypes),
-      original_karyotype = unique_karyotypes
-    )
-  } else {
-    if (isTRUE(verbose)) {
-      message(sprintf("Parsing %d karyotype(s).", n_total))
-    }
-    dedup_df <- tibble::tibble(
-      .pk_row_id = input_df$.pk_row_id,
-      original_karyotype = input_df$preprocessed_karyotype
-    )
-  }
-
-  # ---- Parsing pipeline -------------------------------------------------------
-  sample_meta <- build_sample_meta(dedup_df)
-  tokens <- build_clone_tokens(sample_meta)
-  flags <- match_rules(tokens, rules, rule_flag_names)
-  aneuploidy <- compute_aneuploidy(tokens, chroms)
-  comma_counts <- compute_comma_counts(tokens)
-  unique_aberr <- compute_unique_counts(tokens)
-
-  # ---- Assembly --------------------------------------------------------------
-  mono_cols <- paste0("mono", chroms)
-  tris_cols <- paste0("tris", chroms)
-
-  all_flags <- dedup_df |>
-    dplyr::select(.pk_row_id) |>
-    dplyr::left_join(flags, by = ".pk_row_id") |>
-    dplyr::left_join(aneuploidy, by = ".pk_row_id") |>
-    dplyr::mutate(dplyr::across(-.pk_row_id, ~ tidyr::replace_na(., 0L)))
-
-  structural_flags <- rules |>
-    dplyr::filter(counts_for_monosomal) |>
-    dplyr::pull(flag_name) |>
-    unique()
-
-  autosomal_mono_cols <- paste0("mono", as.character(1:22))
-  available_mono_cols <- intersect(autosomal_mono_cols, names(all_flags))
-  available_struct_flags <- intersect(structural_flags, names(all_flags))
-
-  abnormality_names <- c(
-    rule_flag_names,
-    mono_cols,
-    tris_cols,
-    "normal_karyotype",
-    "comma_count_aberrations",
-    "complex_karyotype",
-    "monosomal_karyotype",
-    "mixed_ploidy"
-  )
-
-  result <- all_flags |>
-    dplyr::mutate(
-      autosomal_monosomies_sample = if (length(available_mono_cols) > 0) {
-        rowSums(
-          dplyr::across(dplyr::all_of(available_mono_cols), as.integer),
-          na.rm = TRUE
-        )
-      } else {
-        0L
-      },
-      structural_aberrations_sample = if (length(available_struct_flags) > 0) {
-        rowSums(
-          dplyr::across(dplyr::all_of(available_struct_flags), as.integer),
-          na.rm = TRUE
-        )
-      } else {
-        0L
-      },
-      monosomal_karyotype = as.integer(
-        autosomal_monosomies_sample >= 2 |
-          (autosomal_monosomies_sample >= 1 &
-            structural_aberrations_sample >= 1)
-      )
-    ) |>
-    dplyr::select(
-      -autosomal_monosomies_sample,
-      -structural_aberrations_sample
-    )
-
-  # CBF-AML cases are never monosomal per clinical guidelines, regardless of co-firing rules.
-  cbf_flags <- c("t(8;21)(q22;q22)", "inv(16)(p13q22)", "t(16;16)(p13;q22)")
-  available_cbf <- intersect(cbf_flags, names(result))
-  if (length(available_cbf) > 0) {
-    result <- result |>
-      dplyr::mutate(
-        monosomal_karyotype = dplyr::if_else(
-          rowSums(
-            dplyr::across(dplyr::all_of(available_cbf), as.integer),
-            na.rm = TRUE
-          ) >=
-            1L,
-          0L,
-          monosomal_karyotype
-        )
-      )
-  }
-
-  result <- result |>
-    dplyr::left_join(
-      unique_aberr |>
-        dplyr::transmute(
-          .pk_row_id,
-          complex_karyotype = as.integer(n_unique_aberr >= 3)
-        ),
-      by = ".pk_row_id"
-    ) |>
-    dplyr::left_join(comma_counts, by = ".pk_row_id") |>
-    dplyr::left_join(
-      sample_meta |>
-        dplyr::select(
-          .pk_row_id,
-          normal_karyotype,
-          ploidy_category,
-          chromosome_count,
-          total_metaphases,
-          mixed_ploidy
-        ),
-      by = ".pk_row_id"
-    )
-
-  for (nm in abnormality_names) {
-    if (!nm %in% names(result)) result[[nm]] <- 0L
-  }
-
-  cols_to_convert <- intersect(abnormality_names, names(result))
-  result <- result |>
-    dplyr::mutate(
-      dplyr::across(
-        dplyr::all_of(cols_to_convert),
-        ~ as.integer(tidyr::replace_na(., 0L))
-      ),
-      ploidy_category = tidyr::replace_na(ploidy_category, "unknown")
-    ) |>
-    dplyr::left_join(dedup_df, by = ".pk_row_id") |>
-    dplyr::rename(preprocessed_karyotype = original_karyotype) |>
-    dplyr::relocate(preprocessed_karyotype, .before = 1) |>
-    dplyr::relocate(ploidy_category, .after = preprocessed_karyotype) |>
-    dplyr::relocate(chromosome_count, .after = ploidy_category)
-
-  keep_cols <- intersect(
-    c(
-      "preprocessed_karyotype",
-      "ploidy_category",
-      "chromosome_count",
-      abnormality_names,
-      "total_metaphases"
-    ),
-    names(result)
-  )
-
-  # ---- Join back to original rows if deduped ---------------------------------
-  if (deduped) {
-    parsed_unique <- result[, keep_cols]
-    valid_out <- input_df |>
-      dplyr::left_join(parsed_unique, by = "preprocessed_karyotype")
-    valid_out <- valid_out[, c(".pk_row_id", "original_karyotype", keep_cols)]
-  } else {
-    valid_out <- dplyr::bind_cols(
-      tibble::tibble(
-        .pk_row_id = input_df$.pk_row_id,
-        original_karyotype = input_df$original_karyotype
-      ),
-      result[, keep_cols]
-    )
-  }
-
-  # Recombine with issue rows --------------------------------------------------
-  if (nrow(issue_rows_df) > 0) {
-    br <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
-    br$.pk_row_id <- issue_rows_df$.pk_row_id
-    out <- dplyr::bind_rows(valid_out, br) |>
-      dplyr::arrange(.pk_row_id)
-  } else {
-    out <- valid_out
-  }
-
-  # Error flag columns ---------------------------------------------------------
-  out$fixable_error <- as.integer(
-    out$.pk_row_id %in%
-      fixable_row_indices &
-      !out$.pk_row_id %in% unfixable_row_indices
-  )
-  out$unfixable_error <- as.integer(out$.pk_row_id %in% unfixable_row_indices)
-  out$chimeric_karyotype <- as.integer(out$.pk_row_id %in% chimeric_all_indices)
-
-  # Attach ID column if available ---------------------------------------------
-  if (!is.null(id_values)) {
-    out[[id_col_name]] <- id_values[out$.pk_row_id]
-    out <- out |> dplyr::relocate(dplyr::all_of(id_col_name), .before = 1)
-  }
-
-  out <- out |>
-    dplyr::select(-.pk_row_id) |>
-    dplyr::relocate(preprocessed_karyotype, .after = original_karyotype)
-
-  # Provenance
-  attr(out, "karyoparser_version") <- .karyoparser_version
-  tibble::as_tibble(out)
 }
