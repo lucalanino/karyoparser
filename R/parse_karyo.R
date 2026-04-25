@@ -8,7 +8,7 @@
 #'   containing a karyotype column, or a `karyo_preprocessed` tibble returned
 #'   by `preprocess_karyo()`. When a `karyo_preprocessed` object is passed, the
 #'   `preprocessed` column is used automatically and cached issue indices and id
-#'   column are reused — no additional arguments required.
+#'   column are reused -- no additional arguments required.
 #' @param rules A `karyo_rules` object (default: [myeloid_rules]). Use
 #'   [validate_rules()] to validate and convert a custom data frame into an
 #'   accepted rules object.
@@ -33,7 +33,7 @@
 #'     populations. Under `"preprocess"`, only the portion before the first `//`
 #'     is kept (the dominant clone). Information about secondary clones is lost.
 #'   - **Structural errors** (e.g. no chromosome count, `Updated ISCN` marker):
-#'     unfixable — these rows always return NA regardless of `on_issues`.
+#'     unfixable -- these rows always return NA regardless of `on_issues`.
 #'
 #'   Values:
 #'   - `"stop"` (default): Raise an error immediately if any issues are found,
@@ -43,7 +43,7 @@
 #'     you understand them. **Exception**: when input is a
 #'     `karyo_preprocessed` object (i.e. the user has already run
 #'     `check_karyo()` and `preprocess_karyo()`), `"stop"` does not
-#'     error — unfixable rows are returned as NA and a warning is emitted.
+#'     error -- unfixable rows are returned as NA and a warning is emitted.
 #'   - `"preprocess"`: Apply `preprocess_karyo()` to dirty rows;
 #'     truncate chimeric rows to the first clone. Rows that still have
 #'     issues after these corrections are returned as NA. A message is
@@ -199,7 +199,7 @@ parse_karyo <- function(
     n_total_vec <- length(raw_vec)
 
     if (is_preprocessed) {
-      # Reuse cached assessment indices — skip .assess_karyotypes() entirely
+      # Reuse cached assessment indices -- skip .assess_karyotypes() entirely
       fixable_row_indices <- attr(karyotypes, ".kp_fixable_rows")
       if (is.null(fixable_row_indices)) {
         fixable_row_indices <- integer(0)
@@ -239,7 +239,7 @@ parse_karyo <- function(
         if (n_fixed > 0) {
           message("  Fixed:      ", n_fixed)
         }
-        # Skip verbose message in "stop" mode — the unconditional warning already covers it.
+        # Skip verbose message in "stop" mode -- the unconditional warning already covers it.
         if (n_final_issues > 0 && on_issues != "stop") {
           message("  Unfixable:  ", n_final_issues, "  (returned as NA)")
         }
@@ -247,7 +247,7 @@ parse_karyo <- function(
       if (n_chimeric_parsed > 0) {
         warning(
           sprintf(
-            "Chimeric: %d — host clone extracted, donor discarded.",
+            "Chimeric: %d \u2014 host clone extracted, donor discarded.",
             n_chimeric_parsed
           ),
           call. = FALSE
@@ -360,7 +360,7 @@ parse_karyo <- function(
         if (n_chimeric_parsed > 0) {
           warning(
             sprintf(
-              "Chimeric: %d — host clone extracted, donor discarded.",
+              "Chimeric: %d \u2014 host clone extracted, donor discarded.",
               n_chimeric_parsed
             ),
             call. = FALSE

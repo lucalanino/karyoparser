@@ -18,7 +18,7 @@ parse_karyo(
 containing a karyotype column, or a \code{karyo_preprocessed} tibble returned
 by \code{preprocess_karyo()}. When a \code{karyo_preprocessed} object is passed, the
 \code{preprocessed} column is used automatically and cached issue indices and id
-column are reused — no additional arguments required.}
+column are reused -- no additional arguments required.}
 
 \item{rules}{A \code{karyo_rules} object (default: \link{myeloid_rules}). Use
 \code{\link[=validate_rules]{validate_rules()}} to validate and convert a custom data frame into an
@@ -49,7 +49,7 @@ formatting artifacts that \code{preprocess_karyo()} can fix automatically.
 populations. Under \code{"preprocess"}, only the portion before the first \verb{//}
 is kept (the dominant clone). Information about secondary clones is lost.
 \item \strong{Structural errors} (e.g. no chromosome count, \verb{Updated ISCN} marker):
-unfixable — these rows always return NA regardless of \code{on_issues}.
+unfixable -- these rows always return NA regardless of \code{on_issues}.
 }
 
 Values:
@@ -61,7 +61,7 @@ early; switch to \code{"preprocess"} or run \code{check_karyo()} once
 you understand them. \strong{Exception}: when input is a
 \code{karyo_preprocessed} object (i.e. the user has already run
 \code{check_karyo()} and \code{preprocess_karyo()}), \code{"stop"} does not
-error — unfixable rows are returned as NA and a warning is emitted.
+error -- unfixable rows are returned as NA and a warning is emitted.
 \item \code{"preprocess"}: Apply \code{preprocess_karyo()} to dirty rows;
 truncate chimeric rows to the first clone. Rows that still have
 issues after these corrections are returned as NA. A message is

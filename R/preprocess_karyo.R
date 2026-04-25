@@ -3,30 +3,30 @@
 #' The complete cleaning and normalization pipeline. Fixes dirty markers then
 #' runs `normalize_iscn()` as a final pass. Output is fully normalized and
 #' parser-ready. This is the only place in the workflow where cleaning or
-#' normalization occurs — `parse_karyo()` does none.
+#' normalization occurs -- `parse_karyo()` does none.
 #'
 #' Rules applied in order:
 #' 1. Trim leading/trailing whitespace
 #' 2. Replace unicode spaces (NBSP), dashes (em/en-dash), fullwidth characters
 #' 3. Collapse embedded newlines/tabs to spaces
-#' 4. Decode HTML entities (`&lt;` → `<`, `&gt;` → `>`, `&amp;` → `&`)
-#' 5. Strip leading dot(s) before a digit (e.g. `.46,XX` → `46,XX`)
+#' 4. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
+#' 5. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
 #' 6. Strip FISH/nuc ish suffix after last clone bracket
-#' 7. Strip trailing narrative: `] .text` → `]`; `) Capital text` → `)`
-#' 8. Collapse mid-string line-wrap artifacts (`, .der(...)` → `,der(...)`)
+#' 7. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
+#' 8. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
 #' 9. Insert missing comma after sex chromosome complement
-#' 10. Remove space between count and `mar` token (`+1~4 mar` → `+1~4mar`)
+#' 10. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
 #' 11. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
 #'     idem/sl/cp normalization
 #'
 #' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are detected but
-#' not modified — their `fix` list is empty, so the loop skips them. Always NA.
+#' not modified -- their `fix` list is empty, so the loop skips them. Always NA.
 #'
 #' @param karyotypes Character vector of raw karyotype strings, the
 #'   `karyo_check` tibble returned by `check_karyo()`, or a data frame
 #'   containing a karyotype
 #'   column. When a `karyo_check` tibble is supplied, the assessment it already
-#'   computed is reused directly — no re-scanning — and any id column detected
+#'   computed is reused directly -- no re-scanning -- and any id column detected
 #'   upstream is propagated automatically. When a plain data frame is supplied,
 #'   the karyotype column is auto-detected or specified via `karyotype_column`.
 #' @param karyotype_column Character. Name of the karyotype column when `x` is
@@ -45,7 +45,7 @@
 #'   rows), `status` (`"clean"`, `"fixed"`, or `"unfixable"`).
 #'
 #'   The returned tibble can be passed directly to `parse_karyo()` without
-#'   specifying `karyotype_column` or `id_column` — both are inferred
+#'   specifying `karyotype_column` or `id_column` -- both are inferred
 #'   automatically from the object's class and cached attributes.
 #' @export
 preprocess_karyo <- function(
@@ -143,7 +143,7 @@ preprocess_karyo <- function(
         message(
           "  Unfixable:  ",
           n_unfixable,
-          "  — run check_karyo() to investigate"
+          "  \u2014 run check_karyo() to investigate"
         )
       }
     }
@@ -189,15 +189,15 @@ preprocess_karyo <- function(
 # detect/fix/detail entries; empty fix list means detected-only (unfixable).
 .dirty_patterns <- list(
   unicode_notation = list(
-    detect = "[   −‒–—﹣－＋]",
+    detect = "[\u00A0\u2007\u202F\u2212\u2012\u2013\u2014\uFE63\uFF0D\uFF0B]",
     use_trimmed = FALSE,
     fix = list(
-      list(pattern = "[   ]", replacement = " "),
+      list(pattern = "[\u00A0\u2007\u202F]", replacement = " "),
       list(
-        pattern = "[−‒–—﹣－]",
+        pattern = "[\u2212\u2012\u2013\u2014\uFE63\uFF0D]",
         replacement = "-"
       ),
-      list(pattern = "＋", replacement = "+")
+      list(pattern = "\uFF0B", replacement = "+")
     ),
     detail = "Contains unicode spaces (NBSP), dashes (em/en-dash), or fullwidth characters"
   ),
@@ -372,13 +372,13 @@ normalize_iscn <- function(x) {
   if (length(x) == 0) {
     return(x)
   }
-  x <- stringr::str_replace_all(x, "[   ]", " ")
+  x <- stringr::str_replace_all(x, "[\u00A0\u2007\u202F]", " ")
   x <- stringr::str_replace_all(
     x,
-    "[−‒–—﹣－]",
+    "[\u2212\u2012\u2013\u2014\uFE63\uFF0D]",
     "-"
   ) # minus/dashes -> '-'
-  x <- stringr::str_replace_all(x, "[＋]", "+")
+  x <- stringr::str_replace_all(x, "[\uFF0B]", "+")
   x <- stringr::str_replace_all(x, "\n|\r|\t", " ")
   x <- stringr::str_replace_all(x, " +", " ")
   x <- stringr::str_trim(x)

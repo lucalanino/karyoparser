@@ -38,7 +38,8 @@ air format .
 * Always run `air format .` after generating code
 * Use the base pipe operator (`|>`) not the magrittr pipe (`%>%`)
 * Don't use `_$x` or `_$[["x"]]` since this package must work on R 4.1.
-* Use `\() ...` for single-line anonymous functions. For all other cases, use `function() {...}` 
+* Use `\() ...` for single-line anonymous functions. For all other cases, use `function() {...}`
+* No non-ASCII characters in R source files (CRAN requirement). In comments use `--` and `->` instead of `—`/`→`. In string literals use `\uXXXX` escapes (e.g. `—` for em dash).
 
 ### Testing
 

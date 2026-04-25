@@ -16,7 +16,7 @@ preprocess_karyo(
 \code{karyo_check} tibble returned by \code{check_karyo()}, or a data frame
 containing a karyotype
 column. When a \code{karyo_check} tibble is supplied, the assessment it already
-computed is reused directly — no re-scanning — and any id column detected
+computed is reused directly -- no re-scanning -- and any id column detected
 upstream is propagated automatically. When a plain data frame is supplied,
 the karyotype column is auto-detected or specified via \code{karyotype_column}.}
 
@@ -40,14 +40,14 @@ when detected or propagated), \code{original} (raw input, always unchanged),
 rows), \code{status} (\code{"clean"}, \code{"fixed"}, or \code{"unfixable"}).
 
 The returned tibble can be passed directly to \code{parse_karyo()} without
-specifying \code{karyotype_column} or \code{id_column} — both are inferred
+specifying \code{karyotype_column} or \code{id_column} -- both are inferred
 automatically from the object's class and cached attributes.
 }
 \description{
 The complete cleaning and normalization pipeline. Fixes dirty markers then
 runs \code{normalize_iscn()} as a final pass. Output is fully normalized and
 parser-ready. This is the only place in the workflow where cleaning or
-normalization occurs — \code{parse_karyo()} does none.
+normalization occurs -- \code{parse_karyo()} does none.
 }
 \details{
 Rules applied in order:
@@ -55,17 +55,17 @@ Rules applied in order:
 \item Trim leading/trailing whitespace
 \item Replace unicode spaces (NBSP), dashes (em/en-dash), fullwidth characters
 \item Collapse embedded newlines/tabs to spaces
-\item Decode HTML entities (\verb{&lt;} → \code{<}, \verb{&gt;} → \code{>}, \verb{&amp;} → \code{&})
-\item Strip leading dot(s) before a digit (e.g. \verb{.46,XX} → \verb{46,XX})
+\item Decode HTML entities (\verb{&lt;} -> \code{<}, \verb{&gt;} -> \code{>}, \verb{&amp;} -> \code{&})
+\item Strip leading dot(s) before a digit (e.g. \verb{.46,XX} -> \verb{46,XX})
 \item Strip FISH/nuc ish suffix after last clone bracket
-\item Strip trailing narrative: \verb{] .text} → \verb{]}; \verb{) Capital text} → \verb{)}
-\item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} → \verb{,der(...)})
+\item Strip trailing narrative: \verb{] .text} -> \verb{]}; \verb{) Capital text} -> \verb{)}
+\item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} -> \verb{,der(...)})
 \item Insert missing comma after sex chromosome complement
-\item Remove space between count and \code{mar} token (\verb{+1~4 mar} → \verb{+1~4mar})
+\item Remove space between count and \code{mar} token (\verb{+1~4 mar} -> \verb{+1~4mar})
 \item \code{normalize_iscn()}: whitespace collapsing, delimiter tightening,
 idem/sl/cp normalization
 }
 
 Note: \code{zero_host_chimera} strings (\verb{.//} or \verb{//} prefix) are detected but
-not modified — their \code{fix} list is empty, so the loop skips them. Always NA.
+not modified -- their \code{fix} list is empty, so the loop skips them. Always NA.
 }

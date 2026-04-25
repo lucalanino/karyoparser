@@ -305,7 +305,7 @@ validate_karyotypes <- function(karyotypes) {
         i,
         k,
         "updated_iscn",
-        "Contains 'Updated ISCN' correction marker — original karyotype may be superseded"
+        "Contains 'Updated ISCN' correction marker \u2014 original karyotype may be superseded"
       )
       next
     }
