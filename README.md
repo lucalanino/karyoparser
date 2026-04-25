@@ -10,7 +10,6 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![R-CMD-check](https://github.com/lucalanino/karyo-parser/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/lucalanino/karyo-parser/actions/workflows/R-CMD-check.yaml)
-[![codecov](https://codecov.io/gh/lucalanino/karyo-parser/branch/main/graph/badge.svg)](https://codecov.io/gh/lucalanino/karyo-parser)
 [![format-check](https://github.com/lucalanino/karyo-parser/actions/workflows/format-check.yaml/badge.svg)](https://github.com/lucalanino/karyo-parser/actions/workflows/format-check.yaml)
 <!-- badges: end -->
 

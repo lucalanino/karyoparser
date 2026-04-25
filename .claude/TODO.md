@@ -7,6 +7,7 @@
 - **[P2] `lymphoid_rules`**: Add exported `karyo_rules` constant for lymphoid neoplasms 
 - **[P2] Myeloid rule completeness**: Final pass over `myeloid_rules` 
 - **[P3] CI / GitHub Actions**: decide post-1.0 branch strategy first (`main` public after 1.0 — which branches trigger checks?). Bundle `R CMD check` + coverage (`covr::codecov()`) in one workflow.
+- **[P3] Codecov badge**: when repo goes public, add `CODECOV_TOKEN` secret and wire up codecov upload in `test-coverage.yaml`; add badge to README.
 - **[P3] README.md**: work on a public-ready readme, including info to build new rule tables
 
 ## After 1.0
