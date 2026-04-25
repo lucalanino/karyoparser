@@ -8,3 +8,4 @@
 ^\.githooks$
 ^\.github$
 ^\.Rprofile$
+^README\.Rmd$
