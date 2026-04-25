@@ -26,9 +26,8 @@ accepted rules object.}
 
 \item{karyotype_column}{Character. Name of the karyotype column when input is
 a plain data frame. If \code{NULL} (default), auto-detected from common names
-(\code{karyotype}, \code{iscn}, etc.); in an interactive session the detected column
-is shown with a preview and confirmed before use. Ignored for character
-vector or \code{karyo_preprocessed} input.}
+(\code{karyotype}, \code{iscn}, etc.). Ignored for character vector or
+\code{karyo_preprocessed} input.}
 
 \item{id_column}{Character. Name of the id column when input is a data frame.
 If \code{NULL} (default), auto-detected from common names (\code{sample_id},

@@ -22,9 +22,7 @@ and propagated through subsequent pipeline steps.}
 
 \item{karyotype_column}{Character. Name of the karyotype column when
 \code{karyotypes} is a data frame. If \code{NULL} (default), auto-detected from
-common names; in an interactive session the detected column is shown with a
-preview and confirmed before use. Ignored when \code{karyotypes} is a character
-vector.}
+common names. Ignored when \code{karyotypes} is a character vector.}
 
 \item{id_column}{Character. Name of the id column when \code{karyotypes} is a
 data frame. If \code{NULL} (default), auto-detected from common names

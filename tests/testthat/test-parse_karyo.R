@@ -431,14 +431,14 @@ test_that("on_issues='preprocess': structural errors still produce NA", {
 })
 
 test_that("on_issues='preprocess': verbose message reports fixed count", {
-  expect_message(
+  suppressMessages(expect_message(
     parse_karyo(
       c("46,XX", ".47,XY,+21"),
       on_issues = "preprocess",
       verbose = TRUE
     ),
     "Fixed"
-  )
+  ))
 })
 
 test_that("on_issues='preprocess': successfully fixed row has fixable_error=1, unfixable_error=0", {
@@ -735,14 +735,14 @@ test_that("on_issues='preprocess': clean row in same batch unaffected by chimeri
 })
 
 test_that("on_issues='preprocess': verbose message reports fixed count for chimeric row", {
-  suppressWarnings(expect_message(
+  suppressMessages(suppressWarnings(expect_message(
     parse_karyo(
       "46,XX,t(9;22)(q34;q11)[15]//46,XX[5]",
       on_issues = "preprocess",
       verbose = TRUE
     ),
     "Fixed"
-  ))
+  )))
 })
 
 test_that("on_issues='preprocess': chimeric row with residual structural issue after truncation becomes NA", {
@@ -810,28 +810,28 @@ test_that("parse_karyo: row with both fixable and unfixable issues — unfixable
 })
 
 test_that("check_karyo: verbose=TRUE prints checking count and summary", {
-  expect_message(
+  suppressMessages(expect_message(
     check_karyo(c("46,XX", ".47,XY,+21", NA), verbose = TRUE),
     "Checking 3 karyotype"
-  )
-  expect_message(
+  ))
+  suppressMessages(expect_message(
     check_karyo(c("46,XX", ".47,XY,+21", NA), verbose = TRUE),
     "Fixable"
-  )
+  ))
 })
 
 test_that("check_karyo: verbose=TRUE prints 'All clean.' when no issues", {
-  expect_message(
+  suppressMessages(expect_message(
     check_karyo("46,XX[20]", verbose = TRUE),
     "All clean"
-  )
+  ))
 })
 
 test_that("check_karyo: verbose=TRUE adds per-type breakdown", {
-  expect_message(
+  suppressMessages(expect_message(
     check_karyo(c("46,XX", ".47,XY,+21", NA), verbose = TRUE),
     "breakdown"
-  )
+  ))
 })
 
 test_that("parse_karyo: clean row in same batch unaffected by zero_host_chimera row", {
@@ -1275,8 +1275,8 @@ test_that("preprocess_karyo: verbose=FALSE produces no messages", {
 })
 
 test_that("preprocess_karyo: verbose=TRUE produces messages", {
-  expect_message(
+  suppressMessages(expect_message(
     preprocess_karyo(c("46,XX", ".46,XY"), verbose = TRUE),
     regexp = "Preprocessing"
-  )
+  ))
 })

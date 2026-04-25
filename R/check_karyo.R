@@ -26,9 +26,7 @@
 #'   and propagated through subsequent pipeline steps.
 #' @param karyotype_column Character. Name of the karyotype column when
 #'   `karyotypes` is a data frame. If `NULL` (default), auto-detected from
-#'   common names; in an interactive session the detected column is shown with a
-#'   preview and confirmed before use. Ignored when `karyotypes` is a character
-#'   vector.
+#'   common names. Ignored when `karyotypes` is a character vector.
 #' @param id_column Character. Name of the id column when `karyotypes` is a
 #'   data frame. If `NULL` (default), auto-detected from common names
 #'   (`sample_id`, `patient_id`, `id`, `mrn`, etc.) and used silently. Ignored

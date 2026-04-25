@@ -30,9 +30,8 @@
 #'   upstream is propagated automatically. When a plain data frame is supplied,
 #'   the karyotype column is auto-detected or specified via `karyotype_column`.
 #' @param karyotype_column Character. Name of the karyotype column when `x` is
-#'   a plain data frame. If `NULL` (default), auto-detected from common names;
-#'   in an interactive session the detected column is shown with a preview and
-#'   confirmed before use. Ignored for character vector or `karyo_check` input.
+#'   a plain data frame. If `NULL` (default), auto-detected from common names.
+#'   Ignored for character vector or `karyo_check` input.
 #' @param id_column Character. Name of the id column when `x` is a plain data
 #'   frame. If `NULL` (default), auto-detected from common names and used
 #'   silently. Ignored for character vector or `karyo_check` input (id is

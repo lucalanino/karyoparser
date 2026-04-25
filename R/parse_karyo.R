@@ -14,9 +14,8 @@
 #'   accepted rules object.
 #' @param karyotype_column Character. Name of the karyotype column when input is
 #'   a plain data frame. If `NULL` (default), auto-detected from common names
-#'   (`karyotype`, `iscn`, etc.); in an interactive session the detected column
-#'   is shown with a preview and confirmed before use. Ignored for character
-#'   vector or `karyo_preprocessed` input.
+#'   (`karyotype`, `iscn`, etc.). Ignored for character vector or
+#'   `karyo_preprocessed` input.
 #' @param id_column Character. Name of the id column when input is a data frame.
 #'   If `NULL` (default), auto-detected from common names (`sample_id`,
 #'   `patient_id`, `id`, `mrn`, etc.) and used silently. The id column is
