@@ -227,7 +227,7 @@ preprocess_karyo <- function(
     detail = "String starts with dot(s) before chromosome count"
   ),
   fish_notation = list(
-    detect = "\\][. ]+(?:nuc )?ish\\b",
+    detect = "[. ]+(?:nuc )?ish\\b",
     use_trimmed = FALSE,
     fix = list(
       list(
@@ -235,7 +235,7 @@ preprocess_karyo <- function(
         replacement = ""
       )
     ),
-    detail = "FISH / nuc ish suffix after last clone bracket (e.g. '[12] .nuc ish(PDGFRA x3)[20/200]' or '[1].ish t(...)')"
+    detail = "FISH / nuc ish suffix (e.g. '[12] .nuc ish', ').ish', 'dmin.ish', '+22.ish')"
   ),
   trailing_narrative = list(
     detect = c(

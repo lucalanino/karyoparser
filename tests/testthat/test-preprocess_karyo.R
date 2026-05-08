@@ -180,6 +180,56 @@ test_that("preprocess_karyo: strips .ish suffix after bracket", {
   )
 })
 
+test_that("fish_notation: detected for ).ish attachment", {
+  result <- suppressMessages(check_karyo(
+    "46,XX,der(17)t(11;17)(q14;q11).ish der(15)t(15;17)(RARA+,PML+)"
+  ))
+  expect_equal(result$fish_notation, 1L)
+})
+
+test_that("fish_notation: detected for dmin.ish attachment", {
+  result <- suppressMessages(check_karyo(
+    "46,XY,10~>50dmin.ish del(8)(q24q24)(MYC-),dmin(MYC+)"
+  ))
+  expect_equal(result$fish_notation, 1L)
+})
+
+test_that("preprocess_karyo: strips .ish suffix after closing paren", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XX,der(17)t(11;17)(q14;q11).ish der(15)t(15;17)(RARA+,PML+),der(17)t(11;17)(RARA-,PML-)"
+    ))$preprocessed,
+    "46,XX,der(17)t(11;17)(q14;q11)"
+  )
+})
+
+test_that("preprocess_karyo: strips dmin.ish suffix, preserves dmin count", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XY,10~>50dmin.ish del(8)(q24q24)(MYC-),dmin(MYC+)"
+    ))$preprocessed,
+    "46,XY,10~>50dmin"
+  )
+})
+
+test_that("preprocess_karyo: strips cp.ish suffix, preserves cp notation", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "40~43,XX,der(21)t(19;21)(p12;q22)x1~3 cp.ish der(21)t(19;21)(RUNX1+)"
+    ))$preprocessed,
+    "40~43,XX,der(21)t(19;21)(p12;q22)x1~3 cp"
+  )
+})
+
+test_that("preprocess_karyo: strips .ish after aberration, preserves aberration", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XX,+22.ish der(3;21)(5'MECOM+),der(18)(5'MECOM+)"
+    ))$preprocessed,
+    "46,XX,+22"
+  )
+})
+
 test_that("mar_space: detected when space between count and mar", {
   result <- suppressMessages(check_karyo("47,XY,+1~4 mar[cp15]"))
   expect_equal(result$mar_space, 1L)
