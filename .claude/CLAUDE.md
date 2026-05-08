@@ -2,6 +2,11 @@
 
 `karyoparser` is an R package for parsing ISCN karyotype strings into structured features for downstream analysis.
 
+### Shell tool usage
+
+`Rscript` and `air` are not on the Bash PATH (Windows/.bat issue). Always run
+them via the **PowerShell tool**, not the Bash tool.
+
 ### Key commands
 
 ```
