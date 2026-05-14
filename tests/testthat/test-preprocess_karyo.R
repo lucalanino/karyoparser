@@ -230,6 +230,51 @@ test_that("preprocess_karyo: strips .ish after aberration, preserves aberration"
   )
 })
 
+test_that("fish_notation: detected when .ish appears mid-clone before metaphase count", {
+  expect_equal(
+    suppressMessages(check_karyo(
+      "46,XX.ish der(10)ins(10;11)(p13;q23q23)(KMT2A+)[20]"
+    ))$fish_notation,
+    1L
+  )
+})
+
+test_that("preprocess_karyo: mid-clone .ish stripped, metaphase count preserved", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XX.ish der(10)ins(10;11)(p13;q23q23)(KMT2A+)[20]"
+    ))$preprocessed,
+    "46,XX[20]"
+  )
+})
+
+test_that("preprocess_karyo: mid-clone .ish stripped per clone in chimeric string", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XY.ish der(10)ins(10;11)(p12;q23q23)(MLL+),der(11)ins(10;11)(p12;q23q23)(MLL+)[2]/47,XY,+8.ish der(10)ins(10;11)(p12;q23q23)(MLL+)[5]/46,XY[13]"
+    ))$preprocessed,
+    "46,XY[2]/47,XY,+8[5]/46,XY[13]"
+  )
+})
+
+test_that("preprocess_karyo: mid-clone .ish stripped, conventional aberrations preserved", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XY,der(3)t(3;17)(q29;q21),t(10;11)(p12;q23).ish der(11)t(10;11)(p12;q23)(KMT2A+)[5]/46,XY[16]"
+    ))$preprocessed,
+    "46,XY,der(3)t(3;17)(q29;q21),t(10;11)(p12;q23)[5]/46,XY[16]"
+  )
+})
+
+test_that("preprocess_karyo: mid-clone .ish stripped, inv aberration preserved", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XX,inv(16)(p13q22).ish inv(16)(p13)(MYH11-,CBFB-)(q22)(MYH11+,CBFB+)[20]"
+    ))$preprocessed,
+    "46,XX,inv(16)(p13q22)[20]"
+  )
+})
+
 test_that("mar_space: detected when space between count and mar", {
   result <- suppressMessages(check_karyo("47,XY,+1~4 mar[cp15]"))
   expect_equal(result$mar_space, 1L)

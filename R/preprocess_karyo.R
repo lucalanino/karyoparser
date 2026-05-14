@@ -231,7 +231,7 @@ preprocess_karyo <- function(
     use_trimmed = FALSE,
     fix = list(
       list(
-        pattern = "[. ]+(?:nuc )?ish\\b.*$",
+        pattern = "[. ]+(?:nuc )?ish\\b.*?(?=\\[\\d+\\]|$)",
         replacement = ""
       )
     ),
