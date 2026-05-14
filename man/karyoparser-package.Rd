@@ -13,5 +13,10 @@ Parses ISCN (International System for Human Cytogenomic Nomenclature) karyotype 
 \author{
 \strong{Maintainer}: Luca Lanino \email{luca@lanino.me}
 
+Authors:
+\itemize{
+  \item Luca Lanino \email{luca@lanino.me}
+}
+
 }
 \keyword{internal}

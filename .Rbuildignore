@@ -3,7 +3,6 @@
 ^\.vscode$
 ^\.claude$
 ^[.]?air[.]toml$
-^dev-data$
 ^\.DS_Store$
 ^\.githooks$
 ^\.github$
