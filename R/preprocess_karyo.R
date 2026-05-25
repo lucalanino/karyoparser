@@ -11,7 +11,7 @@
 #' 3. Collapse embedded newlines/tabs to spaces
 #' 4. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
 #' 5. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
-#' 6. Strip FISH/nuc ish suffix after last clone bracket
+#' 6. Strip FISH/nuc ish annotation (suffix or mid-clone before metaphase count)
 #' 7. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
 #' 8. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
 #' 9. Insert missing comma after sex chromosome complement
@@ -231,11 +231,11 @@ preprocess_karyo <- function(
     use_trimmed = FALSE,
     fix = list(
       list(
-        pattern = "[. ]+(?:nuc )?ish\\b.*?(?=\\[\\d+\\]|$)",
+        pattern = "[. ]+(?:nuc )?ish\\b.*?(?=\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]|$)",
         replacement = ""
       )
     ),
-    detail = "FISH / nuc ish suffix (e.g. '[12] .nuc ish', ').ish', 'dmin.ish', '+22.ish')"
+    detail = "FISH / nuc ish annotation (suffix or mid-clone before metaphase count bracket)"
   ),
   trailing_narrative = list(
     detect = c(

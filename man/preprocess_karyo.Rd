@@ -56,7 +56,7 @@ Rules applied in order:
 \item Collapse embedded newlines/tabs to spaces
 \item Decode HTML entities (\verb{&lt;} -> \code{<}, \verb{&gt;} -> \code{>}, \verb{&amp;} -> \code{&})
 \item Strip leading dot(s) before a digit (e.g. \verb{.46,XX} -> \verb{46,XX})
-\item Strip FISH/nuc ish suffix after last clone bracket
+\item Strip FISH/nuc ish annotation (suffix or mid-clone before metaphase count)
 \item Strip trailing narrative: \verb{] .text} -> \verb{]}; \verb{) Capital text} -> \verb{)}
 \item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} -> \verb{,der(...)})
 \item Insert missing comma after sex chromosome complement

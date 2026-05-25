@@ -275,6 +275,24 @@ test_that("preprocess_karyo: mid-clone .ish stripped, inv aberration preserved",
   )
 })
 
+test_that("preprocess_karyo: mid-clone .ish stripped, cp metaphase count preserved", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XY.ish der(10)(PROBE+)[cp10]/47,XY[20]"
+    ))$preprocessed,
+    "46,XY[cp10]/47,XY[20]"
+  )
+})
+
+test_that("preprocess_karyo: mid-clone .ish stripped, range metaphase count preserved", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XY.ish der(10)(PROBE+)[1~5]/47,XY[20]"
+    ))$preprocessed,
+    "46,XY[1~5]/47,XY[20]"
+  )
+})
+
 test_that("mar_space: detected when space between count and mar", {
   result <- suppressMessages(check_karyo("47,XY,+1~4 mar[cp15]"))
   expect_equal(result$mar_space, 1L)
