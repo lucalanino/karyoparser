@@ -2,7 +2,6 @@
 
 ## Before 1.0
 
-- **[P1] tests**: create a helper test unit with the pk wrapper. Confirm then when running test(), the helper is loaded first
 - **[P1] R/ reorganization**: One file per export (roxygen on top); split helpers.R into cohesive groups (`input.R`, `tokens.R`, etc.); consolidate shared check/preprocess internals; design with FISH reuse in mind (expand, don't rewrite)
 - **[P2] `lymphoid_rules`**: Add exported `karyo_rules` constant for lymphoid neoplasms 
 - **[P2] Myeloid rule completeness**: Final pass over `myeloid_rules` 
