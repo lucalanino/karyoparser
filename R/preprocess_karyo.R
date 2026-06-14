@@ -310,7 +310,7 @@ preprocess_karyo <- function(
     detect = "^[.]*//",
     use_trimmed = TRUE,
     fix = list(),
-    detail = "String starts with './/'' or '//': donor-only chimera with no host metaphases"
+    detail = "String starts with './/' or '//': donor-only chimera with no host metaphases"
   )
 )
 

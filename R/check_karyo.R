@@ -245,7 +245,6 @@ check_karyo <- function(
 # Single source of truth for the dirty-fix loop.
 .apply_dirty_fixes <- function(x) {
   x <- stringr::str_trim(x)
-  x <- stringr::str_replace_all(x, "[\n\r\t]+", " ")
   for (nm in names(.dirty_patterns)) {
     dp <- .dirty_patterns[[nm]]
     for (fx in dp$fix) {

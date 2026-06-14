@@ -23,7 +23,6 @@ utils::globalVariables(c(
   "flag_name",
   "has_idem",
   "head",
-  "idem_invalid",
   "issue_type",
   "is_composite",
   "is_cp",
