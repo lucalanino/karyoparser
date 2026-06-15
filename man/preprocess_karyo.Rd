@@ -8,6 +8,7 @@ preprocess_karyo(
   karyotypes,
   karyotype_column = NULL,
   id_column = NULL,
+  on_chimeric = c("default", "host", "donor"),
   verbose = FALSE
 )
 }
@@ -28,6 +29,18 @@ Ignored for character vector or \code{karyo_check} input.}
 frame. If \code{NULL} (default), auto-detected from common names and used
 silently. Ignored for character vector or \code{karyo_check} input (id is
 propagated automatically from \code{karyo_check} attrs in that case).}
+
+\item{on_chimeric}{Character string controlling which clone is kept for
+chimeric karyotypes (those containing a \verb{//} separator). One of:
+\itemize{
+\item \code{"default"}: host clone (before \verb{//}) for normal chimeras; donor clone
+(after \verb{//}) for zero-host chimeras (\verb{.//} prefix).
+\item \code{"host"}: host clone only; zero-host chimeras become NA (unfixable).
+\item \code{"donor"}: everything after \verb{//} (the donor population).
+Rows with two or more \verb{//} separators are always unfixable. The choice is
+baked into the \code{preprocessed} column and recorded so \code{parse_karyo()} can
+reuse it.
+}}
 
 \item{verbose}{Logical. If \code{TRUE}, prints a processing summary. Default
 \code{FALSE}.}
@@ -65,6 +78,7 @@ Rules applied in order:
 idem/sl/cp normalization
 }
 
-Note: \code{zero_host_chimera} strings (\verb{.//} or \verb{//} prefix) are detected but
-not modified -- their \code{fix} list is empty, so the loop skips them. Always NA.
+Note: \code{zero_host_chimera} strings (\verb{.//} or \verb{//} prefix) are donor-only
+chimeras with no host metaphases. The leading \verb{.//} prefix is stripped,
+leaving the donor clone(s), which are then parsed (under \code{on_chimeric = "host"} these rows are instead returned NA).
 }

@@ -107,10 +107,31 @@ test_that("preprocess_karyo: &amp; entity decoded but decoded form is unfixable 
   expect_equal(result$preprocessed, NA_character_)
 })
 
-test_that("preprocess_karyo: .// and // prefix are unfixable; preprocessed is NA", {
+test_that("preprocess_karyo: .// and // prefix stripped to donor (fixable)", {
   result <- suppressMessages(preprocess_karyo(c(".//46,XX", "..//46,XX")))
-  expect_equal(result$preprocessed, c(NA_character_, NA_character_))
-  expect_equal(result$status, c("unfixable", "unfixable"))
+  expect_equal(result$preprocessed, c("46,XX", "46,XX"))
+  expect_equal(result$status, c("fixed", "fixed"))
+})
+
+test_that("preprocess_karyo: on_chimeric='host' makes zero_host_chimera NA", {
+  result <- suppressMessages(preprocess_karyo(".//46,XX", on_chimeric = "host"))
+  expect_equal(result$preprocessed, NA_character_)
+  expect_equal(result$status, "unfixable")
+})
+
+test_that("preprocess_karyo: on_chimeric='donor' keeps everything after //", {
+  result <- suppressMessages(preprocess_karyo(
+    "46,XX[15]//47,XY,+8[5]",
+    on_chimeric = "donor"
+  ))
+  expect_equal(result$preprocessed, "47,XY,+8[5]")
+  expect_equal(result$status, "fixed")
+})
+
+test_that("preprocess_karyo: two or more // are unfixable", {
+  result <- suppressMessages(preprocess_karyo("46,XX//47//48"))
+  expect_equal(result$preprocessed, NA_character_)
+  expect_equal(result$status, "unfixable")
 })
 
 test_that("preprocess_karyo: strips leading dot before digit", {

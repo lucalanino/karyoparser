@@ -10,7 +10,8 @@ parse_karyo(
   karyotype_column = NULL,
   id_column = NULL,
   verbose = FALSE,
-  on_issues = c("stop", "preprocess", "warn")
+  on_issues = c("stop", "preprocess", "warn"),
+  on_chimeric = c("default", "host", "donor")
 )
 }
 \arguments{
@@ -39,35 +40,45 @@ from upstream pipeline steps; pass \code{id_column} explicitly only to override.
 \item{verbose}{Logical. If \code{TRUE}, prints column detection and parsing
 summary messages. Default \code{FALSE}.}
 
-\item{on_issues}{Character string specifying how to handle any karyotype
-issues detected by \code{check_karyo()}. Three classes of issues are handled:
-\itemize{
-\item \strong{Dirty markers} (e.g. leading dots, HTML entities, missing sex comma):
-formatting artifacts that \code{preprocess_karyo()} can fix automatically.
-\item \strong{Chimeric separators} (\verb{//}): karyotypes containing independent cell
-populations. Under \code{"preprocess"}, only the portion before the first \verb{//}
-is kept (the dominant clone). Information about secondary clones is lost.
-\item \strong{Structural errors} (e.g. no chromosome count, \verb{Updated ISCN} marker):
-unfixable -- these rows always return NA regardless of \code{on_issues}.
-}
+\item{on_issues}{Character string specifying how to handle \strong{dirty markers}
+(formatting artifacts such as leading dots, HTML entities, missing sex
+comma) and \strong{structural errors} (e.g. no chromosome count, \verb{Updated ISCN}
+marker). Chimeric handling is independent of this argument -- see
+\code{on_chimeric}. Structural errors are always unfixable and return NA
+regardless of \code{on_issues}.
 
 Values:
 \itemize{
-\item \code{"stop"} (default): Raise an error immediately if any issues are found,
-listing fixable and unfixable issue types and counts, and suggesting next
-steps. No fixing is attempted. Use this to catch data quality problems
-early; switch to \code{"preprocess"} or run \code{check_karyo()} once
-you understand them. \strong{Exception}: when input is a
-\code{karyo_preprocessed} object (i.e. the user has already run
-\code{check_karyo()} and \code{preprocess_karyo()}), \code{"stop"} does not
-error -- unfixable rows are returned as NA and a warning is emitted.
-\item \code{"preprocess"}: Apply \code{preprocess_karyo()} to dirty rows;
-truncate chimeric rows to the first clone. Rows that still have
-issues after these corrections are returned as NA. A message is
-printed summarising how many rows were fixed and how many could
-not be fixed.
-\item \code{"warn"}: Return NA for all issue rows and emit a warning. No fixing
-is attempted.
+\item \code{"stop"} (default): Raise an error immediately if any non-chimeric issue
+is found, listing fixable and unfixable issue types and counts, and
+suggesting next steps. No fixing is attempted. Chimeric rows never
+trigger the error -- they are clone-selected and parsed per
+\code{on_chimeric}. \strong{Exception}: when input is a \code{karyo_preprocessed}
+object, \code{"stop"} does not error -- unfixable rows are returned as NA and
+a warning is emitted.
+\item \code{"preprocess"}: Apply \code{preprocess_karyo()} to dirty rows. Rows that still
+have issues after these corrections are returned as NA. A message is
+printed summarising how many rows were fixed and how many could not be
+fixed.
+\item \code{"warn"}: Return NA for all dirty/structural issue rows and emit a
+warning. No fixing is attempted.
+}
+
+Across all three modes, chimeric rows are clone-selected per \code{on_chimeric}
+and parsed; a chimeric row becomes NA only when its selected clone is
+itself unparseable (or it has two or more \verb{//} separators).}
+
+\item{on_chimeric}{Character string controlling which clone is parsed for
+chimeric karyotypes (those containing a \verb{//} separator). One of:
+\itemize{
+\item \code{"default"}: host clone (before \verb{//}) for normal chimeras; donor clone
+(after \verb{//}) for zero-host chimeras (\verb{.//} prefix).
+\item \code{"host"}: host clone only; zero-host chimeras return NA.
+\item \code{"donor"}: everything after \verb{//} (the donor population).
+Rows with two or more \verb{//} separators (\code{multiple_chimeric_separator}) are
+always unfixable and return NA. For \code{karyo_preprocessed} input the clone
+selection was baked in at preprocess time and is inherited; passing an
+explicit, conflicting \code{on_chimeric} raises an error.
 }}
 }
 \value{
@@ -76,9 +87,9 @@ A tibble with columns:
 \item original_karyotype: Input karyotype string (always the raw input)
 \item preprocessed_karyotype: \code{normalize_iscn()} output of the
 karyotype string, consistent across all \code{on_issues} modes. In
-\code{"preprocess"} mode this is
-also dirty-fixed and chimeric-truncated; in \code{"warn"}/\code{"stop"} modes only
-\code{normalize_iscn()} is applied. \code{NA_character_} for issue rows.
+\code{"preprocess"} mode this is also dirty-fixed; in \code{"warn"}/\code{"stop"} modes
+only \code{normalize_iscn()} is applied (chimeric rows are clone-selected in
+every mode). \code{NA_character_} for issue rows.
 \item ploidy_category: Classification (diploid, hyperdiploid, etc.)
 based on most abnormal clone
 \item chromosome_count: Integer chromosome count extracted from the karyotype
@@ -96,9 +107,13 @@ or chimeric separator) and no unfixable issue, regardless of whether the
 fixable issue was auto-corrected. 0 when \code{unfixable_error = 1}.
 \item unfixable_error: 1 if row had unfixable structural issues
 (row is NA), else 0
-\item chimeric_karyotype: 1 if row contained a \verb{//} chimeric separator (regular
-chimeric rows are truncated to the host clone; \code{zero_host_chimera} rows
-are also flagged here and returned as NA via \code{unfixable_error})
+\item chimeric_karyotype: 1 if row contained a \verb{//} chimeric separator
+(including zero-host \verb{.//} chimeras and \code{multiple_chimeric_separator}
+rows), else 0
+\item chimeric_clone: which clone was parsed for a chimeric row -- \code{"host"},
+\code{"donor"}, or \code{NA_character_} (non-chimeric rows, or chimeric rows with
+no selectable clone such as \code{multiple_chimeric_separator} or a zero-host
+chimera under \code{on_chimeric = "host"})
 }
 }
 \description{

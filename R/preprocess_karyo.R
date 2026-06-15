@@ -19,8 +19,10 @@
 #' 11. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
 #'     idem/sl/cp normalization
 #'
-#' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are detected but
-#' not modified -- their `fix` list is empty, so the loop skips them. Always NA.
+#' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are donor-only
+#' chimeras with no host metaphases. The leading `.//` prefix is stripped,
+#' leaving the donor clone(s), which are then parsed (under `on_chimeric =
+#' "host"` these rows are instead returned NA).
 #'
 #' @param karyotypes Character vector of raw karyotype strings, the
 #'   `karyo_check` tibble returned by `check_karyo()`, or a data frame
@@ -36,6 +38,15 @@
 #'   frame. If `NULL` (default), auto-detected from common names and used
 #'   silently. Ignored for character vector or `karyo_check` input (id is
 #'   propagated automatically from `karyo_check` attrs in that case).
+#' @param on_chimeric Character string controlling which clone is kept for
+#'   chimeric karyotypes (those containing a `//` separator). One of:
+#'   - `"default"`: host clone (before `//`) for normal chimeras; donor clone
+#'     (after `//`) for zero-host chimeras (`.//` prefix).
+#'   - `"host"`: host clone only; zero-host chimeras become NA (unfixable).
+#'   - `"donor"`: everything after `//` (the donor population).
+#'   Rows with two or more `//` separators are always unfixable. The choice is
+#'   baked into the `preprocessed` column and recorded so `parse_karyo()` can
+#'   reuse it.
 #' @param verbose Logical. If `TRUE`, prints a processing summary. Default
 #'   `FALSE`.
 #' @return A `karyo_preprocessed` tibble. Columns: optional id column (first,
@@ -51,8 +62,10 @@ preprocess_karyo <- function(
   karyotypes,
   karyotype_column = NULL,
   id_column = NULL,
+  on_chimeric = c("default", "host", "donor"),
   verbose = FALSE
 ) {
+  on_chimeric <- match.arg(on_chimeric)
   id_col_name <- NULL
   id_values <- NULL
   if (inherits(karyotypes, "karyo_check")) {
@@ -97,6 +110,8 @@ preprocess_karyo <- function(
     attr(out, ".kp_unfixable_rows") <- integer(0)
     attr(out, ".kp_chimeric_rows") <- integer(0)
     attr(out, ".kp_chimeric_all_rows") <- integer(0)
+    attr(out, ".kp_chimeric_clone") <- character(0)
+    attr(out, ".kp_on_chimeric") <- on_chimeric
     attr(out, ".kp_id_col") <- id_col_name
     attr(out, ".kp_id_values") <- id_values
     return(out)
@@ -107,16 +122,25 @@ preprocess_karyo <- function(
     message("Preprocessing ", n, " karyotype(s)...")
   }
 
-  assessment <- if (!is.null(cached_assessment)) {
+  # The cached assessment from check_karyo() always uses the default clone
+  # selection; recompute if a different on_chimeric policy is requested.
+  assessment <- if (
+    !is.null(cached_assessment) &&
+      identical(cached_assessment$on_chimeric, on_chimeric)
+  ) {
     cached_assessment
   } else {
-    .assess_karyotypes(karyotypes)
+    .assess_karyotypes(karyotypes, on_chimeric)
   }
   processed <- assessment$processed
 
   # Status: unfixable > fixed (dirty or chimeric, successfully resolved) > clean
   fixed_row_indices <- setdiff(
-    union(assessment$dirty_row_indices, assessment$chimeric_row_indices),
+    unique(c(
+      assessment$dirty_row_indices,
+      assessment$chimeric_row_indices,
+      assessment$zhc_row_indices
+    )),
     assessment$unfixable_row_indices
   )
   status <- ifelse(
@@ -160,20 +184,21 @@ preprocess_karyo <- function(
   }
 
   # Tag output so parse_karyo() can skip .assess_karyotypes() on the result.
-  zhc_row_indices <- unique(
-    assessment$reported_issues$row_index[
-      assessment$reported_issues$issue_type == "zero_host_chimera"
-    ]
-  )
   class(out) <- c("karyo_preprocessed", class(out))
-  attr(out, ".kp_fixable_rows") <- unique(
-    union(assessment$dirty_row_indices, assessment$chimeric_row_indices)
-  )
+  attr(out, ".kp_fixable_rows") <- unique(c(
+    assessment$dirty_row_indices,
+    assessment$chimeric_row_indices,
+    assessment$zhc_row_indices
+  ))
   attr(out, ".kp_unfixable_rows") <- assessment$unfixable_row_indices
   attr(out, ".kp_chimeric_rows") <- assessment$chimeric_row_indices
-  attr(out, ".kp_chimeric_all_rows") <- unique(
-    c(assessment$chimeric_row_indices, zhc_row_indices)
-  )
+  attr(out, ".kp_chimeric_all_rows") <- unique(c(
+    assessment$chimeric_row_indices,
+    assessment$zhc_row_indices,
+    assessment$multi_row_indices
+  ))
+  attr(out, ".kp_chimeric_clone") <- assessment$chimeric_clone
+  attr(out, ".kp_on_chimeric") <- on_chimeric
   attr(out, ".kp_id_col") <- id_col_name
   attr(out, ".kp_id_values") <- id_values
   out
@@ -306,10 +331,13 @@ preprocess_karyo <- function(
     detail = "Space between count and 'mar' token (e.g. '+1~4 mar' should be '+1~4mar')"
   ),
   # Detected on the raw string before normalize_iscn() strips leading punctuation.
+  # The fix strips the leading './/' (or '//') prefix, leaving the donor clone(s).
   zero_host_chimera = list(
     detect = "^[.]*//",
     use_trimmed = TRUE,
-    fix = list(),
+    fix = list(
+      list(pattern = "^[.]*//", replacement = "")
+    ),
     detail = "String starts with './/' or '//': donor-only chimera with no host metaphases"
   )
 )
@@ -325,6 +353,7 @@ preprocess_karyo <- function(
   "empty",
   "no_chromosome_count",
   "chimeric_separator",
+  "multiple_chimeric_separator",
   "updated_iscn",
   "unbalanced_parentheses",
   "unbalanced_brackets",

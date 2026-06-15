@@ -24,40 +24,49 @@
 #'   from upstream pipeline steps; pass `id_column` explicitly only to override.
 #' @param verbose Logical. If `TRUE`, prints column detection and parsing
 #'   summary messages. Default `FALSE`.
-#' @param on_issues Character string specifying how to handle any karyotype
-#'   issues detected by `check_karyo()`. Three classes of issues are handled:
-#'   - **Dirty markers** (e.g. leading dots, HTML entities, missing sex comma):
-#'     formatting artifacts that `preprocess_karyo()` can fix automatically.
-#'   - **Chimeric separators** (`//`): karyotypes containing independent cell
-#'     populations. Under `"preprocess"`, only the portion before the first `//`
-#'     is kept (the dominant clone). Information about secondary clones is lost.
-#'   - **Structural errors** (e.g. no chromosome count, `Updated ISCN` marker):
-#'     unfixable -- these rows always return NA regardless of `on_issues`.
+#' @param on_issues Character string specifying how to handle **dirty markers**
+#'   (formatting artifacts such as leading dots, HTML entities, missing sex
+#'   comma) and **structural errors** (e.g. no chromosome count, `Updated ISCN`
+#'   marker). Chimeric handling is independent of this argument -- see
+#'   `on_chimeric`. Structural errors are always unfixable and return NA
+#'   regardless of `on_issues`.
 #'
 #'   Values:
-#'   - `"stop"` (default): Raise an error immediately if any issues are found,
-#'     listing fixable and unfixable issue types and counts, and suggesting next
-#'     steps. No fixing is attempted. Use this to catch data quality problems
-#'     early; switch to `"preprocess"` or run `check_karyo()` once
-#'     you understand them. **Exception**: when input is a
-#'     `karyo_preprocessed` object (i.e. the user has already run
-#'     `check_karyo()` and `preprocess_karyo()`), `"stop"` does not
-#'     error -- unfixable rows are returned as NA and a warning is emitted.
-#'   - `"preprocess"`: Apply `preprocess_karyo()` to dirty rows;
-#'     truncate chimeric rows to the first clone. Rows that still have
-#'     issues after these corrections are returned as NA. A message is
-#'     printed summarising how many rows were fixed and how many could
-#'     not be fixed.
-#'   - `"warn"`: Return NA for all issue rows and emit a warning. No fixing
-#'     is attempted.
+#'   - `"stop"` (default): Raise an error immediately if any non-chimeric issue
+#'     is found, listing fixable and unfixable issue types and counts, and
+#'     suggesting next steps. No fixing is attempted. Chimeric rows never
+#'     trigger the error -- they are clone-selected and parsed per
+#'     `on_chimeric`. **Exception**: when input is a `karyo_preprocessed`
+#'     object, `"stop"` does not error -- unfixable rows are returned as NA and
+#'     a warning is emitted.
+#'   - `"preprocess"`: Apply `preprocess_karyo()` to dirty rows. Rows that still
+#'     have issues after these corrections are returned as NA. A message is
+#'     printed summarising how many rows were fixed and how many could not be
+#'     fixed.
+#'   - `"warn"`: Return NA for all dirty/structural issue rows and emit a
+#'     warning. No fixing is attempted.
+#'
+#'   Across all three modes, chimeric rows are clone-selected per `on_chimeric`
+#'   and parsed; a chimeric row becomes NA only when its selected clone is
+#'   itself unparseable (or it has two or more `//` separators).
+#' @param on_chimeric Character string controlling which clone is parsed for
+#'   chimeric karyotypes (those containing a `//` separator). One of:
+#'   - `"default"`: host clone (before `//`) for normal chimeras; donor clone
+#'     (after `//`) for zero-host chimeras (`.//` prefix).
+#'   - `"host"`: host clone only; zero-host chimeras return NA.
+#'   - `"donor"`: everything after `//` (the donor population).
+#'   Rows with two or more `//` separators (`multiple_chimeric_separator`) are
+#'   always unfixable and return NA. For `karyo_preprocessed` input the clone
+#'   selection was baked in at preprocess time and is inherited; passing an
+#'   explicit, conflicting `on_chimeric` raises an error.
 #'
 #' @return A tibble with columns:
 #'   - original_karyotype: Input karyotype string (always the raw input)
 #'   - preprocessed_karyotype: `normalize_iscn()` output of the
 #'     karyotype string, consistent across all `on_issues` modes. In
-#'     `"preprocess"` mode this is
-#'     also dirty-fixed and chimeric-truncated; in `"warn"`/`"stop"` modes only
-#'     `normalize_iscn()` is applied. `NA_character_` for issue rows.
+#'     `"preprocess"` mode this is also dirty-fixed; in `"warn"`/`"stop"` modes
+#'     only `normalize_iscn()` is applied (chimeric rows are clone-selected in
+#'     every mode). `NA_character_` for issue rows.
 #'   - ploidy_category: Classification (diploid, hyperdiploid, etc.)
 #'     based on most abnormal clone
 #'   - chromosome_count: Integer chromosome count extracted from the karyotype
@@ -75,9 +84,13 @@
 #'     fixable issue was auto-corrected. 0 when `unfixable_error = 1`.
 #'   - unfixable_error: 1 if row had unfixable structural issues
 #'     (row is NA), else 0
-#'   - chimeric_karyotype: 1 if row contained a `//` chimeric separator (regular
-#'     chimeric rows are truncated to the host clone; `zero_host_chimera` rows
-#'     are also flagged here and returned as NA via `unfixable_error`)
+#'   - chimeric_karyotype: 1 if row contained a `//` chimeric separator
+#'     (including zero-host `.//` chimeras and `multiple_chimeric_separator`
+#'     rows), else 0
+#'   - chimeric_clone: which clone was parsed for a chimeric row -- `"host"`,
+#'     `"donor"`, or `NA_character_` (non-chimeric rows, or chimeric rows with
+#'     no selectable clone such as `multiple_chimeric_separator` or a zero-host
+#'     chimera under `on_chimeric = "host"`)
 #'
 #' @examples
 #' # Basic usage with character vector
@@ -101,9 +114,12 @@ parse_karyo <- function(
   karyotype_column = NULL,
   id_column = NULL,
   verbose = FALSE,
-  on_issues = c("stop", "preprocess", "warn")
+  on_issues = c("stop", "preprocess", "warn"),
+  on_chimeric = c("default", "host", "donor")
 ) {
   on_issues <- match.arg(on_issues)
+  on_chimeric_provided <- !missing(on_chimeric)
+  on_chimeric <- match.arg(on_chimeric)
 
   # Validate rules early (needed for empty result structure) ------------------
   if (!inherits(rules, "karyo_rules")) {
@@ -132,16 +148,23 @@ parse_karyo <- function(
     "mixed_ploidy",
     "fixable_error",
     "unfixable_error",
-    "chimeric_karyotype"
+    "chimeric_karyotype",
+    "chimeric_clone"
   )
 
   empty_result <- function() {
     out <- tibble::tibble(original_karyotype = character())
     out$preprocessed_karyotype <- character()
     out$ploidy_category <- character()
+    out$chimeric_clone <- character()
     for (nm in setdiff(
       all_output_cols,
-      c("original_karyotype", "preprocessed_karyotype", "ploidy_category")
+      c(
+        "original_karyotype",
+        "preprocessed_karyotype",
+        "ploidy_category",
+        "chimeric_clone"
+      )
     )) {
       out[[nm]] <- integer()
     }
@@ -160,6 +183,33 @@ parse_karyo <- function(
   if (is_preprocessed) {
     raw_vec <- as.character(karyotypes[["preprocessed"]])
     original_vec <- as.character(karyotypes[["original"]])
+    # Clone selection was baked in at preprocess time; inherit it. An explicit,
+    # conflicting on_chimeric cannot be honored without re-deriving from the raw
+    # input, so stop and tell the user how to proceed.
+    cached_on_chimeric <- attr(karyotypes, ".kp_on_chimeric")
+    if (is.null(cached_on_chimeric)) {
+      cached_on_chimeric <- "default"
+    }
+    if (on_chimeric_provided && on_chimeric != cached_on_chimeric) {
+      stop(
+        sprintf(
+          paste(
+            "on_chimeric = \"%s\" conflicts with the karyo_preprocessed input,",
+            "which was created with on_chimeric = \"%s\".",
+            "\nThe donor/host clone selection is baked into the `preprocessed`",
+            "column, so it cannot be changed here.",
+            "\nRe-run preprocess_karyo(..., on_chimeric = \"%s\"), or pass the",
+            "raw karyotypes to parse_karyo() with on_chimeric = \"%s\"."
+          ),
+          on_chimeric,
+          cached_on_chimeric,
+          on_chimeric,
+          on_chimeric
+        ),
+        call. = FALSE
+      )
+    }
+    on_chimeric <- cached_on_chimeric
     if (!is.null(id_column)) {
       if (!id_column %in% names(karyotypes)) {
         stop(
@@ -198,7 +248,8 @@ parse_karyo <- function(
     n_total_vec <- length(raw_vec)
 
     if (is_preprocessed) {
-      # Reuse cached assessment indices -- skip .assess_karyotypes() entirely
+      # Reuse cached assessment indices -- skip .assess_karyotypes() entirely.
+      # Clone selection was already applied to the `preprocessed` column.
       fixable_row_indices <- attr(karyotypes, ".kp_fixable_rows")
       if (is.null(fixable_row_indices)) {
         fixable_row_indices <- integer(0)
@@ -211,9 +262,9 @@ parse_karyo <- function(
       if (is.null(chimeric_all_indices)) {
         chimeric_all_indices <- integer(0)
       }
-      chimeric_rows_cached <- attr(karyotypes, ".kp_chimeric_rows")
-      if (is.null(chimeric_rows_cached)) {
-        chimeric_rows_cached <- integer(0)
+      chimeric_clone_vec <- attr(karyotypes, ".kp_chimeric_clone")
+      if (is.null(chimeric_clone_vec)) {
+        chimeric_clone_vec <- rep(NA_character_, n_total_vec)
       }
 
       # Override "stop" for karyo_preprocessed: user has already inspected; NA rows warn, don't error.
@@ -231,9 +282,6 @@ parse_karyo <- function(
 
       n_final_issues <- length(unfixable_row_indices)
       n_fixed <- length(setdiff(fixable_row_indices, unfixable_row_indices))
-      n_chimeric_parsed <- length(
-        setdiff(chimeric_rows_cached, unfixable_row_indices)
-      )
       if (isTRUE(verbose)) {
         if (n_fixed > 0) {
           message("  Fixed:      ", n_fixed)
@@ -243,36 +291,34 @@ parse_karyo <- function(
           message("  Unfixable:  ", n_final_issues, "  (returned as NA)")
         }
       }
-      if (n_chimeric_parsed > 0) {
-        warning(
-          sprintf(
-            "Chimeric: %d \u2014 host clone extracted, donor discarded.",
-            n_chimeric_parsed
-          ),
-          call. = FALSE
-        )
-      }
     } else {
-      assessment <- .assess_karyotypes(raw_vec)
+      assessment <- .assess_karyotypes(raw_vec, on_chimeric)
 
-      fixable_row_indices <- unique(
-        union(assessment$dirty_row_indices, assessment$chimeric_row_indices)
-      )
+      fixable_row_indices <- unique(c(
+        assessment$dirty_row_indices,
+        assessment$chimeric_row_indices,
+        assessment$zhc_row_indices
+      ))
       unfixable_row_indices <- assessment$unfixable_row_indices
-      zhc_indices <- unique(assessment$reported_issues$row_index[
-        assessment$reported_issues$issue_type == "zero_host_chimera"
-      ])
       chimeric_all_indices <- unique(c(
         assessment$chimeric_row_indices,
-        zhc_indices
+        assessment$zhc_row_indices,
+        assessment$multi_row_indices
       ))
+      chimeric_clone_vec <- assessment$chimeric_clone
+      proc <- assessment$processed
 
+      # Chimeric handling is orthogonal to on_issues: chimeric rows are always
+      # clone-selected and parsed (NA only when the selected clone is itself
+      # unparseable). on_issues governs dirty + structural rows only.
       if (on_issues == "stop") {
-        if (nrow(assessment$reported_issues) > 0) {
-          issue_counts <- assessment$reported_issues |>
+        non_chimeric_issues <- assessment$reported_issues |>
+          dplyr::filter(!row_index %in% chimeric_all_indices)
+        if (nrow(non_chimeric_issues) > 0) {
+          issue_counts <- non_chimeric_issues |>
             dplyr::count(issue_type, name = "n") |>
             dplyr::arrange(dplyr::desc(n))
-          n_issue_rows <- length(unique(assessment$reported_issues$row_index))
+          n_issue_rows <- length(unique(non_chimeric_issues$row_index))
           fixable_counts <- issue_counts[
             issue_counts$issue_type %in% .fixable_issue_types,
             ,
@@ -330,19 +376,14 @@ parse_karyo <- function(
           )
           stop(paste(msg_lines, collapse = "\n"), call. = FALSE)
         }
+        # Non-chimeric rows are clean; chimeric rows use the selected clone.
         raw_vec <- normalize_iscn(raw_vec)
-        issue_row_indices <- integer(0)
-        fixable_row_indices <- integer(0)
-        unfixable_row_indices <- integer(0)
-        chimeric_all_indices <- integer(0)
+        raw_vec[chimeric_all_indices] <- proc[chimeric_all_indices]
+        issue_row_indices <- which(is.na(raw_vec))
       } else if (on_issues == "preprocess") {
-        raw_vec <- assessment$processed
+        raw_vec <- proc
         issue_row_indices <- unfixable_row_indices
 
-        n_chimeric_parsed <- length(setdiff(
-          assessment$chimeric_row_indices,
-          assessment$unfixable_row_indices
-        ))
         n_fixed <- length(setdiff(
           fixable_row_indices,
           assessment$unfixable_row_indices
@@ -356,18 +397,22 @@ parse_karyo <- function(
             message("  Unfixable:  ", n_final_issues, "  (returned as NA)")
           }
         }
-        if (n_chimeric_parsed > 0) {
-          warning(
-            sprintf(
-              "Chimeric: %d \u2014 host clone extracted, donor discarded.",
-              n_chimeric_parsed
-            ),
-            call. = FALSE
-          )
-        }
       } else {
-        raw_vec <- normalize_iscn(raw_vec)
-        issue_row_indices <- unique(assessment$reported_issues$row_index)
+        # warn: dirty + structural rows are returned NA (no fix attempted), but
+        # chimeric rows are still clone-selected and parsed.
+        norm_vec <- normalize_iscn(raw_vec)
+        norm_vec[chimeric_all_indices] <- proc[chimeric_all_indices]
+        raw_vec <- norm_vec
+
+        non_chimeric_issue_rows <- setdiff(
+          unique(assessment$reported_issues$row_index),
+          chimeric_all_indices
+        )
+        chimeric_na_rows <- intersect(which(is.na(proc)), chimeric_all_indices)
+        issue_row_indices <- unique(c(
+          non_chimeric_issue_rows,
+          chimeric_na_rows
+        ))
 
         n_final_issues <- length(issue_row_indices)
         if (n_final_issues > 0) {
@@ -382,11 +427,22 @@ parse_karyo <- function(
         }
       }
     }
+
+    # Single informational message for chimeric rows (replaces the old warning).
+    n_chimeric <- length(chimeric_all_indices)
+    if (n_chimeric > 0) {
+      message(sprintf(
+        "Chimeric: %d (on_chimeric = \"%s\").",
+        n_chimeric,
+        on_chimeric
+      ))
+    }
   } else {
     issue_row_indices <- integer(0)
     fixable_row_indices <- integer(0)
     unfixable_row_indices <- integer(0)
     chimeric_all_indices <- integer(0)
+    chimeric_clone_vec <- character(0)
   }
 
   # Ingest --------------------------------------------------------------------
@@ -422,6 +478,7 @@ parse_karyo <- function(
       out$chimeric_karyotype <- as.integer(
         out$.pk_row_id %in% chimeric_all_indices
       )
+      out$chimeric_clone <- chimeric_clone_vec[out$.pk_row_id]
       if (!is.null(id_values)) {
         out[[id_col_name]] <- id_values[out$.pk_row_id]
         out <- out |> dplyr::relocate(dplyr::all_of(id_col_name), .before = 1)
@@ -638,6 +695,7 @@ parse_karyo <- function(
   )
   out$unfixable_error <- as.integer(out$.pk_row_id %in% unfixable_row_indices)
   out$chimeric_karyotype <- as.integer(out$.pk_row_id %in% chimeric_all_indices)
+  out$chimeric_clone <- chimeric_clone_vec[out$.pk_row_id]
 
   # Attach ID column if available ---------------------------------------------
   if (!is.null(id_values)) {
@@ -958,9 +1016,15 @@ blank_rows <- function(original_karyotypes, all_output_cols) {
   out <- tibble::tibble(original_karyotype = original_karyotypes)
   out$preprocessed_karyotype <- NA_character_
   out$ploidy_category <- NA_character_
+  out$chimeric_clone <- NA_character_
   other_cols <- setdiff(
     all_output_cols,
-    c("original_karyotype", "preprocessed_karyotype", "ploidy_category")
+    c(
+      "original_karyotype",
+      "preprocessed_karyotype",
+      "ploidy_category",
+      "chimeric_clone"
+    )
   )
   for (nm in other_cols) {
     out[[nm]] <- rep(NA_integer_, n)

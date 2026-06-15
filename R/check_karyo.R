@@ -10,12 +10,14 @@
 #' `on_issues = "preprocess"`):
 #' dirty markers (`unicode_notation`, `embedded_newline`, `html_entities`,
 #' `leading_dot`, `fish_notation`, `trailing_narrative`, `midstring_linewrap`,
-#' `missing_sex_comma`, `mar_space`) and `chimeric_separator`.
+#' `missing_sex_comma`, `mar_space`), `chimeric_separator`, and
+#' `zero_host_chimera` (the donor clone is parsed; see `on_chimeric` in
+#' `parse_karyo()`).
 #'
 #' Unfixable issues (always returned as NA by `parse_karyo()`):
-#' `zero_host_chimera`, `empty`, `no_chromosome_count`, `updated_iscn`,
-#' `unbalanced_parentheses`, `unbalanced_brackets`, `no_sex_complement`,
-#' `invalid_idem`, `unparseable_bracket`.
+#' `multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
+#' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
+#' `no_sex_complement`, `invalid_idem`, `unparseable_bracket`.
 #'
 #' @param karyotypes Character vector of karyotype strings, or a data frame
 #'   containing a karyotype column. If a data frame, the karyotype column is
@@ -176,23 +178,98 @@ check_karyo <- function(
 }
 
 # Run the full fix-and-classify pipeline; shared by check, preprocess, and parse.
-.assess_karyotypes <- function(x) {
-  DIRTY_TYPES <- setdiff(.fixable_issue_types, "chimeric_separator")
+# Clone selection for chimeric rows is governed by `on_chimeric`:
+#   "default" -- host clone for normal chimeras, donor for zero-host chimeras
+#   "host"    -- host clone only; zero-host chimeras become NA (unfixable)
+#   "donor"   -- everything after '//' (the donor population)
+.assess_karyotypes <- function(x, on_chimeric = c("default", "host", "donor")) {
+  on_chimeric <- match.arg(on_chimeric)
+  n <- length(x)
+  # zero_host_chimera is a chimeric concern, not a plain dirty fix.
+  DIRTY_TYPES <- setdiff(
+    .fixable_issue_types,
+    c("chimeric_separator", "zero_host_chimera")
+  )
 
   dirty_issues <- flag_unpreprocessed(x)
   dirty_row_indices <- unique(
     dirty_issues$row_index[dirty_issues$issue_type %in% DIRTY_TYPES]
   )
-
-  partially_fixed <- .apply_dirty_fixes(x)
-
-  # Mirrors validate_karyotypes(): must start with a digit and contain '//' after normalization.
-  norm_partial <- normalize_iscn(partially_fixed)
-  chimeric_row_indices <- which(
-    !is.na(norm_partial) &
-      stringr::str_detect(norm_partial, "^\\d") &
-      stringr::str_detect(norm_partial, "//")
+  zhc_row_indices <- unique(
+    dirty_issues$row_index[dirty_issues$issue_type == "zero_host_chimera"]
   )
+
+  # Dirty fixes include the zero_host_chimera fix, which strips a leading './/'
+  # prefix -- so zero-host rows arrive here already reduced to their donor.
+  partially_fixed <- .apply_dirty_fixes(x)
+  norm_partial <- normalize_iscn(partially_fixed)
+
+  # Classify chimeric rows by counting '//' separators in the normalized string.
+  has_count <- !is.na(norm_partial) & stringr::str_detect(norm_partial, "^\\d")
+  n_sep <- ifelse(
+    is.na(norm_partial),
+    0L,
+    stringr::str_count(norm_partial, stringr::fixed("//"))
+  )
+  multi_row_indices <- setdiff(which(has_count & n_sep >= 2L), zhc_row_indices)
+  chimeric_row_indices <- setdiff(
+    which(has_count & n_sep == 1L),
+    zhc_row_indices
+  )
+
+  # ---- Clone selection per on_chimeric --------------------------------------
+  selected <- norm_partial
+  chimeric_clone <- rep(NA_character_, n)
+
+  if (length(chimeric_row_indices) > 0) {
+    if (on_chimeric == "donor") {
+      selected[chimeric_row_indices] <- stringr::str_replace(
+        norm_partial[chimeric_row_indices],
+        "^.*?//",
+        ""
+      )
+      chimeric_clone[chimeric_row_indices] <- "donor"
+    } else {
+      selected[chimeric_row_indices] <- stringr::str_replace(
+        norm_partial[chimeric_row_indices],
+        "//.*$",
+        ""
+      )
+      chimeric_clone[chimeric_row_indices] <- "host"
+    }
+  }
+
+  if (length(zhc_row_indices) > 0) {
+    if (on_chimeric == "host") {
+      selected[zhc_row_indices] <- NA_character_
+    } else {
+      chimeric_clone[zhc_row_indices] <- "donor"
+    }
+  }
+
+  # Two or more '//' separators cannot resolve to a single donor: unfixable.
+  if (length(multi_row_indices) > 0) {
+    selected[multi_row_indices] <- NA_character_
+  }
+
+  # ---- Structural validation of the selected clone --------------------------
+  struct_issues <- validate_karyotypes(selected)
+  # Rows blanked purely by chimeric policy (donor-only under "host", or 2+ '//')
+  # must not be reported as structural 'empty'; they are handled separately.
+  policy_na <- c(
+    multi_row_indices,
+    if (on_chimeric == "host") zhc_row_indices else integer(0)
+  )
+  if (length(policy_na) > 0 && nrow(struct_issues) > 0) {
+    struct_issues <- struct_issues[
+      !(struct_issues$row_index %in%
+        policy_na &
+        struct_issues$issue_type == "empty"),
+      ,
+      drop = FALSE
+    ]
+  }
+
   chimeric_issues <- if (length(chimeric_row_indices) > 0) {
     tibble::tibble(
       row_index = chimeric_row_indices,
@@ -206,31 +283,35 @@ check_karyo <- function(
     empty_issues_tibble()
   }
 
-  fully_fixed <- partially_fixed
-  if (length(chimeric_row_indices) > 0) {
-    fully_fixed[chimeric_row_indices] <- stringr::str_replace(
-      fully_fixed[chimeric_row_indices],
-      "//.*$",
-      ""
+  multi_issues <- if (length(multi_row_indices) > 0) {
+    tibble::tibble(
+      row_index = multi_row_indices,
+      karyotype = truncate_str(as.character(partially_fixed[
+        multi_row_indices
+      ])),
+      issue_type = "multiple_chimeric_separator",
+      issue_detail = "Contains two or more '//' chimeric separators (cannot resolve a single donor)"
     )
+  } else {
+    empty_issues_tibble()
   }
-
-  norm_fully_fixed <- normalize_iscn(fully_fixed)
-  struct_issues <- validate_karyotypes(norm_fully_fixed)
 
   reported_issues <- dplyr::bind_rows(
     dirty_issues,
     chimeric_issues,
+    multi_issues,
     struct_issues
   ) |>
     dplyr::arrange(row_index)
 
   unfixable_types <- setdiff(.all_issue_types, .fixable_issue_types)
-  unfixable_row_indices <- unique(
-    reported_issues$row_index[reported_issues$issue_type %in% unfixable_types]
-  )
+  unfixable_row_indices <- unique(c(
+    reported_issues$row_index[reported_issues$issue_type %in% unfixable_types],
+    # Donor-only chimera under "host" policy yields no parseable clone.
+    if (on_chimeric == "host") zhc_row_indices else integer(0)
+  ))
 
-  processed <- norm_fully_fixed
+  processed <- selected
   processed[unfixable_row_indices] <- NA_character_
 
   list(
@@ -238,7 +319,11 @@ check_karyo <- function(
     reported_issues = reported_issues,
     unfixable_row_indices = unfixable_row_indices,
     dirty_row_indices = dirty_row_indices,
-    chimeric_row_indices = chimeric_row_indices
+    chimeric_row_indices = chimeric_row_indices,
+    zhc_row_indices = zhc_row_indices,
+    multi_row_indices = multi_row_indices,
+    chimeric_clone = chimeric_clone,
+    on_chimeric = on_chimeric
   )
 }
 

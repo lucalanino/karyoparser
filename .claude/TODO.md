@@ -8,6 +8,7 @@
 - **[P3] CI / GitHub Actions**: decide post-1.0 branch strategy first (`main` public after 1.0 — which branches trigger checks?). Bundle `R CMD check` + coverage (`covr::codecov()`) in one workflow.
 - **[P3] Codecov badge**: when repo goes public, add `CODECOV_TOKEN` secret and wire up codecov upload in `test-coverage.yaml`; add badge to README.
 - **[P3] README.md**: work on a public-ready readme, including info to build new rule tables
+- **[P3] Revisit zero_host_chimera classification under `on_chimeric="host"`**: currently treated as **unfixable** (status `"unfixable"`, `unfixable_error=1`, NA output) since the host-only policy yields no parseable clone. Alternative: keep it classified as a fixable issue (`fixable_error=1`) that simply produces NA output. Decide which is the more intuitive contract.
 
 ## After 1.0
 
