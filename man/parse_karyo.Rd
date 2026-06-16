@@ -102,6 +102,25 @@ based on most abnormal clone
 \item complex_karyotype: 1 if >=3 unique aberrations, else 0
 \item monosomal_karyotype: 1 if meets monosomal criteria, else 0
 \item mixed_ploidy: 1 if clones have different ploidy categories, else 0
+\item balanced_translocation: 1 if the row carries a balanced translocation --
+a bare \code{t(...)} token, or a reciprocal der pair where both partner
+chromosomes appear as centromere donors (e.g.
+\verb{der(5)t(5;17)...,der(17)t(5;17)...}). Independent of
+\code{derivative_chromosome}. A row may be both balanced and unbalanced.
+\item unbalanced_translocation: 1 if the row carries an unbalanced
+translocation -- a lone \verb{der(a)t(a;b)} (reciprocal der absent) or a
+whole-arm \verb{der(a;b)}. The specific fusion flag still fires (e.g.
+\verb{der(9)t(9;22)} keeps \verb{t(9;22)(q34;q11) = 1}).
+\item unbal_loss_5q, unbal_loss_7q, unbal_loss_11q, unbal_loss_12p,
+unbal_loss_13q, unbal_loss_17p, unbal_loss_20q: partial-loss signals
+derived from unbalanced der translocations for these curated myeloid
+arms. Kept SEPARATE from \code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q
+loss does not set \verb{del(5q)}. Derivation needs explicit breakpoints and is
+limited to simple single-junction \verb{der(a)t(a;b)}; multi-junction chains
+and three-way \verb{t(a;b;c)} derivatives are flagged unbalanced but derive no
+loss. Copy-number-aware gains are out of scope.
+\item unbal_partial_loss: 1 if an unbalanced der translocation implies any
+partial loss (including arms outside the curated \verb{unbal_loss_*} set).
 \item fixable_error: 1 if the row had at least one fixable issue (dirty marker
 or chimeric separator) and no unfixable issue, regardless of whether the
 fixable issue was auto-corrected. 0 when \code{unfixable_error = 1}.

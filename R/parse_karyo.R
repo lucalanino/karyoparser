@@ -79,6 +79,25 @@
 #'   - complex_karyotype: 1 if >=3 unique aberrations, else 0
 #'   - monosomal_karyotype: 1 if meets monosomal criteria, else 0
 #'   - mixed_ploidy: 1 if clones have different ploidy categories, else 0
+#'   - balanced_translocation: 1 if the row carries a balanced translocation --
+#'     a bare `t(...)` token, or a reciprocal der pair where both partner
+#'     chromosomes appear as centromere donors (e.g.
+#'     `der(5)t(5;17)...,der(17)t(5;17)...`). Independent of
+#'     `derivative_chromosome`. A row may be both balanced and unbalanced.
+#'   - unbalanced_translocation: 1 if the row carries an unbalanced
+#'     translocation -- a lone `der(a)t(a;b)` (reciprocal der absent) or a
+#'     whole-arm `der(a;b)`. The specific fusion flag still fires (e.g.
+#'     `der(9)t(9;22)` keeps `t(9;22)(q34;q11) = 1`).
+#'   - unbal_loss_5q, unbal_loss_7q, unbal_loss_11q, unbal_loss_12p,
+#'     unbal_loss_13q, unbal_loss_17p, unbal_loss_20q: partial-loss signals
+#'     derived from unbalanced der translocations for these curated myeloid
+#'     arms. Kept SEPARATE from `del(...)`/`mono*` -- an unbalanced-derived 5q
+#'     loss does not set `del(5q)`. Derivation needs explicit breakpoints and is
+#'     limited to simple single-junction `der(a)t(a;b)`; multi-junction chains
+#'     and three-way `t(a;b;c)` derivatives are flagged unbalanced but derive no
+#'     loss. Copy-number-aware gains are out of scope.
+#'   - unbal_partial_loss: 1 if an unbalanced der translocation implies any
+#'     partial loss (including arms outside the curated `unbal_loss_*` set).
 #'   - fixable_error: 1 if the row had at least one fixable issue (dirty marker
 #'     or chimeric separator) and no unfixable issue, regardless of whether the
 #'     fixable issue was auto-corrected. 0 when `unfixable_error = 1`.
@@ -146,6 +165,10 @@ parse_karyo <- function(
     "complex_karyotype",
     "monosomal_karyotype",
     "mixed_ploidy",
+    "balanced_translocation",
+    "unbalanced_translocation",
+    paste0("unbal_loss_", .unbal_loss_arms),
+    "unbal_partial_loss",
     "fixable_error",
     "unfixable_error",
     "chimeric_karyotype",
@@ -530,6 +553,9 @@ parse_karyo <- function(
   aneuploidy <- compute_aneuploidy(tokens, chroms)
   comma_counts <- compute_comma_counts(tokens)
   unique_aberr <- compute_unique_counts(tokens)
+  der_translocations <- .der_translocations(tokens)
+  balance_flags <- classify_translocation_balance(tokens, der_translocations)
+  unbal_loss <- derive_unbalanced_loss(der_translocations)
 
   # ---- Assembly --------------------------------------------------------------
   mono_cols <- paste0("mono", chroms)
@@ -558,7 +584,11 @@ parse_karyo <- function(
     "comma_count_aberrations",
     "complex_karyotype",
     "monosomal_karyotype",
-    "mixed_ploidy"
+    "mixed_ploidy",
+    "balanced_translocation",
+    "unbalanced_translocation",
+    paste0("unbal_loss_", .unbal_loss_arms),
+    "unbal_partial_loss"
   )
 
   result <- all_flags |>
@@ -618,6 +648,8 @@ parse_karyo <- function(
       by = ".pk_row_id"
     ) |>
     dplyr::left_join(comma_counts, by = ".pk_row_id") |>
+    dplyr::left_join(balance_flags, by = ".pk_row_id") |>
+    dplyr::left_join(unbal_loss, by = ".pk_row_id") |>
     dplyr::left_join(
       sample_meta |>
         dplyr::select(
@@ -996,6 +1028,241 @@ compute_comma_counts <- function(tokens_tbl) {
       )),
       .groups = "drop"
     )
+}
+
+# Curated myeloid arms for which unbalanced-derived partial losses get their
+# own `unbal_loss_<arm>` column (mirrors the chromosome_specific deletion rules).
+.unbal_loss_arms <- c("5q", "7q", "11q", "12p", "13q", "17p", "20q")
+
+# Extract der(a)t(a;b) tokens with a canonical translocation signature and a
+# per-(row, clone, signature) `balanced_pair` flag (TRUE when both partner
+# chromosomes appear as centromere donors -- i.e. a reciprocal der pair).
+# Shared by classify_translocation_balance() and derive_unbalanced_loss().
+.der_translocations <- function(tokens_tbl) {
+  der_t <- tokens_tbl |>
+    dplyr::filter(!is.na(clone_id), aberr_raw != "") |>
+    dplyr::mutate(
+      raw = strip_bands(aberr_raw),
+      is_der = stringr::str_detect(raw, "^\\+?i?der\\("),
+      der_inner = stringr::str_match(raw, "^\\+?i?der\\(([^)]+)\\)")[, 2],
+      t_c1 = stringr::str_match(raw, "t\\(([0-9XY]+);([0-9XY]+)\\)")[, 2],
+      t_c2 = stringr::str_match(raw, "t\\(([0-9XY]+);([0-9XY]+)\\)")[, 3],
+      t_b1 = stringr::str_match(
+        raw,
+        "t\\([0-9XY]+;[0-9XY]+\\)\\(([^;)]+);([^)]+)\\)"
+      )[, 2],
+      t_b2 = stringr::str_match(
+        raw,
+        "t\\([0-9XY]+;[0-9XY]+\\)\\(([^;)]+);([^)]+)\\)"
+      )[, 3]
+    ) |>
+    dplyr::filter(
+      is_der,
+      !is.na(t_c1),
+      !is.na(der_inner),
+      !stringr::str_detect(der_inner, ";")
+    )
+
+  if (nrow(der_t) == 0) {
+    return(
+      der_t |>
+        dplyr::mutate(
+          p1 = character(0),
+          p2 = character(0),
+          bb1 = character(0),
+          bb2 = character(0),
+          donor = character(0),
+          balanced_pair = logical(0)
+        )
+    )
+  }
+
+  der_t |>
+    dplyr::mutate(
+      swap = .chrom_sort_key(t_c1) > .chrom_sort_key(t_c2),
+      p1 = dplyr::if_else(swap, t_c2, t_c1),
+      p2 = dplyr::if_else(swap, t_c1, t_c2),
+      bb1 = dplyr::if_else(swap, t_b2, t_b1),
+      bb2 = dplyr::if_else(swap, t_b1, t_b2),
+      t_sig = paste0(
+        "t(",
+        p1,
+        ";",
+        p2,
+        ")(",
+        tidyr::replace_na(bb1, ""),
+        ";",
+        tidyr::replace_na(bb2, ""),
+        ")"
+      ),
+      donor = der_inner
+    ) |>
+    dplyr::group_by(.pk_row_id, clone_id, t_sig) |>
+    dplyr::mutate(
+      balanced_pair = dplyr::if_else(
+        p1 == p2,
+        # Homologous t(a;a): both reciprocal products are der(a), so donor set
+        # membership cannot distinguish one der from two. Require >= 2 ders for
+        # the same signature before calling it a balanced reciprocal pair.
+        dplyr::n() >= 2L,
+        (p1 %in% donor) & (p2 %in% donor)
+      )
+    ) |>
+    dplyr::ungroup()
+}
+
+# Classify each row as carrying balanced and/or unbalanced translocations.
+#
+# Balanced  := a bare t(...) token, OR a der()t() reciprocal pair where both
+#              partner chromosomes appear as centromere donors within a clone.
+# Unbalanced := a lone der(a)t(a;b) (the reciprocal der is absent), OR a
+#              whole-arm der(a;b) (single derivative). A row may be both (mixed).
+#
+# These flags are independent of `derivative_chromosome`, which still fires.
+classify_translocation_balance <- function(
+  tokens_tbl,
+  der_t = .der_translocations(tokens_tbl)
+) {
+  toks <- tokens_tbl |>
+    dplyr::filter(!is.na(clone_id), aberr_raw != "") |>
+    dplyr::mutate(
+      raw = strip_bands(aberr_raw),
+      is_der = stringr::str_detect(raw, "^\\+?i?der\\("),
+      der_inner = stringr::str_match(raw, "^\\+?i?der\\(([^)]+)\\)")[, 2],
+      is_bare_t = stringr::str_detect(raw, "^[?~]?t\\([0-9XY]")
+    )
+
+  empty <- tibble::tibble(
+    .pk_row_id = integer(),
+    balanced_translocation = integer(),
+    unbalanced_translocation = integer()
+  )
+
+  bare_rows <- toks$.pk_row_id[toks$is_bare_t]
+
+  # Whole-arm der(a;b): a single derivative, always unbalanced.
+  whole_arm_rows <- toks$.pk_row_id[
+    toks$is_der &
+      !is.na(toks$der_inner) &
+      stringr::str_detect(toks$der_inner, ";")
+  ]
+
+  der_balanced_rows <- der_t$.pk_row_id[der_t$balanced_pair]
+  der_unbalanced_rows <- der_t$.pk_row_id[!der_t$balanced_pair]
+
+  balanced_ids <- unique(c(bare_rows, der_balanced_rows))
+  unbalanced_ids <- unique(c(der_unbalanced_rows, whole_arm_rows))
+  all_ids <- sort(unique(c(balanced_ids, unbalanced_ids)))
+
+  if (length(all_ids) == 0) {
+    return(empty)
+  }
+
+  tibble::tibble(
+    .pk_row_id = all_ids,
+    balanced_translocation = as.integer(all_ids %in% balanced_ids),
+    unbalanced_translocation = as.integer(all_ids %in% unbalanced_ids)
+  )
+}
+
+# Derive implied partial losses from lone (unbalanced) der(a)t(a;b)(bp_a;bp_b):
+#   - chromosome a loses material distal to bp_a -> arm(bp_a)
+#   - partner b loses its centromere-side material  -> opposite arm of bp_b
+# Emitted into dedicated `unbal_loss_<arm>` columns (curated myeloid arms) plus
+# a generic `unbal_partial_loss` flag. These are kept SEPARATE from del()/mono*
+# signals -- an unbalanced-derived 5q loss is not conflated with a true del(5q).
+#
+# Scope: only SIMPLE single-junction ders are resolved -- exactly one two-partner
+# t() whose centromere donor is one of the partners. Multi-junction chains
+# (der with >1 t(), three-way t(a;b;c), or a der named after a non-partner
+# chromosome) cannot be resolved by this two-partner model, so no loss is
+# derived for them (they are still flagged unbalanced by the classifier).
+# Copy-number-aware gains are out of scope (they need whole-karyotype reasoning).
+derive_unbalanced_loss <- function(der_t) {
+  cols <- paste0("unbal_loss_", .unbal_loss_arms)
+  empty <- tibble::tibble(.pk_row_id = integer())
+  for (nm in c(cols, "unbal_partial_loss")) {
+    empty[[nm]] <- integer()
+  }
+
+  dt <- der_t |>
+    dplyr::filter(
+      !balanced_pair,
+      stringr::str_count(raw, "t\\(") == 1L,
+      donor == p1 | donor == p2
+    )
+  if (nrow(dt) == 0) {
+    return(empty)
+  }
+
+  segs <- dt |>
+    dplyr::mutate(
+      donor_is_p1 = donor == p1,
+      bp_a = dplyr::if_else(donor_is_p1, bb1, bb2),
+      bp_b = dplyr::if_else(donor_is_p1, bb2, bb1),
+      b_chrom = dplyr::if_else(donor_is_p1, p2, p1),
+      a_seg = .arm_segment(donor, .arm_of(bp_a)),
+      b_seg = .arm_segment(b_chrom, .opp_arm(.arm_of(bp_b)))
+    )
+
+  long <- dplyr::bind_rows(
+    segs |> dplyr::transmute(.pk_row_id, seg = a_seg),
+    segs |> dplyr::transmute(.pk_row_id, seg = b_seg)
+  ) |>
+    dplyr::filter(!is.na(seg))
+
+  if (nrow(long) == 0) {
+    return(empty)
+  }
+
+  any_loss <- long |>
+    dplyr::distinct(.pk_row_id) |>
+    dplyr::mutate(unbal_partial_loss = 1L)
+
+  named <- long |>
+    dplyr::filter(seg %in% .unbal_loss_arms) |>
+    dplyr::distinct(.pk_row_id, seg) |>
+    dplyr::mutate(col = paste0("unbal_loss_", seg), value = 1L) |>
+    dplyr::select(.pk_row_id, col, value) |>
+    tidyr::pivot_wider(
+      names_from = col,
+      values_from = value,
+      values_fill = 0L
+    )
+
+  out <- any_loss |> dplyr::left_join(named, by = ".pk_row_id")
+  for (nm in cols) {
+    if (!nm %in% names(out)) out[[nm]] <- 0L
+  }
+  out |>
+    dplyr::mutate(dplyr::across(
+      dplyr::all_of(cols),
+      ~ tidyr::replace_na(., 0L)
+    ))
+}
+
+# Numeric sort key for a chromosome label (X -> 23, Y -> 24).
+.chrom_sort_key <- function(chrom) {
+  dplyr::case_when(
+    chrom == "X" ~ 23L,
+    chrom == "Y" ~ 24L,
+    TRUE ~ suppressWarnings(as.integer(chrom))
+  )
+}
+
+# First arm letter (p/q) of a band string, or NA.
+.arm_of <- function(band) {
+  stringr::str_extract(band, "^[pq]")
+}
+
+# Opposite chromosome arm.
+.opp_arm <- function(arm) {
+  dplyr::case_when(arm == "p" ~ "q", arm == "q" ~ "p", TRUE ~ NA_character_)
+}
+
+# Combine chromosome + arm into a segment key (e.g. "5q"), NA if arm unknown.
+.arm_segment <- function(chrom, arm) {
+  dplyr::if_else(is.na(arm) | is.na(chrom), NA_character_, paste0(chrom, arm))
 }
 
 compute_unique_counts <- function(tokens_tbl) {

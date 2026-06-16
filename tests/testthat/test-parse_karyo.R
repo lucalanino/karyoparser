@@ -94,6 +94,123 @@ test_that("ider() detected as derivative_chromosome", {
   expect_equal(r$derivative_chromosome, 1L)
 })
 
+test_that("balanced: bare t() sets balanced, not unbalanced", {
+  r <- pk("46,XX,t(9;22)(q34;q11)")
+  expect_equal(r$balanced_translocation, 1L)
+  expect_equal(r$unbalanced_translocation, 0L)
+})
+
+test_that("unbalanced: lone der()t() sets unbalanced, fusion flag still fires", {
+  r <- pk("46,XY,der(9)t(9;22)(q34;q11)")
+  expect_equal(r$unbalanced_translocation, 1L)
+  expect_equal(r$balanced_translocation, 0L)
+  expect_equal(r$`t(9;22)(q34;q11)`, 1L)
+  expect_equal(r$derivative_chromosome, 1L)
+})
+
+test_that("balanced: reciprocal der pair is balanced, not unbalanced", {
+  r <- pk("46,XX,der(5)t(5;17)(q11;q11),der(17)t(5;17)(q11;q11)")
+  expect_equal(r$balanced_translocation, 1L)
+  expect_equal(r$unbalanced_translocation, 0L)
+})
+
+test_that("balanced: reciprocal pair pairs across partner-order swap", {
+  r <- pk("46,XX,der(5)t(5;17)(q11;q11),der(17)t(17;5)(q11;q11)")
+  expect_equal(r$balanced_translocation, 1L)
+  expect_equal(r$unbalanced_translocation, 0L)
+})
+
+test_that("unbalanced: whole-arm der(a;b) is unbalanced", {
+  r <- pk("46,XX,der(1;7)(q10;p10)")
+  expect_equal(r$unbalanced_translocation, 1L)
+  expect_equal(r$balanced_translocation, 0L)
+})
+
+test_that("mixed: bare t() plus lone der of same t fires both flags", {
+  r <- pk("46,XX,t(8;21)(q22;q22),der(8)t(8;21)(q22;q22)")
+  expect_equal(r$balanced_translocation, 1L)
+  expect_equal(r$unbalanced_translocation, 1L)
+})
+
+test_that("no translocation: both balance flags 0", {
+  r <- pk("47,XY,+8")
+  expect_equal(r$balanced_translocation, 0L)
+  expect_equal(r$unbalanced_translocation, 0L)
+})
+
+test_that("unbalanced: lone homologous der is unbalanced, recurrent flag still fires", {
+  r3 <- pk("46,XX,der(3)t(3;3)(q21;q26)")
+  expect_equal(r3$unbalanced_translocation, 1L)
+  expect_equal(r3$balanced_translocation, 0L)
+  expect_equal(r3$`t(3;3)(q21;q26)`, 1L)
+  r16 <- pk("46,XX,der(16)t(16;16)(p13;q22)")
+  expect_equal(r16$unbalanced_translocation, 1L)
+  expect_equal(r16$balanced_translocation, 0L)
+  expect_equal(r16$`t(16;16)(p13;q22)`, 1L)
+})
+
+test_that("balanced: two homologous der of same signature form a reciprocal pair", {
+  r <- pk("46,XX,der(16)t(16;16)(p13;q22),der(16)t(16;16)(p13;q22)")
+  expect_equal(r$balanced_translocation, 1L)
+  expect_equal(r$unbalanced_translocation, 0L)
+})
+
+test_that("partial loss: der(5)t(5;17) implies unbal_loss_5q + unbal_loss_17p", {
+  r <- pk("46,XY,der(5)t(5;17)(q11;q11)")
+  expect_equal(r$unbal_loss_5q, 1L)
+  expect_equal(r$unbal_loss_17p, 1L)
+  expect_equal(r$unbal_partial_loss, 1L)
+  expect_equal(r$`del(5q)`, 0L)
+})
+
+test_that("partial loss: real del(5q) does not set any unbal_loss column", {
+  r <- pk("46,XX,del(5q)")
+  expect_equal(r$`del(5q)`, 1L)
+  expect_equal(r$unbal_loss_5q, 0L)
+  expect_equal(r$unbal_partial_loss, 0L)
+})
+
+test_that("partial loss: balanced reciprocal pair implies no loss", {
+  r <- pk("46,XX,der(5)t(5;17)(q11;q11),der(17)t(5;17)(q11;q11)")
+  expect_equal(r$unbal_partial_loss, 0L)
+  expect_equal(r$unbal_loss_5q, 0L)
+  expect_equal(r$unbal_loss_17p, 0L)
+})
+
+test_that("partial loss: non-curated arms set only generic flag", {
+  r <- pk("45,XX,der(9)t(9;22)(q34;q11)")
+  expect_equal(r$unbal_partial_loss, 1L)
+  expect_equal(r$unbal_loss_5q, 0L)
+})
+
+test_that("partial loss: der named after a non-partner chromosome derives no loss", {
+  r <- pk("46,XX,der(8)t(9;22)(q34;q11)")
+  expect_equal(r$unbalanced_translocation, 1L)
+  expect_equal(r$unbal_partial_loss, 0L)
+})
+
+test_that("partial loss: multi-junction der is unbalanced but derives no loss", {
+  r <- pk("46,XX,der(22)t(9;22)(q34;q11)t(11;22)(q23;q11)")
+  expect_equal(r$unbalanced_translocation, 1L)
+  expect_equal(r$unbal_partial_loss, 0L)
+})
+
+test_that("partial loss: missing breakpoints yield no derived loss", {
+  r <- pk("46,XX,der(5)t(5;17)")
+  expect_equal(r$unbalanced_translocation, 1L)
+  expect_equal(r$unbal_partial_loss, 0L)
+})
+
+test_that("differential: general bare t() is balanced, der()t() is not general tx", {
+  bare <- pk("46,XX,t(2;14)(q11;q11)")
+  expect_equal(bare$general_translocation, 1L)
+  expect_equal(bare$balanced_translocation, 1L)
+  der <- pk("46,XX,der(2)t(2;14)(q11;q11)")
+  expect_equal(der$general_translocation, 0L)
+  expect_equal(der$unbalanced_translocation, 1L)
+  expect_equal(der$derivative_chromosome, 1L)
+})
+
 test_that("1 autosomal mono alone -> not monosomal", {
   r <- pk("45,XY,-7")
   expect_equal(r$monosomal_karyotype, 0L)
@@ -345,7 +462,10 @@ test_that("single karyotype input works", {
 
 test_that("version attribute is set", {
   r <- pk("46,XX")
-  expect_equal(attr(r, "karyoparser_version"), "0.10.0")
+  expect_equal(
+    attr(r, "karyoparser_version"),
+    as.character(utils::packageVersion("karyoparser"))
+  )
 })
 
 test_that("parse_karyo() always returns a tibble", {
