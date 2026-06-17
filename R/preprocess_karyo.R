@@ -267,7 +267,10 @@ preprocess_karyo <- function(
       "\\]\\s*\\.",
       "\\]\\s+[A-Z][a-z]",
       "\\s+\\.\\s*[A-Z]",
-      "\\)\\s+[A-Z][a-z]"
+      "\\)\\s+[A-Z][a-z]",
+      # Narrative right after a count+sex normal karyotype with no bracket/paren,
+      # e.g. "46,XY Normal male karyotype".
+      paste0("^\\d+(?:~\\d+)?,(?:", .sex_alt, ")\\s+[A-Z][a-z]")
     ),
     use_trimmed = FALSE,
     fix = list(
@@ -293,9 +296,25 @@ preprocess_karyo <- function(
       list(
         pattern = "\\s+\\.\\s*[A-Z].*$",
         replacement = ""
+      ),
+      # Rule 5: strip narrative after a count+sex normal karyotype that has no
+      # metaphase bracket or parenthesis to anchor on (e.g.
+      # "46,XY Normal male karyotype"). Anchored to '<count>,<sex>' so it cannot
+      # touch strings where a comma (not a space) follows the sex complement,
+      # such as "46,XX,add(9)... Updated ISCN ...". The negative lookahead keeps
+      # it from eating an "Updated ISCN" marker that sits directly after the sex
+      # complement (e.g. "46,XX Updated ISCN ...") -- that row must stay
+      # unfixable, not be silently reduced to a clean "46,XX".
+      list(
+        pattern = paste0(
+          "^(?!.*(?i:Updated ISCN))(\\d+(?:~\\d+)?,(?:",
+          .sex_alt,
+          "))\\s+[A-Z][a-z].*$"
+        ),
+        replacement = "\\1"
       )
     ),
-    detail = "Trailing narrative text after last metaphase-count bracket or closing parenthesis"
+    detail = "Trailing narrative text after last metaphase-count bracket, closing parenthesis, or count+sex normal karyotype"
   ),
   midstring_linewrap = list(
     detect = ",\\s+\\.[a-z(+]",

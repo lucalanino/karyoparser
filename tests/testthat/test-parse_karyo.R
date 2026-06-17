@@ -1057,6 +1057,35 @@ test_that("preprocess_karyo: strips narrative after bracket when no dot present"
   )
 })
 
+test_that("trailing_narrative: stripped after count+sex with no bracket or paren", {
+  for (k in c(
+    "46,XY Normal male karyotype",
+    "46,XX  Normal female karyotype",
+    "45~46,XY Some narrative"
+  )) {
+    chk <- suppressMessages(check_karyo(k))
+    expect_equal(chk$trailing_narrative, 1L, info = k)
+    expect_equal(chk$no_sex_complement, 0L, info = k)
+    expect_equal(chk$fixable, 1L, info = k)
+  }
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XY Normal male karyotype"
+    ))$preprocessed,
+    "46,XY"
+  )
+  # A bare count+sex with no narrative stays clean (rule does not over-fire).
+  expect_equal(suppressMessages(check_karyo("46,XY"))$fixable, 0L)
+})
+
+test_that("trailing_narrative rule 5 does not strip the Updated ISCN marker", {
+  chk <- suppressMessages(check_karyo(
+    "46,XX,add(9)[3]/46,XY[12] Updated ISCN 45,XY[15]"
+  ))
+  expect_equal(chk$updated_iscn, 1L)
+  expect_equal(chk$unfixable, 1L)
+})
+
 test_that("normalize_iscn: collapses space before opening bracket", {
   result <- suppressMessages(pk("46,XX [20]"))
   expect_equal(result$normal_karyotype, 1L)
