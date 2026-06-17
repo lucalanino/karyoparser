@@ -192,6 +192,28 @@ test_that("preprocess_karyo: strips nuc ish suffix after bracket", {
   )
 })
 
+test_that("preprocess_karyo: nuc ish block with bracketed FISH counts and interleaved narrative resolves to clean karyotype", {
+  k <- paste0(
+    "46,XX[20]\nFemale karyotype with no evidence of clonal abnormality\n",
+    "nuc ish(IGHx2)[198/200], nuc ish(SNRPN,TP53)x2[199/200]\n",
+    "nuc ish(DLEU1,D13S1825)x2[199/200], nuc ish(CDKN2C,CKS1B)x2[200]\n",
+    "Normal FISH results for the 14q32 (IGH), 15q, 17p (TP53), 13q loci."
+  )
+  expect_equal(
+    suppressMessages(preprocess_karyo(k))$preprocessed,
+    "46,XX[20]"
+  )
+})
+
+test_that("preprocess_karyo: nuc ish with bare [N] count strips the count (FISH cell count, not metaphase)", {
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46,XX[20] nuc ish(MYCx2)[200]"
+    ))$preprocessed,
+    "46,XX[20]"
+  )
+})
+
 test_that("preprocess_karyo: strips .ish suffix after bracket", {
   expect_equal(
     suppressMessages(preprocess_karyo(

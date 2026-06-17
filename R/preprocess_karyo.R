@@ -255,8 +255,19 @@ preprocess_karyo <- function(
     detect = "[. ]+(?:nuc )?ish\\b",
     use_trimmed = FALSE,
     fix = list(
+      # 'nuc ish' is interphase/nuclear FISH: its [N] and [N/M] brackets are
+      # FISH cell counts, never the karyotype metaphase count. Strip the whole
+      # clause -- including any trailing count bracket -- to end of string (or
+      # to a '//' chimeric clone boundary, which a single-'/' FISH count like
+      # '[20/200]' cannot trigger).
       list(
-        pattern = "[. ]+(?:nuc )?ish\\b.*?(?=\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]|$)",
+        pattern = "[. ]+nuc ish\\b.*?(?=//|$)",
+        replacement = ""
+      ),
+      # Bare '.ish'/'ish' is metaphase FISH and may sit mid-clone, so it must
+      # stop before the karyotype's own metaphase count bracket and preserve it.
+      list(
+        pattern = "[. ]+ish\\b.*?(?=\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]|$)",
         replacement = ""
       )
     ),
