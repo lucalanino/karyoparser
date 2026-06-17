@@ -132,3 +132,21 @@ test_that("check_karyo: no_sex_complement detected when sex chromosome token abs
   expect_equal(result$no_sex_complement, 1L)
   expect_equal(result$unfixable, 1L)
 })
+
+test_that("constitutional sex complement is flagged unfixable, not no_sex_complement", {
+  for (k in c(
+    "47,XXYc[20]",
+    "47,XXXc[20]",
+    "47,XXYc?[20]",
+    "47,XXYc[14]/46,XX,-Y[6]"
+  )) {
+    result <- suppressMessages(check_karyo(k))
+    expect_equal(result$constitutional_sex_complement, 1L, info = k)
+    expect_equal(result$no_sex_complement, 0L, info = k)
+    expect_equal(result$unfixable, 1L, info = k)
+  }
+  # A plain (non-constitutional) complement is unaffected.
+  ok <- suppressMessages(check_karyo("47,XXY[20]"))
+  expect_equal(ok$constitutional_sex_complement, 0L)
+  expect_equal(ok$unfixable, 0L)
+})

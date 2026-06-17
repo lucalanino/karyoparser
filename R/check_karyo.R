@@ -17,7 +17,12 @@
 #' Unfixable issues (always returned as NA by `parse_karyo()`):
 #' `multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
 #' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
-#' `no_sex_complement`, `invalid_idem`, `unparseable_bracket`.
+#' `no_sex_complement`, `constitutional_sex_complement`, `invalid_idem`,
+#' `unparseable_bracket`.
+#'
+#' Constitutional abnormalities are out of scope: a sex complement carrying a
+#' constitutional `c` suffix (e.g. `47,XXYc`) is flagged
+#' `constitutional_sex_complement` and left unfixable rather than parsed.
 #'
 #' @param karyotypes Character vector of karyotype strings, or a data frame
 #'   containing a karyotype column. If a data frame, the karyotype column is
@@ -354,6 +359,12 @@ validate_karyotypes <- function(karyotypes) {
     )
   }
 
+  # Sex complement carrying a constitutional 'c' suffix (optionally with a '?'
+  # uncertainty marker), e.g. '47,XXYc' or '47,XXXc?'. Constitutional
+  # abnormalities are out of scope, so these are flagged unfixable rather than
+  # mislabelled as no_sex_complement.
+  const_sex_re <- paste0("^(?:", .sex_alt, ")c\\??$")
+
   for (i in seq_along(karyotypes)) {
     k <- karyotypes[i]
 
@@ -432,7 +443,15 @@ validate_karyotypes <- function(karyotypes) {
     )
     tokens <- stringr::str_split(first_clone_clean, ",")[[1]]
     has_sex <- any(tokens %in% .sex_complements)
-    if (!has_sex && length(tokens) > 1) {
+    has_const_sex <- any(stringr::str_detect(tokens, const_sex_re))
+    if (has_const_sex) {
+      add_issue(
+        i,
+        k,
+        "constitutional_sex_complement",
+        "Constitutional sex complement (e.g. '47,XXYc'); constitutional abnormalities are out of scope"
+      )
+    } else if (!has_sex && length(tokens) > 1) {
       add_issue(
         i,
         k,

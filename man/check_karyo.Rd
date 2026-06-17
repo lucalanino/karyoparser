@@ -61,5 +61,10 @@ dirty markers (\code{unicode_notation}, \code{embedded_newline}, \code{html_enti
 Unfixable issues (always returned as NA by \code{parse_karyo()}):
 \code{multiple_chimeric_separator}, \code{empty}, \code{no_chromosome_count},
 \code{updated_iscn}, \code{unbalanced_parentheses}, \code{unbalanced_brackets},
-\code{no_sex_complement}, \code{invalid_idem}, \code{unparseable_bracket}.
+\code{no_sex_complement}, \code{constitutional_sex_complement}, \code{invalid_idem},
+\code{unparseable_bracket}.
+
+Constitutional abnormalities are out of scope: a sex complement carrying a
+constitutional \code{c} suffix (e.g. \verb{47,XXYc}) is flagged
+\code{constitutional_sex_complement} and left unfixable rather than parsed.
 }

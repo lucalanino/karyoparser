@@ -358,6 +358,7 @@ preprocess_karyo <- function(
   "unbalanced_parentheses",
   "unbalanced_brackets",
   "no_sex_complement",
+  "constitutional_sex_complement",
   "invalid_idem",
   "unparseable_bracket"
 )
