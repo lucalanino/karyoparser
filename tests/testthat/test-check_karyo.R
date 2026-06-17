@@ -133,6 +133,30 @@ test_that("check_karyo: no_sex_complement detected when sex chromosome token abs
   expect_equal(result$unfixable, 1L)
 })
 
+test_that("no_sex_complement: clone with only sex-chromosome aberrations is accepted", {
+  for (k in c(
+    "51,add(X)(q26),-Y,+5,+7[10]",
+    "44,-X,t(X;14)(q28;q11.2),-2,+mar[10]",
+    "45,-Xx2,t(7;15)(p13;q11.2),-9[10]",
+    "41~43,del(X)(q24),der(X)t(X;11)(q22;q13),-12[10]"
+  )) {
+    chk <- suppressMessages(check_karyo(k))
+    expect_equal(chk$no_sex_complement, 0L, info = k)
+    expect_equal(chk$unfixable, 0L, info = k)
+  }
+})
+
+test_that("no_sex_complement: bare count+aberration with no sex reference still fires", {
+  # '+8' / '(ncSCA)' carry no sex-chromosome operator, so the gate must hold.
+  expect_equal(suppressMessages(check_karyo("46,+8"))$no_sex_complement, 1L)
+  expect_equal(
+    suppressMessages(check_karyo(
+      "46,XX(ncSCA)[1]//46,XY[19]"
+    ))$no_sex_complement,
+    1L
+  )
+})
+
 test_that("constitutional sex complement is flagged unfixable, not no_sex_complement", {
   for (k in c(
     "47,XXYc[20]",

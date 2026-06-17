@@ -365,6 +365,14 @@ validate_karyotypes <- function(karyotypes) {
   # mislabelled as no_sex_complement.
   const_sex_re <- paste0("^(?:", .sex_alt, ")c\\??$")
 
+  # A clone may carry no plain sex complement when its sex chromosomes are
+  # themselves aberrant (e.g. '51,add(X)(q26),-Y,...' or '44,-X,t(X;14)...').
+  # Such a token still accounts for sex, so it must not trip no_sex_complement.
+  # Match a numerical sex gain/loss ('-Y', '+X', '-Xx2') or X/Y appearing as a
+  # chromosome inside an aberration's parenthesised list ('(X)', '(X;', ';Y)').
+  # The operator/paren context keeps this from matching a bare 'XX(ncSCA)'.
+  sex_aberr_re <- "(?:^[+-](?:X|Y)(?:x\\d+)?$)|[(;](?:X|Y)[);]"
+
   for (i in seq_along(karyotypes)) {
     k <- karyotypes[i]
 
@@ -444,6 +452,7 @@ validate_karyotypes <- function(karyotypes) {
     tokens <- stringr::str_split(first_clone_clean, ",")[[1]]
     has_sex <- any(tokens %in% .sex_complements)
     has_const_sex <- any(stringr::str_detect(tokens, const_sex_re))
+    has_sex_aberr <- any(stringr::str_detect(tokens, sex_aberr_re))
     if (has_const_sex) {
       add_issue(
         i,
@@ -451,7 +460,7 @@ validate_karyotypes <- function(karyotypes) {
         "constitutional_sex_complement",
         "Constitutional sex complement (e.g. '47,XXYc'); constitutional abnormalities are out of scope"
       )
-    } else if (!has_sex && length(tokens) > 1) {
+    } else if (!has_sex && !has_sex_aberr && length(tokens) > 1) {
       add_issue(
         i,
         k,
