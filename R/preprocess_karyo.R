@@ -413,6 +413,8 @@ preprocess_karyo <- function(
   "unbalanced_brackets",
   "no_sex_complement",
   "constitutional_sex_complement",
+  "mosaic_karyotype",
+  "non_clonal_sca",
   "invalid_idem",
   "unparseable_bracket"
 )

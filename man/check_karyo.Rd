@@ -61,10 +61,14 @@ dirty markers (\code{unicode_notation}, \code{embedded_newline}, \code{html_enti
 Unfixable issues (always returned as NA by \code{parse_karyo()}):
 \code{multiple_chimeric_separator}, \code{empty}, \code{no_chromosome_count},
 \code{updated_iscn}, \code{unbalanced_parentheses}, \code{unbalanced_brackets},
-\code{no_sex_complement}, \code{constitutional_sex_complement}, \code{invalid_idem},
-\code{unparseable_bracket}.
+\code{no_sex_complement}, \code{constitutional_sex_complement}, \code{mosaic_karyotype},
+\code{non_clonal_sca}, \code{invalid_idem}, \code{unparseable_bracket}.
 
-Constitutional abnormalities are out of scope: a sex complement carrying a
-constitutional \code{c} suffix (e.g. \verb{47,XXYc}) is flagged
-\code{constitutional_sex_complement} and left unfixable rather than parsed.
+Some constructs are deliberately out of scope and flagged unfixable rather
+than parsed: constitutional abnormalities (a sex complement with a \code{c}
+suffix, e.g. \verb{47,XXYc}, flagged \code{constitutional_sex_complement}), mosaic
+karyotypes (a leading \code{mos} prefix, flagged \code{mosaic_karyotype}), and
+non-clonal single-cell abnormalities (an \code{ncSCA} token, flagged
+\code{non_clonal_sca}). These take precedence over \code{no_chromosome_count} and
+\code{no_sex_complement} so a present count or complement is not mislabelled.
 }

@@ -17,12 +17,16 @@
 #' Unfixable issues (always returned as NA by `parse_karyo()`):
 #' `multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
 #' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
-#' `no_sex_complement`, `constitutional_sex_complement`, `invalid_idem`,
-#' `unparseable_bracket`.
+#' `no_sex_complement`, `constitutional_sex_complement`, `mosaic_karyotype`,
+#' `non_clonal_sca`, `invalid_idem`, `unparseable_bracket`.
 #'
-#' Constitutional abnormalities are out of scope: a sex complement carrying a
-#' constitutional `c` suffix (e.g. `47,XXYc`) is flagged
-#' `constitutional_sex_complement` and left unfixable rather than parsed.
+#' Some constructs are deliberately out of scope and flagged unfixable rather
+#' than parsed: constitutional abnormalities (a sex complement with a `c`
+#' suffix, e.g. `47,XXYc`, flagged `constitutional_sex_complement`), mosaic
+#' karyotypes (a leading `mos` prefix, flagged `mosaic_karyotype`), and
+#' non-clonal single-cell abnormalities (an `ncSCA` token, flagged
+#' `non_clonal_sca`). These take precedence over `no_chromosome_count` and
+#' `no_sex_complement` so a present count or complement is not mislabelled.
 #'
 #' @param karyotypes Character vector of karyotype strings, or a data frame
 #'   containing a karyotype column. If a data frame, the karyotype column is
@@ -378,6 +382,31 @@ validate_karyotypes <- function(karyotypes) {
 
     if (is.na(k) || k == "") {
       add_issue(i, if (is.na(k)) "NA" else "", "empty", "NA or empty string")
+      next
+    }
+
+    # Mosaicism ('mos' prefix) and non-clonal single-cell abnormalities
+    # ('ncSCA') are out of scope. Flag them specifically -- and before the
+    # chromosome-count / sex-complement checks -- so a present count is not
+    # mislabelled no_chromosome_count just because of a leading 'mos', and an
+    # ncSCA token is not mislabelled no_sex_complement.
+    if (stringr::str_detect(k, "(?i)^mos\\b")) {
+      add_issue(
+        i,
+        k,
+        "mosaic_karyotype",
+        "Mosaic 'mos' prefix; mosaic karyotypes are out of scope"
+      )
+      next
+    }
+
+    if (stringr::str_detect(k, "(?i)ncSCA")) {
+      add_issue(
+        i,
+        k,
+        "non_clonal_sca",
+        "Non-clonal single-cell abnormalities (ncSCA) are out of scope"
+      )
       next
     }
 

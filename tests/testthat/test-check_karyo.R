@@ -146,15 +146,38 @@ test_that("no_sex_complement: clone with only sex-chromosome aberrations is acce
   }
 })
 
+test_that("mosaic_karyotype flagged for 'mos' prefix, not no_chromosome_count", {
+  result <- suppressMessages(check_karyo("mos 47,XXY[10]/46,XY[5]"))
+  expect_equal(result$mosaic_karyotype, 1L)
+  expect_equal(result$no_chromosome_count, 0L)
+  expect_equal(result$unfixable, 1L)
+})
+
+test_that("non_clonal_sca flagged for ncSCA token (leading or mid-clone)", {
+  lead <- suppressMessages(check_karyo("ncSCA[4]/46,XY[11]"))
+  expect_equal(lead$non_clonal_sca, 1L)
+  expect_equal(lead$no_chromosome_count, 0L)
+  expect_equal(lead$unfixable, 1L)
+
+  mid <- suppressMessages(check_karyo("46,XX(ncSCA)[1]//46,XY[19]"))
+  expect_equal(mid$non_clonal_sca, 1L)
+  expect_equal(mid$no_sex_complement, 0L)
+  expect_equal(mid$unfixable, 1L)
+})
+
+test_that("no_chromosome_count still fires for genuine non-count strings", {
+  for (k in c("XX,+8", "Abnormal clones detected", "FALSE")) {
+    r <- suppressMessages(check_karyo(k))
+    expect_equal(r$no_chromosome_count, 1L, info = k)
+    expect_equal(r$mosaic_karyotype, 0L, info = k)
+    expect_equal(r$non_clonal_sca, 0L, info = k)
+  }
+})
+
 test_that("no_sex_complement: bare count+aberration with no sex reference still fires", {
-  # '+8' / '(ncSCA)' carry no sex-chromosome operator, so the gate must hold.
+  # '+8' carries no sex-chromosome operator, so the gate must hold.
   expect_equal(suppressMessages(check_karyo("46,+8"))$no_sex_complement, 1L)
-  expect_equal(
-    suppressMessages(check_karyo(
-      "46,XX(ncSCA)[1]//46,XY[19]"
-    ))$no_sex_complement,
-    1L
-  )
+  expect_equal(suppressMessages(check_karyo("46,+8"))$unfixable, 1L)
 })
 
 test_that("constitutional sex complement is flagged unfixable, not no_sex_complement", {
