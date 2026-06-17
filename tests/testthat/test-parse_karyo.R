@@ -607,6 +607,7 @@ test_that(".dirty_patterns contains all expected keys", {
       "embedded_newline",
       "html_entities",
       "leading_dot",
+      "count_sex_separator",
       "fish_notation",
       "trailing_narrative",
       "midstring_linewrap",
@@ -682,6 +683,42 @@ test_that("missing_sex_comma: detected and fixed for XXYY and XXXY", {
     ))$preprocessed,
     "48,XXXY,der(5;17)(q10;q10)[10]"
   )
+})
+
+test_that("count_sex_separator: missing comma between count and sex is repaired", {
+  result <- suppressMessages(check_karyo(
+    "46XY,der(7)t(7;11)(q11.2;q13)[2]/46,XY[9]"
+  ))
+  expect_equal(result$count_sex_separator, 1L)
+  expect_equal(result$fixable, 1L)
+  expect_equal(
+    suppressMessages(preprocess_karyo(
+      "46XY,der(7)t(7;11)(q11.2;q13)[2]/46,XY[9]"
+    ))$preprocessed,
+    "46,XY,der(7)t(7;11)(q11.2;q13)[2]/46,XY[9]"
+  )
+})
+
+test_that("count_sex_separator: dot between count and sex is replaced with comma", {
+  result <- suppressMessages(check_karyo("45.XY,-7[7]/46,XY[8]"))
+  expect_equal(result$count_sex_separator, 1L)
+  r <- parse_karyo(
+    "45.XY,-7[7]/46,XY[8]",
+    on_issues = "preprocess",
+    verbose = FALSE
+  )
+  expect_equal(r$preprocessed_karyotype, "45,XY,-7[7]/46,XY[8]")
+  expect_equal(r$mono7, 1L)
+})
+
+test_that("count_sex_separator: well-formed clones are not touched", {
+  for (k in c("46,XX", "47,XY,+21[10]", "46,XX[15]//46,XY[5]")) {
+    expect_equal(
+      suppressMessages(check_karyo(k))$count_sex_separator,
+      0L,
+      info = k
+    )
+  }
 })
 
 test_that("preprocess_karyo: anchor strips trailing content after last bracket", {

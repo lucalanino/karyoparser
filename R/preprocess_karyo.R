@@ -251,6 +251,30 @@ preprocess_karyo <- function(
     ),
     detail = "String starts with dot(s) before chromosome count"
   ),
+  # Runs after leading_dot so each clone starts at '^' or a '/' separator with a
+  # bare chromosome count. Repairs a missing or dotted separator between the
+  # count and the sex complement, e.g. '46XY,...' or '45.XY,...' -> '46,XY,...'.
+  # The (?=[,\[/]|$) boundary keeps the sex match from swallowing trailing
+  # tokens, and the comma between count and sex blocks a match on clean clones.
+  count_sex_separator = list(
+    detect = paste0(
+      "(?:^|/)\\d+(?:~\\d+)?[.]?(?:",
+      .sex_alt,
+      ")(?=[,\\[/]|$)"
+    ),
+    use_trimmed = TRUE,
+    fix = list(
+      list(
+        pattern = paste0(
+          "(^|/)(\\d+(?:~\\d+)?)[.]?(",
+          .sex_alt,
+          ")(?=[,\\[/]|$)"
+        ),
+        replacement = "\\1\\2,\\3"
+      )
+    ),
+    detail = "Missing or dotted separator between chromosome count and sex complement (e.g. '46XY' or '45.XY' should be '46,XY')"
+  ),
   fish_notation = list(
     detect = "[. ]+(?:nuc )?ish\\b",
     use_trimmed = FALSE,
