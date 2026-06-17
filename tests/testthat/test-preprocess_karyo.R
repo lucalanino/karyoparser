@@ -140,6 +140,12 @@ test_that("preprocess_karyo: strips leading dot before digit", {
   expect_equal(result$status, c("fixed", "fixed"))
 })
 
+test_that("preprocess_karyo: strips leading dot followed by whitespace before digit", {
+  result <- suppressMessages(preprocess_karyo(c(". 47,X,-Y,+1[5]", ".  46,XX")))
+  expect_equal(result$preprocessed, c("47,X,-Y,+1[5]", "46,XX"))
+  expect_equal(result$status, c("fixed", "fixed"))
+})
+
 test_that("preprocess_karyo: leaves clean strings unchanged", {
   clean <- c("46,XX", "47,XY,+21[10]", "46,XX,t(9;22)(q34;q11)[20]")
   result <- suppressMessages(preprocess_karyo(clean))

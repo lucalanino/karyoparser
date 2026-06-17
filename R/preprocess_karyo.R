@@ -244,12 +244,12 @@ preprocess_karyo <- function(
     detail = "Contains HTML entities (&lt;, &gt;, or &amp;)"
   ),
   leading_dot = list(
-    detect = "^[.]+(?=\\d)",
+    detect = "^[.\\s]*[.]\\s*(?=\\d)",
     use_trimmed = TRUE,
     fix = list(
-      list(pattern = "^[.]+(?=\\d)", replacement = "")
+      list(pattern = "^[.\\s]*[.]\\s*(?=\\d)", replacement = "")
     ),
-    detail = "String starts with dot(s) before chromosome count"
+    detail = "String starts with dot(s) (and any stray whitespace) before chromosome count"
   ),
   # Runs after leading_dot so each clone starts at '^' or a '/' separator with a
   # bare chromosome count. Repairs a missing or dotted separator between the
