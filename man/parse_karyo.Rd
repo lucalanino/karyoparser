@@ -111,16 +111,17 @@ chromosomes appear as centromere donors (e.g.
 translocation -- a lone \verb{der(a)t(a;b)} (reciprocal der absent) or a
 whole-arm \verb{der(a;b)}. The specific fusion flag still fires (e.g.
 \verb{der(9)t(9;22)} keeps \verb{t(9;22)(q34;q11) = 1}).
-\item unbal_loss_5q, unbal_loss_7q, unbal_loss_11q, unbal_loss_12p,
-unbal_loss_13q, unbal_loss_17p, unbal_loss_20q: partial-loss signals
-derived from unbalanced der translocations for these curated myeloid
-arms. Kept SEPARATE from \code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q
-loss does not set \verb{del(5q)}. Derivation needs explicit breakpoints and is
-limited to simple single-junction \verb{der(a)t(a;b)}; multi-junction chains
-and three-way \verb{t(a;b;c)} derivatives are flagged unbalanced but derive no
-loss. Copy-number-aware gains are out of scope.
+\item unbal_loss_\if{html}{\out{<arm>}}: one column per chromosome arm (\code{unbal_loss_1p},
+\code{unbal_loss_1q}, ..., \code{unbal_loss_22q}, \code{unbal_loss_Xp}, \code{unbal_loss_Xq},
+\code{unbal_loss_Yp}, \code{unbal_loss_Yq}), set to 1 when an unbalanced der
+translocation implies loss of that arm. Kept SEPARATE from
+\code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q loss does not set
+\verb{del(5q)}. Derivation needs explicit breakpoints and is limited to simple
+single-junction \verb{der(a)t(a;b)}; multi-junction chains and three-way
+\verb{t(a;b;c)} derivatives are flagged unbalanced but derive no loss.
+Copy-number-aware gains are out of scope.
 \item unbal_partial_loss: 1 if an unbalanced der translocation implies any
-partial loss (including arms outside the curated \verb{unbal_loss_*} set).
+partial loss (OR across all \verb{unbal_loss_*} columns).
 \item fixable_error: 1 if the row had at least one fixable issue (dirty marker
 or chimeric separator) and no unfixable issue, regardless of whether the
 fixable issue was auto-corrected. 0 when \code{unfixable_error = 1}.

@@ -88,16 +88,17 @@
 #'     translocation -- a lone `der(a)t(a;b)` (reciprocal der absent) or a
 #'     whole-arm `der(a;b)`. The specific fusion flag still fires (e.g.
 #'     `der(9)t(9;22)` keeps `t(9;22)(q34;q11) = 1`).
-#'   - unbal_loss_5q, unbal_loss_7q, unbal_loss_11q, unbal_loss_12p,
-#'     unbal_loss_13q, unbal_loss_17p, unbal_loss_20q: partial-loss signals
-#'     derived from unbalanced der translocations for these curated myeloid
-#'     arms. Kept SEPARATE from `del(...)`/`mono*` -- an unbalanced-derived 5q
-#'     loss does not set `del(5q)`. Derivation needs explicit breakpoints and is
-#'     limited to simple single-junction `der(a)t(a;b)`; multi-junction chains
-#'     and three-way `t(a;b;c)` derivatives are flagged unbalanced but derive no
-#'     loss. Copy-number-aware gains are out of scope.
+#'   - unbal_loss_<arm>: one column per chromosome arm (`unbal_loss_1p`,
+#'     `unbal_loss_1q`, ..., `unbal_loss_22q`, `unbal_loss_Xp`, `unbal_loss_Xq`,
+#'     `unbal_loss_Yp`, `unbal_loss_Yq`), set to 1 when an unbalanced der
+#'     translocation implies loss of that arm. Kept SEPARATE from
+#'     `del(...)`/`mono*` -- an unbalanced-derived 5q loss does not set
+#'     `del(5q)`. Derivation needs explicit breakpoints and is limited to simple
+#'     single-junction `der(a)t(a;b)`; multi-junction chains and three-way
+#'     `t(a;b;c)` derivatives are flagged unbalanced but derive no loss.
+#'     Copy-number-aware gains are out of scope.
 #'   - unbal_partial_loss: 1 if an unbalanced der translocation implies any
-#'     partial loss (including arms outside the curated `unbal_loss_*` set).
+#'     partial loss (OR across all `unbal_loss_*` columns).
 #'   - fixable_error: 1 if the row had at least one fixable issue (dirty marker
 #'     or chimeric separator) and no unfixable issue, regardless of whether the
 #'     fixable issue was auto-corrected. 0 when `unfixable_error = 1`.
@@ -1030,9 +1031,12 @@ compute_comma_counts <- function(tokens_tbl) {
     )
 }
 
-# Curated myeloid arms for which unbalanced-derived partial losses get their
-# own `unbal_loss_<arm>` column (mirrors the chromosome_specific deletion rules).
-.unbal_loss_arms <- c("5q", "7q", "11q", "12p", "13q", "17p", "20q")
+# All chromosome arms (autosomes 1-22 plus X/Y, each p and q) for which
+# unbalanced-derived partial losses get their own `unbal_loss_<arm>` column.
+.unbal_loss_arms <- paste0(
+  rep(c(as.character(1:22), "X", "Y"), each = 2),
+  c("p", "q")
+)
 
 # Extract der(a)t(a;b) tokens with a canonical translocation signature and a
 # per-(row, clone, signature) `balanced_pair` flag (TRUE when both partner
@@ -1168,9 +1172,10 @@ classify_translocation_balance <- function(
 # Derive implied partial losses from lone (unbalanced) der(a)t(a;b)(bp_a;bp_b):
 #   - chromosome a loses material distal to bp_a -> arm(bp_a)
 #   - partner b loses its centromere-side material  -> opposite arm of bp_b
-# Emitted into dedicated `unbal_loss_<arm>` columns (curated myeloid arms) plus
-# a generic `unbal_partial_loss` flag. These are kept SEPARATE from del()/mono*
-# signals -- an unbalanced-derived 5q loss is not conflated with a true del(5q).
+# Emitted into dedicated `unbal_loss_<arm>` columns (one per chromosome arm,
+# autosomes plus X/Y) plus a generic `unbal_partial_loss` flag. These are kept
+# SEPARATE from del()/mono* signals -- an unbalanced-derived 5q loss is not
+# conflated with a true del(5q).
 #
 # Scope: only SIMPLE single-junction ders are resolved -- exactly one two-partner
 # t() whose centromere donor is one of the partners. Multi-junction chains

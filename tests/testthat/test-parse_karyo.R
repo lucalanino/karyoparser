@@ -205,10 +205,19 @@ test_that("partial loss: balanced reciprocal pair implies no loss", {
   expect_equal(r$unbal_loss_17p, 0L)
 })
 
-test_that("partial loss: non-curated arms set only generic flag", {
+test_that("partial loss: all arms exposed, including non-myeloid ones", {
   r <- pk("45,XX,der(9)t(9;22)(q34;q11)")
   expect_equal(r$unbal_partial_loss, 1L)
+  expect_equal(r$unbal_loss_9q, 1L)
+  expect_equal(r$unbal_loss_22p, 1L)
   expect_equal(r$unbal_loss_5q, 0L)
+})
+
+test_that("partial loss: sex-chromosome arms are exposed", {
+  r <- pk("46,Y,der(X)t(X;5)(q21;q31)")
+  expect_equal(r$unbal_loss_Xq, 1L)
+  expect_equal(r$unbal_loss_5p, 1L)
+  expect_equal(r$unbal_partial_loss, 1L)
 })
 
 test_that("partial loss: der named after a non-partner chromosome derives no loss", {
