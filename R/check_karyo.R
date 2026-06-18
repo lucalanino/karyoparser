@@ -189,7 +189,8 @@ check_karyo <- function(
 # Run the full fix-and-classify pipeline; shared by check, preprocess, and parse.
 # Clone selection for chimeric rows is governed by `on_chimeric`:
 #   "default" -- host clone for normal chimeras, donor for zero-host chimeras
-#   "host"    -- host clone only; zero-host chimeras become NA (unfixable)
+#   "host"    -- host clone only; zero-host chimeras become NA (fixable, the
+#                NA is policy-induced rather than a data defect)
 #   "donor"   -- everything after '//' (the donor population)
 .assess_karyotypes <- function(x, on_chimeric = c("default", "host", "donor")) {
   on_chimeric <- match.arg(on_chimeric)
@@ -313,12 +314,14 @@ check_karyo <- function(
   ) |>
     dplyr::arrange(row_index)
 
+  # Zero-host chimeras under "host" policy yield no parseable clone, so their
+  # output is NA (set via `selected` above). The NA is policy-induced, not a
+  # data defect -- the same string parses fine under "default"/"donor" -- so the
+  # row stays classified as a (fixable) zero_host_chimera, not unfixable.
   unfixable_types <- setdiff(.all_issue_types, .fixable_issue_types)
-  unfixable_row_indices <- unique(c(
-    reported_issues$row_index[reported_issues$issue_type %in% unfixable_types],
-    # Donor-only chimera under "host" policy yields no parseable clone.
-    if (on_chimeric == "host") zhc_row_indices else integer(0)
-  ))
+  unfixable_row_indices <- unique(
+    reported_issues$row_index[reported_issues$issue_type %in% unfixable_types]
+  )
 
   processed <- selected
   processed[unfixable_row_indices] <- NA_character_

@@ -1043,7 +1043,7 @@ test_that("parse_karyo: zero_host_chimera has fixable_error=1, unfixable_error=0
   expect_equal(r$fixable_error, 1L)
 })
 
-test_that("parse_karyo: zero_host_chimera NA under on_chimeric='host'", {
+test_that("parse_karyo: zero_host_chimera NA but fixable under on_chimeric='host'", {
   r <- suppressMessages(
     parse_karyo(
       ".//46,XX[10]",
@@ -1053,7 +1053,9 @@ test_that("parse_karyo: zero_host_chimera NA under on_chimeric='host'", {
     )
   )
   expect_true(is.na(r$ploidy_category))
-  expect_equal(r$unfixable_error, 1L)
+  expect_equal(r$unfixable_error, 0L)
+  expect_equal(r$fixable_error, 1L)
+  expect_equal(r$chimeric_karyotype, 1L)
 })
 
 test_that("parse_karyo: zero_host_chimera with other dirty patterns is parsed", {

@@ -42,7 +42,8 @@
 #'   chimeric karyotypes (those containing a `//` separator). One of:
 #'   - `"default"`: host clone (before `//`) for normal chimeras; donor clone
 #'     (after `//`) for zero-host chimeras (`.//` prefix).
-#'   - `"host"`: host clone only; zero-host chimeras become NA (unfixable).
+#'   - `"host"`: host clone only; zero-host chimeras become NA (the NA is
+#'     policy-induced, so the row stays classified as fixable, not unfixable).
 #'   - `"donor"`: everything after `//` (the donor population).
 #'   Rows with two or more `//` separators are always unfixable. The choice is
 #'   baked into the `preprocessed` column and recorded so `parse_karyo()` can

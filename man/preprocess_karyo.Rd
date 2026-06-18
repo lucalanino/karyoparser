@@ -35,7 +35,8 @@ chimeric karyotypes (those containing a \verb{//} separator). One of:
 \itemize{
 \item \code{"default"}: host clone (before \verb{//}) for normal chimeras; donor clone
 (after \verb{//}) for zero-host chimeras (\verb{.//} prefix).
-\item \code{"host"}: host clone only; zero-host chimeras become NA (unfixable).
+\item \code{"host"}: host clone only; zero-host chimeras become NA (the NA is
+policy-induced, so the row stays classified as fixable, not unfixable).
 \item \code{"donor"}: everything after \verb{//} (the donor population).
 Rows with two or more \verb{//} separators are always unfixable. The choice is
 baked into the \code{preprocessed} column and recorded so \code{parse_karyo()} can

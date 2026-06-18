@@ -113,10 +113,10 @@ test_that("preprocess_karyo: .// and // prefix stripped to donor (fixable)", {
   expect_equal(result$status, c("fixed", "fixed"))
 })
 
-test_that("preprocess_karyo: on_chimeric='host' makes zero_host_chimera NA", {
+test_that("preprocess_karyo: on_chimeric='host' makes zero_host_chimera NA (fixable)", {
   result <- suppressMessages(preprocess_karyo(".//46,XX", on_chimeric = "host"))
   expect_equal(result$preprocessed, NA_character_)
-  expect_equal(result$status, "unfixable")
+  expect_equal(result$status, "fixed")
 })
 
 test_that("preprocess_karyo: on_chimeric='donor' keeps everything after //", {

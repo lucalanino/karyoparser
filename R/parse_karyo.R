@@ -386,7 +386,11 @@ parse_karyo <- function(
         issue_row_indices <- which(is.na(raw_vec))
       } else if (on_issues == "preprocess") {
         raw_vec <- proc
-        issue_row_indices <- unfixable_row_indices
+        # Blank unfixable rows plus any chimeric row whose selected clone is NA
+        # (e.g. a zero-host chimera under on_chimeric = "host"): output is NA,
+        # but such policy-NA rows stay classified as fixable, not unfixable.
+        chimeric_na_rows <- intersect(which(is.na(proc)), chimeric_all_indices)
+        issue_row_indices <- unique(c(unfixable_row_indices, chimeric_na_rows))
 
         n_fixed <- length(setdiff(
           fixable_row_indices,
