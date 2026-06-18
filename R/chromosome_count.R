@@ -1,23 +1,3 @@
-# Map a chromosome count to its ploidy category string.
-ploidy_from_count <- function(n) {
-  if (is.na(n)) {
-    return("unknown")
-  }
-  if (n >= 23 && n <= 29) {
-    "near_haploid"
-  } else if (n >= 30 && n <= 33) {
-    "low_hypodiploid"
-  } else if (n >= 40 && n <= 45) {
-    "high_hypodiploid"
-  } else if (n == 46) {
-    "diploid"
-  } else if (n > 50) {
-    "hyperdiploid"
-  } else {
-    "other"
-  }
-}
-
 extract_clone_data <- function(karyotype) {
   # Split into clones before removing brackets
   clones <- stringr::str_split(karyotype, "/")[[1]]
@@ -49,8 +29,9 @@ extract_clone_data <- function(karyotype) {
   })
 }
 
-# Classify ploidy for a single karyotype string using the most abnormal eligible clone.
-ploidy_category <- function(karyotype) {
+# Chromosome count for a single karyotype string, taken from the most abnormal
+# eligible clone (the one whose count is furthest from 46).
+chromosome_count_from_karyotype <- function(karyotype) {
   clone_data <- extract_clone_data(karyotype)
   chrom_counts <- vapply(clone_data, `[[`, NA_real_, "chrom_count")
   metaphases <- vapply(clone_data, `[[`, NA_real_, "metaphases")
@@ -63,22 +44,9 @@ ploidy_category <- function(karyotype) {
   }
   eligible_counts <- chrom_counts[eligible]
   if (length(eligible_counts) == 0) {
-    return(list(
-      ploidy = "unknown",
-      mixed = FALSE,
-      chromosome_count = NA_integer_
-    ))
+    return(NA_integer_)
   }
   # Most abnormal = furthest from 46
   distances <- abs(eligible_counts - 46)
-  most_abnormal <- eligible_counts[which.max(distances)]
-  ploidy <- ploidy_from_count(most_abnormal)
-  # Mixed if different ploidy categories across eligible clones
-  all_ploidies <- vapply(eligible_counts, ploidy_from_count, character(1))
-  mixed <- length(unique(all_ploidies)) > 1
-  list(
-    ploidy = ploidy,
-    mixed = mixed,
-    chromosome_count = as.integer(most_abnormal)
-  )
+  as.integer(eligible_counts[which.max(distances)])
 }

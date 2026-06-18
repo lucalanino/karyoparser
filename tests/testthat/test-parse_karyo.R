@@ -300,7 +300,7 @@ test_that("idem in clone 2 inheriting 0 aberrations from clean stemline", {
   result <- suppressMessages(check_karyo("46,XX[10]/46,idem[5]"))
   expect_equal(result$invalid_idem, 0L)
   r <- pk("46,XX[10]/46,idem[5]")
-  expect_false(is.na(r$ploidy_category))
+  expect_false(is.na(r$chromosome_count))
   expect_equal(r$comma_count_aberrations, 0L)
   expect_equal(r$complex_karyotype, 0L)
 })
@@ -309,8 +309,8 @@ test_that("on_issues='warn': issue rows get NA output", {
   dirty <- c("46,XX", ".47,XY,+21")
   result <- suppressWarnings(pk(dirty))
   expect_equal(nrow(result), 2L)
-  expect_false(is.na(result$ploidy_category[1]))
-  expect_true(is.na(result$ploidy_category[2]))
+  expect_false(is.na(result$chromosome_count[1]))
+  expect_true(is.na(result$chromosome_count[2]))
 })
 
 test_that("on_issues='warn': emits warning for dirty input", {
@@ -423,7 +423,7 @@ test_that("parse_karyo: data.frame with all invalid rows and ID column preserves
   df <- data.frame(sample_id = "A", karyotype = "XX,+8")
   r <- suppressWarnings(pk(df))
   expect_equal(r$sample_id, "A")
-  expect_true(is.na(r$ploidy_category))
+  expect_true(is.na(r$chromosome_count))
   expect_equal(names(r)[1], "sample_id")
 })
 
@@ -451,7 +451,7 @@ test_that("range karyotype is not normal", {
 
 test_that("full pipeline: normal karyotype", {
   r <- pk("46,XX")
-  expect_equal(r$ploidy_category, "diploid")
+  expect_equal(r$chromosome_count, 46L)
   expect_equal(r$normal_karyotype, 1L)
   expect_equal(r$complex_karyotype, 0L)
   expect_equal(r$monosomal_karyotype, 0L)
@@ -461,7 +461,7 @@ test_that("full pipeline: normal karyotype", {
 test_that("full pipeline: APL t(15;17)", {
   r <- pk("46,XX,t(15;17)(q24;q21)")
   expect_equal(r$`t(15;17)(q24;q21)`, 1L)
-  expect_equal(r$ploidy_category, "diploid")
+  expect_equal(r$chromosome_count, 46L)
   expect_equal(r$normal_karyotype, 0L)
   expect_equal(r$complex_karyotype, 0L)
 })
@@ -486,7 +486,6 @@ test_that("full pipeline: composite karyotype with metaphases", {
 
 test_that("full pipeline: hyperdiploid karyotype", {
   r <- pk("51,XY,+8,+11,+13,+19,+21")
-  expect_equal(r$ploidy_category, "hyperdiploid")
   expect_equal(r$chromosome_count, 51L)
   expect_equal(r$tris8, 1L)
   expect_equal(r$tris21, 1L)
@@ -559,11 +558,6 @@ test_that("total_metaphases is NA when no brackets", {
   expect_true(is.na(r$total_metaphases))
 })
 
-test_that("mixed_ploidy flag in output", {
-  r <- pk("45,XX,-7[10]/51,XX,+8,+11,+13,+19,+21[8]")
-  expect_equal(r$mixed_ploidy, 1L)
-})
-
 test_that("duplicate karyotypes produce same results as unique input", {
   input <- c("46,XX,del(5)(q13)", "47,XY,+8", "46,XX,del(5)(q13)")
   r <- pk(input)
@@ -614,7 +608,7 @@ test_that("on_issues='preprocess': dirty row is cleaned and parsed (not NA)", {
   )
   expect_equal(nrow(r), 2L)
   expect_equal(r$tris21[2], 1L)
-  expect_false(is.na(r$ploidy_category[2]))
+  expect_false(is.na(r$chromosome_count[2]))
 })
 
 test_that("on_issues='preprocess': structural errors still produce NA", {
@@ -623,7 +617,7 @@ test_that("on_issues='preprocess': structural errors still produce NA", {
     on_issues = "preprocess",
     verbose = FALSE
   )
-  expect_true(is.na(r$ploidy_category[2]))
+  expect_true(is.na(r$chromosome_count[2]))
 })
 
 test_that("on_issues='preprocess': verbose message reports fixed count", {
@@ -663,7 +657,7 @@ test_that("on_issues='warn': dirty row returns NA", {
     on_issues = "warn",
     verbose = FALSE
   ))
-  expect_true(is.na(r$ploidy_category[2]))
+  expect_true(is.na(r$chromosome_count[2]))
 })
 
 test_that("on_issues='warn': clean row in same batch unaffected", {
@@ -729,7 +723,6 @@ test_that("missing_sex_comma: preprocess inserts missing comma", {
 test_that("missing_sex_comma: full pipeline via on_issues=fix parses correctly", {
   k <- ".46,XX der(15;16)(q10;q10),+16,der(16)t(1;16)(q12;q11.2)[11]/46,XX[4] .Abnormal clone"
   res <- parse_karyo(k, on_issues = "preprocess", verbose = FALSE)
-  expect_equal(res$ploidy_category, "diploid")
   expect_equal(res$normal_karyotype, 0L)
   expect_equal(res$chromosome_count, 46L)
 })
@@ -920,7 +913,7 @@ test_that("check_karyo updated_iscn is case-insensitive", {
 
 test_that("updated_iscn rows become NA in parse_karyo", {
   r <- suppressWarnings(pk("46,XX Updated ISCN new"))
-  expect_true(is.na(r$ploidy_category))
+  expect_true(is.na(r$chromosome_count))
 })
 
 test_that("updated_iscn rows stay NA even with on_issues='preprocess'", {
@@ -929,14 +922,14 @@ test_that("updated_iscn rows stay NA even with on_issues='preprocess'", {
     on_issues = "preprocess",
     verbose = FALSE
   )
-  expect_true(is.na(r$ploidy_category))
+  expect_true(is.na(r$chromosome_count))
 })
 
 test_that("on_issues='warn': chimeric row is still clone-selected and parsed", {
   r <- suppressMessages(suppressWarnings(
     parse_karyo("46,XX[15]//46,XY[5]", on_issues = "warn", verbose = FALSE)
   ))
-  expect_false(is.na(r$ploidy_category))
+  expect_false(is.na(r$chromosome_count))
   expect_equal(r$chimeric_clone, "host")
 })
 
@@ -954,7 +947,7 @@ test_that("on_issues='preprocess': chimeric row truncated and parsed", {
     on_issues = "preprocess",
     verbose = FALSE
   )))
-  expect_false(is.na(r$ploidy_category))
+  expect_false(is.na(r$chromosome_count))
   expect_equal(r$`t(9;22)(q34;q11)`, 1L)
 })
 
@@ -965,7 +958,7 @@ test_that("on_issues='preprocess': clean row in same batch unaffected by chimeri
     verbose = FALSE
   )))
   expect_equal(r$normal_karyotype[1], 1L)
-  expect_false(is.na(r$ploidy_category[2]))
+  expect_false(is.na(r$chromosome_count[2]))
 })
 
 test_that("on_issues='preprocess': verbose message reports fixed count for chimeric row", {
@@ -985,14 +978,14 @@ test_that("on_issues='preprocess': chimeric row with residual structural issue a
     on_issues = "preprocess",
     verbose = FALSE
   ))
-  expect_true(is.na(r$ploidy_category))
+  expect_true(is.na(r$chromosome_count))
 })
 
 test_that("on_issues='stop': clean chimeric row does not error, is parsed", {
   r <- suppressMessages(
     parse_karyo("46,XX[15]//46,XY[5]", on_issues = "stop", verbose = FALSE)
   )
-  expect_false(is.na(r$ploidy_category))
+  expect_false(is.na(r$chromosome_count))
   expect_equal(r$chimeric_clone, "host")
 })
 
@@ -1033,7 +1026,7 @@ test_that("check_karyo: normal karyotype does not trigger zero_host_chimera", {
 
 test_that("parse_karyo: zero_host_chimera parsed to donor under default", {
   r <- suppressMessages(suppressWarnings(pk(".//46,XX[10]")))
-  expect_false(is.na(r$ploidy_category))
+  expect_false(is.na(r$chromosome_count))
   expect_equal(r$chimeric_clone, "donor")
 })
 
@@ -1052,7 +1045,7 @@ test_that("parse_karyo: zero_host_chimera NA but fixable under on_chimeric='host
       verbose = FALSE
     )
   )
-  expect_true(is.na(r$ploidy_category))
+  expect_true(is.na(r$chromosome_count))
   expect_equal(r$unfixable_error, 0L)
   expect_equal(r$fixable_error, 1L)
   expect_equal(r$chimeric_karyotype, 1L)
@@ -1064,7 +1057,7 @@ test_that("parse_karyo: zero_host_chimera with other dirty patterns is parsed", 
     on_issues = "preprocess",
     verbose = FALSE
   ))
-  expect_false(is.na(r$ploidy_category))
+  expect_false(is.na(r$chromosome_count))
   expect_equal(r$chimeric_clone, "donor")
 })
 
@@ -1102,7 +1095,7 @@ test_that("check_karyo: verbose=TRUE adds per-type breakdown", {
 test_that("parse_karyo: clean row in same batch unaffected by zero_host_chimera row", {
   r <- suppressMessages(suppressWarnings(pk(c("46,XX[20]", ".//46,XY[10]"))))
   expect_equal(r$normal_karyotype[1], 1L)
-  expect_false(is.na(r$ploidy_category[2]))
+  expect_false(is.na(r$chromosome_count[2]))
   expect_equal(r$chimeric_clone, c(NA_character_, "donor"))
 })
 
@@ -1262,7 +1255,7 @@ test_that("parse_karyo: multiple_chimeric_separator has unfixable_error=1, chime
   result <- suppressMessages(
     parse_karyo("46,XX//47//48", on_issues = "preprocess", verbose = FALSE)
   )
-  expect_true(is.na(result$ploidy_category))
+  expect_true(is.na(result$chromosome_count))
   expect_equal(result$unfixable_error, 1L)
   expect_equal(result$chimeric_karyotype, 1L)
   expect_true(is.na(result$chimeric_clone))
@@ -1364,8 +1357,8 @@ test_that("fixable_error consistent: same fixable row gives fixable_error=1 in b
   ))
   expect_equal(r_fix$fixable_error, 1L)
   expect_equal(r_warn$fixable_error, 1L)
-  expect_false(is.na(r_fix$ploidy_category))
-  expect_true(is.na(r_warn$ploidy_category))
+  expect_false(is.na(r_fix$chromosome_count))
+  expect_true(is.na(r_warn$chromosome_count))
 })
 
 test_that("parse_karyo on_issues='warn': missing_sex_comma does not false-positive no_sex_complement", {
@@ -1397,9 +1390,9 @@ test_that("preprocess -> parse workflow: zero_host_chimera parsed to donor", {
   parsed <- suppressMessages(
     parse_karyo(proc, on_issues = "warn")
   )
-  expect_false(is.na(parsed$ploidy_category[1]))
-  expect_false(is.na(parsed$ploidy_category[2]))
-  expect_false(is.na(parsed$ploidy_category[3]))
+  expect_false(is.na(parsed$chromosome_count[1]))
+  expect_false(is.na(parsed$chromosome_count[2]))
+  expect_false(is.na(parsed$chromosome_count[3]))
   expect_equal(parsed$chimeric_clone[2], "donor")
   expect_equal(parsed$fixable_error[2], 1L)
 })
@@ -1412,10 +1405,10 @@ test_that("preprocess -> parse workflow: fixable rows are parsed, unfixable are 
   parsed <- suppressMessages(
     parse_karyo(proc, on_issues = "warn")
   )
-  expect_false(is.na(parsed$ploidy_category[1]))
-  expect_true(is.na(parsed$ploidy_category[2]))
+  expect_false(is.na(parsed$chromosome_count[1]))
+  expect_true(is.na(parsed$chromosome_count[2]))
   expect_equal(parsed$unfixable_error[2], 1L)
-  expect_false(is.na(parsed$ploidy_category[3]))
+  expect_false(is.na(parsed$chromosome_count[3]))
 })
 
 test_that("check_karyo: accepts data frame, auto-detects karyotype column", {
@@ -1502,10 +1495,10 @@ test_that("full pipeline check -> preprocess -> parse: no extra args needed", {
   result <- suppressWarnings(suppressMessages(parse_karyo(pp)))
   expect_true("sample_id" %in% names(result))
   expect_equal(result$sample_id, c("S1", "S2", "S3"))
-  expect_false(is.na(result$ploidy_category[1]))
-  expect_false(is.na(result$ploidy_category[2]))
+  expect_false(is.na(result$chromosome_count[1]))
+  expect_false(is.na(result$chromosome_count[2]))
   expect_equal(result$fixable_error[2], 1L)
-  expect_false(is.na(result$ploidy_category[3]))
+  expect_false(is.na(result$chromosome_count[3]))
   expect_equal(result$chimeric_clone[3], "donor")
   expect_equal(result$fixable_error[3], 1L)
 })
@@ -1516,8 +1509,8 @@ test_that("karyo_preprocessed with unfixable rows: default on_issues='stop' warn
     result <- parse_karyo(pp),
     regexp = "unfixable"
   )
-  expect_false(is.na(result$ploidy_category[1]))
-  expect_true(is.na(result$ploidy_category[2]))
+  expect_false(is.na(result$chromosome_count[1]))
+  expect_true(is.na(result$chromosome_count[2]))
   expect_equal(result$unfixable_error[2], 1L)
 })
 
@@ -1582,8 +1575,8 @@ test_that("parse_karyo: karyo_preprocessed accepted without karyotype_column", {
   pp <- suppressMessages(preprocess_karyo(c("46,XX", "47,XY,+21")))
   result <- suppressMessages(parse_karyo(pp))
   expect_equal(nrow(result), 2L)
-  expect_false(is.na(result$ploidy_category[1]))
-  expect_false(is.na(result$ploidy_category[2]))
+  expect_false(is.na(result$chromosome_count[1]))
+  expect_false(is.na(result$chromosome_count[2]))
 })
 
 test_that("parse_karyo: karyo_preprocessed propagates id without re-specification", {

@@ -123,7 +123,7 @@ test_that("XXYY and XXXY are valid sex complements (no no_sex_complement fired)"
 
 test_that("parse_karyo handles 48,XXYY karyotype", {
   r <- pk("48,XXYY,+1[10]")
-  expect_false(is.na(r$ploidy_category))
+  expect_false(is.na(r$chromosome_count))
   expect_equal(r$tris1, 1L)
 })
 

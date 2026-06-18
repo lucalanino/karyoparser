@@ -37,17 +37,17 @@ result <- parse_karyo(
   verbose = FALSE
 )
 
-result[, c("original_karyotype", "ploidy_category", "tris21", "t(9;22)(q34;q11)", "normal_karyotype")]
+result[, c("original_karyotype", "chromosome_count", "tris21", "t(9;22)(q34;q11)", "normal_karyotype")]
 #> # A tibble: 3 × 5
-#>   original_karyotype  ploidy_category tris21 `t(9;22)(q34;q11)` normal_karyotype
-#>   <chr>               <chr>            <int>              <int>            <int>
-#> 1 46,XX               diploid              0                  0                1
-#> 2 47,XY,+21[10]/46,X… other                1                  0                0
-#> 3 46,XX,t(9;22)(q34;… diploid              0                  1                0
+#>   original_karyotype chromosome_count tris21 `t(9;22)(q34;q11)` normal_karyotype
+#>   <chr>                         <int>  <int>              <int>            <int>
+#> 1 46,XX                            46      0                  0                1
+#> 2 47,XY,+21[10]/46,…               47      1                  0                0
+#> 3 46,XX,t(9;22)(q34…               46      0                  1                0
 ```
 
 One function call, one tibble. Each row is an input karyotype; each
-column is a binary flag (0/1), a ploidy category, or a count.
+column is a binary flag (0/1) or a count.
 
 ## Main Functions
 
@@ -72,13 +72,13 @@ df <- data.frame(
 )
 
 result <- parse_karyo(df, verbose = FALSE)
-result[, c("sample_id", "original_karyotype", "ploidy_category", "tris21")]
+result[, c("sample_id", "original_karyotype", "chromosome_count", "tris21")]
 #> # A tibble: 3 × 4
-#>   sample_id original_karyotype         ploidy_category tris21
-#>   <chr>     <chr>                      <chr>            <int>
-#> 1 S1        46,XX                      diploid              0
-#> 2 S2        47,XY,+21[10]/46,XY[5]     other                1
-#> 3 S3        46,XX,t(9;22)(q34;q11)[20] diploid              0
+#>   sample_id original_karyotype         chromosome_count tris21
+#>   <chr>     <chr>                                 <int>  <int>
+#> 1 S1        46,XX                                    46      0
+#> 2 S2        47,XY,+21[10]/46,XY[5]                   47      1
+#> 3 S3        46,XX,t(9;22)(q34;q11)[20]               46      0
 ```
 
 ### `on_issues` parameter
@@ -141,7 +141,6 @@ provenance.
 | Group | Columns | Type | Description |
 |----|----|----|----|
 | Metadata | `original_karyotype`, `preprocessed_karyotype` | character | Raw input; cleaned/normalized string that was parsed (NA for unfixable rows) |
-| Metadata | `ploidy_category` | character | `diploid`, `hyperdiploid`, `high_hypodiploid`, `low_hypodiploid`, `near_haploid`, `other`, or `unknown` |
 | Metadata | `chromosome_count` | integer | Count from the most abnormal eligible clone |
 | Rule flags | *(one per `myeloid_rules` entry)* | integer 0/1 | Specific lesions – see [Aberration Flags](#aberration-flags) |
 | General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_derivative` | integer 0/1 | Universal structural-aberration detections |
@@ -150,7 +149,6 @@ provenance.
 | Summary | `comma_count_aberrations` | integer | Aberration count (max across clones; idem-expanded) |
 | Summary | `complex_karyotype` | integer 0/1 | 1 if \>= 3 distinct aberrations across clones |
 | Summary | `monosomal_karyotype` | integer 0/1 | 1 if \>= 2 autosomal monosomies, or \>= 1 monosomy + \>= 1 structural aberration |
-| Summary | `mixed_ploidy` | integer 0/1 | 1 if clones span different ploidy categories |
 | Translocation balance | `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Whether the row carries balanced / unbalanced translocations |
 | Derived loss | `unbal_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation |
 | Status | `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |

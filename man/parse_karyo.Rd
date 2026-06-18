@@ -90,8 +90,6 @@ karyotype string, consistent across all \code{on_issues} modes. In
 \code{"preprocess"} mode this is also dirty-fixed; in \code{"warn"}/\code{"stop"} modes
 only \code{normalize_iscn()} is applied (chimeric rows are clone-selected in
 every mode). \code{NA_character_} for issue rows.
-\item ploidy_category: Classification (diploid, hyperdiploid, etc.)
-based on most abnormal clone
 \item chromosome_count: Integer chromosome count extracted from the karyotype
 \item One column per aberration flag (0/1 binary)
 \item monoX, monoY, mono1-22: Monosomy flags for each chromosome
@@ -101,7 +99,6 @@ based on most abnormal clone
 \item comma_count_aberrations: Number of comma-separated aberrations
 \item complex_karyotype: 1 if >=3 unique aberrations, else 0
 \item monosomal_karyotype: 1 if meets monosomal criteria, else 0
-\item mixed_ploidy: 1 if clones have different ploidy categories, else 0
 \item balanced_translocation: 1 if the row carries a balanced translocation --
 a bare \code{t(...)} token, or a reciprocal der pair where both partner
 chromosomes appear as centromere donors (e.g.

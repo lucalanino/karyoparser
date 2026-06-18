@@ -67,8 +67,6 @@
 #'     `"preprocess"` mode this is also dirty-fixed; in `"warn"`/`"stop"` modes
 #'     only `normalize_iscn()` is applied (chimeric rows are clone-selected in
 #'     every mode). `NA_character_` for issue rows.
-#'   - ploidy_category: Classification (diploid, hyperdiploid, etc.)
-#'     based on most abnormal clone
 #'   - chromosome_count: Integer chromosome count extracted from the karyotype
 #'   - One column per aberration flag (0/1 binary)
 #'   - monoX, monoY, mono1-22: Monosomy flags for each chromosome
@@ -78,7 +76,6 @@
 #'   - comma_count_aberrations: Number of comma-separated aberrations
 #'   - complex_karyotype: 1 if >=3 unique aberrations, else 0
 #'   - monosomal_karyotype: 1 if meets monosomal criteria, else 0
-#'   - mixed_ploidy: 1 if clones have different ploidy categories, else 0
 #'   - balanced_translocation: 1 if the row carries a balanced translocation --
 #'     a bare `t(...)` token, or a reciprocal der pair where both partner
 #'     chromosomes appear as centromere donors (e.g.
@@ -632,10 +629,8 @@ parse_karyo <- function(
         dplyr::select(
           .pk_row_id,
           normal_karyotype,
-          ploidy_category,
           chromosome_count,
-          total_metaphases,
-          mixed_ploidy
+          total_metaphases
         ),
       by = ".pk_row_id"
     )
@@ -650,19 +645,16 @@ parse_karyo <- function(
       dplyr::across(
         dplyr::all_of(cols_to_convert),
         ~ as.integer(tidyr::replace_na(., 0L))
-      ),
-      ploidy_category = tidyr::replace_na(ploidy_category, "unknown")
+      )
     ) |>
     dplyr::left_join(dedup_df, by = ".pk_row_id") |>
     dplyr::rename(preprocessed_karyotype = original_karyotype) |>
     dplyr::relocate(preprocessed_karyotype, .before = 1) |>
-    dplyr::relocate(ploidy_category, .after = preprocessed_karyotype) |>
-    dplyr::relocate(chromosome_count, .after = ploidy_category)
+    dplyr::relocate(chromosome_count, .after = preprocessed_karyotype)
 
   keep_cols <- intersect(
     c(
       "preprocessed_karyotype",
-      "ploidy_category",
       "chromosome_count",
       abnormality_names,
       "total_metaphases"
@@ -787,12 +779,11 @@ build_sample_meta <- function(input_df) {
         1L,
         0L
       ),
-      ploidy_result = purrr::map(original_karyotype, ploidy_category),
-      ploidy_category = purrr::map_chr(ploidy_result, "ploidy"),
-      chromosome_count = purrr::map_int(ploidy_result, "chromosome_count"),
-      mixed_ploidy = as.integer(purrr::map_lgl(ploidy_result, "mixed"))
+      chromosome_count = purrr::map_int(
+        original_karyotype,
+        chromosome_count_from_karyotype
+      )
     ) |>
-    dplyr::select(-ploidy_result) |>
     dplyr::left_join(counts_tbl, by = ".pk_row_id")
 }
 
@@ -1297,12 +1288,6 @@ compute_unique_counts <- function(tokens_tbl) {
       "Cleaned/normalized string that was parsed; NA for unfixable rows"
     ),
     row(
-      "ploidy_category",
-      "meta",
-      "character",
-      "Ploidy classification of the most abnormal clone"
-    ),
-    row(
       "chromosome_count",
       "meta",
       "integer",
@@ -1355,12 +1340,6 @@ compute_unique_counts <- function(tokens_tbl) {
       "summary",
       "integer",
       "1 if monosomal-karyotype criteria are met"
-    ),
-    row(
-      "mixed_ploidy",
-      "summary",
-      "integer",
-      "1 if clones span different ploidy categories"
     ),
     row(
       "balanced_translocation",
