@@ -144,7 +144,7 @@ provenance.
 | Metadata | `ploidy_category` | character | `diploid`, `hyperdiploid`, `high_hypodiploid`, `low_hypodiploid`, `near_haploid`, `other`, or `unknown` |
 | Metadata | `chromosome_count` | integer | Count from the most abnormal eligible clone |
 | Rule flags | *(one per `myeloid_rules` entry)* | integer 0/1 | Specific lesions – see [Aberration Flags](#aberration-flags) |
-| General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_derivative` | integer 0/1 | Universal structural-aberration detections |
+| General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_derivative` | integer 0/1 | Universal structural-aberration detections |
 | Aneuploidy | `mono1`–`mono22`, `monoX`, `monoY`; `tris1`–`tris22`, `trisX`, `trisY` | integer 0/1 | Whole-chromosome loss/gain from `-`/`+` tokens |
 | Summary | `normal_karyotype` | integer 0/1 | 1 if `46,XX` or `46,XY` exactly |
 | Summary | `comma_count_aberrations` | integer | Aberration count (max across clones; idem-expanded) |
@@ -168,9 +168,9 @@ light up several flags at once. Flags come from three sources:
   its regex matches a token (e.g. `t(9;22)(q34;q11)`, `del(5q)`).
 - **General structural flags** (`general_*`) – universal,
   disease-agnostic detections (any translocation, deletion, inversion,
-  addition, dicentric, isodicentric, isochromosome, ring, insertion,
-  duplication, triplication, marker, derivative). Always computed,
-  independent of the rule set.
+  addition, dicentric, isodicentric, pseudodicentric, isochromosome,
+  ring, insertion, duplication, triplication, marker, derivative).
+  Always computed, independent of the rule set.
 - **Aneuploidy flags** (`mono*`/`tris*`) – whole-chromosome loss/gain
   from `-`/`+` tokens.
 
