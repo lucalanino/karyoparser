@@ -38,6 +38,22 @@ test_that("idem and sl excluded from complex count", {
   expect_equal(r$complex_karyotype, 1L)
 })
 
+test_that("repeated aberrations across clones are deduped for complex", {
+  # same single aberration in 3 clones -> 1 distinct, not complex
+  r1 <- pk(
+    "46,XX,t(9;22)(q34;q11)[10]/46,XX,t(9;22)(q34;q11)[5]/46,XX,t(9;22)(q34;q11)[3]"
+  )
+  expect_equal(r1$complex_karyotype, 0L)
+  # two aberrations repeated across clones -> 2 distinct, not complex
+  r2 <- pk("46,XX,del(5q),+8[10]/46,XX,del(5q),+8[5]/46,XX,del(5q),+8[3]")
+  expect_equal(r2$complex_karyotype, 0L)
+  # three distinct aberrations spread one-per-clone -> complex
+  r3 <- pk(
+    "46,XX,del(5q)[10]/46,XX,t(9;22)(q34;q11)[5]/46,XX,inv(16)(p13q22)[3]"
+  )
+  expect_equal(r3$complex_karyotype, 1L)
+})
+
 test_that("2 autosomal monosomies -> monosomal", {
   r <- pk("44,XY,-5,-7")
   expect_equal(r$monosomal_karyotype, 1L)
