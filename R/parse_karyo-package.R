@@ -53,7 +53,6 @@ utils::globalVariables(c(
   "original_karyotype",
   "ploidy_result",
   "prefix",
-  "priority",
   "raw",
   "raw_comma_count",
   "row_index",

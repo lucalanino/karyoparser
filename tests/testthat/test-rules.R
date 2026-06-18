@@ -407,6 +407,24 @@ test_that("canonical t(9;22) fires, _other variant does NOT", {
   expect_equal(r$`t(9;22)_other`, 0L)
 })
 
+test_that("_other excludes its canonical breakpoints but fires for the rest", {
+  # mutual exclusivity is in the regex (negative lookahead), not priority
+  nc <- pk("46,XY,t(9;22)(q11;q34)")
+  expect_equal(nc$`t(9;22)(q34;q11)`, 0L)
+  expect_equal(nc$`t(9;22)_other`, 1L)
+  expect_equal(pk("46,XY,inv(3)(q24q26)")$`inv(3)_other`, 1L)
+  expect_equal(pk("46,XY,inv(3)(q21q26)")$`inv(3)_other`, 0L)
+})
+
+test_that("family flags co-fire with the specific rule on the same token", {
+  r1 <- pk("46,XX,t(9;11)(p21;q23)")
+  expect_equal(r1$`t(9;11)(p21;q23)`, 1L)
+  expect_equal(r1$`t(v;11q23)`, 1L)
+  r2 <- pk("46,XX,t(3;5)(q25;q35)")
+  expect_equal(r2$`t(3;5)(q25;q35)`, 1L)
+  expect_equal(r2$`t(5q)`, 1L)
+})
+
 test_that("specific tx and general_translocation co-fire", {
   r <- pk("46,XY,t(9;22)(q34;q11)")
   expect_equal(r$`t(9;22)(q34;q11)`, 1L)
@@ -482,9 +500,7 @@ test_that("myeloid_rules has karyo_rules class and expected columns", {
     c(
       "flag_name",
       "regex",
-      "category",
-      "priority",
-      "competition_group"
+      "category"
     ) %in%
       names(myeloid_rules)
   ))
@@ -528,13 +544,6 @@ test_that("general_* still fire with a custom rule set lacking general rules", {
   expect_equal(r$general_deletion, 1L)
 })
 
-test_that("myeloid_rules priorities are positive numeric", {
-  expect_true(
-    is.integer(myeloid_rules$priority) || is.numeric(myeloid_rules$priority)
-  )
-  expect_true(all(myeloid_rules$priority >= 1L))
-})
-
 test_that("validate_rules() attaches karyo_rules class to a valid data frame", {
   df <- as.data.frame(myeloid_rules)
   class(df) <- setdiff(class(df), "karyo_rules")
@@ -550,13 +559,6 @@ test_that("validate_rules() errors on missing columns", {
 
 test_that("validate_rules() errors on non-data-frame input", {
   expect_error(validate_rules("not a data frame"), "must be a data frame")
-})
-
-test_that("validate_rules() errors on invalid priority", {
-  bad <- as.data.frame(myeloid_rules)
-  class(bad) <- setdiff(class(bad), "karyo_rules")
-  bad$priority[1] <- -1
-  expect_error(validate_rules(bad), "priority")
 })
 
 test_that("parse_karyo() errors when rules is a plain data frame", {

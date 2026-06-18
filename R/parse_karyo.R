@@ -857,71 +857,29 @@ build_clone_tokens <- function(sample_meta) {
     dplyr::mutate(aberr_norm = normalize_token(aberr_raw))
 }
 
+# Each rule fires independently: a flag is 1 for a row if any of the row's
+# tokens matches the rule's regex. Rules do not compete -- a single token can
+# light up several flags at once (e.g. a specific t(9;11)(p21;q23) plus the
+# family flag t(v;11q23)). Mutual exclusivity, where wanted (e.g. a "*_other"
+# variant must not fire for its own canonical breakpoints), is expressed in the
+# regex itself via negative lookahead, not via a priority ranking.
 match_rules <- function(tokens_tbl, rules, rule_flag_names) {
   match_text <- strip_bands(tokens_tbl$aberr_raw)
-  n_tokens <- length(match_text)
-  n_rules <- nrow(rules)
-
-  match_mat <- matrix(FALSE, nrow = n_tokens, ncol = n_rules)
-  for (j in seq_len(n_rules)) {
-    hits <- stringr::str_detect(match_text, rules$regex[j])
-    hits[is.na(hits)] <- FALSE
-    match_mat[, j] <- hits
-  }
-
-  # Groups fire independently; within each group the highest priority wins.
-  priorities <- rules$priority
-  groups <- rules$competition_group
-
-  token_best_rules <- lapply(seq_len(n_tokens), function(i) {
-    matched <- which(match_mat[i, ])
-    if (length(matched) == 0L) {
-      return(integer(0L))
-    }
-    vapply(
-      split(matched, groups[matched]),
-      \(grp_idx) grp_idx[which.max(priorities[grp_idx])],
-      integer(1L)
-    )
-  })
-
-  has_match <- lengths(token_best_rules) > 0L
-  n_matched_rules <- lengths(token_best_rules[has_match])
-  rule_indices <- unlist(token_best_rules[has_match], use.names = FALSE)
-
-  token_matches <- tibble::tibble(
-    .pk_row_id = rep(tokens_tbl$.pk_row_id[has_match], times = n_matched_rules),
-    clone_id = rep(tokens_tbl$clone_id[has_match], times = n_matched_rules),
-    aberr_norm = rep(tokens_tbl$aberr_norm[has_match], times = n_matched_rules),
-    flag_name = rules$flag_name[rule_indices],
-    priority = priorities[rule_indices]
-  )
-
-  # Resolve priority per (sample, clone, aberr_norm, flag_name) group
-  resolved <- token_matches |>
-    dplyr::group_by(.pk_row_id, clone_id, aberr_norm, flag_name) |>
-    dplyr::arrange(dplyr::desc(priority)) |>
-    dplyr::slice_head(n = 1) |>
-    dplyr::ungroup()
-
-  flags_by_sample <- resolved |>
-    dplyr::distinct(.pk_row_id, flag_name) |>
-    dplyr::mutate(value = 1L) |>
-    tidyr::pivot_wider(
-      names_from = flag_name,
-      values_from = value,
-      values_fill = 0L
-    )
-
-  if (nrow(flags_by_sample) == 0) {
-    flags_by_sample <- tibble::tibble(
-      .pk_row_id = unique(tokens_tbl$.pk_row_id)
-    )
-  }
+  ids <- tokens_tbl$.pk_row_id
+  out <- tibble::tibble(.pk_row_id = unique(ids))
   for (nm in rule_flag_names) {
-    if (!nm %in% names(flags_by_sample)) flags_by_sample[[nm]] <- 0L
+    out[[nm]] <- 0L
   }
-  flags_by_sample
+  for (j in seq_len(nrow(rules))) {
+    hit <- stringr::str_detect(match_text, rules$regex[j])
+    hit[is.na(hit)] <- FALSE
+    nm <- rules$flag_name[j]
+    out[[nm]] <- pmax(
+      out[[nm]],
+      as.integer(out$.pk_row_id %in% unique(ids[hit]))
+    )
+  }
+  out
 }
 
 compute_aneuploidy <- function(tokens_tbl, chroms) {
