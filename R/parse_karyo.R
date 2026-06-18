@@ -551,14 +551,14 @@ parse_karyo <- function(
     dplyr::left_join(general_flags, by = ".pk_row_id") |>
     dplyr::mutate(dplyr::across(-.pk_row_id, ~ tidyr::replace_na(., 0L)))
 
-  # A row has a structural aberration (for monosomal-karyotype) if any specific
-  # rule with counts_for_monosomal fires, OR any general structural flag fires
-  # (the latter covers tokens with no specific rule, e.g. a generic del/t).
-  structural_flags <- c(
-    rules |> dplyr::filter(counts_for_monosomal) |> dplyr::pull(flag_name),
-    .general_flags_for_monosomal
-  ) |>
-    unique()
+  # A row has a structural aberration (for monosomal-karyotype) if any general
+  # structural flag fires. The general_* detections cover every structural
+  # category universally (translocation, deletion, inversion, addition,
+  # dicentric, isodicentric, isochromosome, ring, insertion, duplication,
+  # triplication, derivative), so "is there a structural aberration?" no longer
+  # depends on per-rule annotation. The lone clinical exception, CBF-AML, is
+  # applied as an explicit override below.
+  structural_flags <- .general_flags_for_monosomal
 
   autosomal_mono_cols <- paste0("mono", as.character(1:22))
   available_mono_cols <- intersect(autosomal_mono_cols, names(all_flags))
@@ -969,6 +969,7 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
 .general_flag_patterns <- c(
   general_dicentric = "dic\\(",
   general_isodicentric = "idic\\(",
+  general_isochromosome = "i\\(",
   general_pseudodicentric = "psu dic\\(",
   general_ring = "\\br\\(",
   general_insertion = "ins\\(",

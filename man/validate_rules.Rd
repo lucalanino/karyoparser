@@ -9,7 +9,7 @@ validate_rules(rules)
 \arguments{
 \item{rules}{A data frame with columns: \code{flag_name} (character), \code{regex}
 (character), \code{category} (character), \code{priority} (positive numeric),
-\code{counts_for_monosomal} (logical), \code{competition_group} (character).}
+\code{competition_group} (character).}
 }
 \value{
 A \code{karyo_rules} object (tibble subclass) accepted by \code{\link[=parse_karyo]{parse_karyo()}}.

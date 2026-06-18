@@ -484,7 +484,6 @@ test_that("myeloid_rules has karyo_rules class and expected columns", {
       "regex",
       "category",
       "priority",
-      "counts_for_monosomal",
       "competition_group"
     ) %in%
       names(myeloid_rules)
@@ -501,13 +500,21 @@ test_that("general structural flags fire independently of the rule set", {
   expect_equal(pk("47,XY,+mar")$general_marker, 1L)
 })
 
+test_that("general_isochromosome fires for any isochromosome and co-fires with i(17q)", {
+  expect_equal(pk("46,XX,i(7)(q10)")$general_isochromosome, 1L)
+  r <- pk("46,XX,i(17)(q10)")
+  expect_equal(r$`i(17q)`, 1L)
+  expect_equal(r$general_isochromosome, 1L)
+  # isodicentric tokens are not isochromosomes
+  expect_equal(pk("46,XX,idic(X)(q13)")$general_isochromosome, 0L)
+})
+
 test_that("general_* still fire with a custom rule set lacking general rules", {
   one_rule <- validate_rules(data.frame(
     flag_name = "t(9;22)(q34;q11)",
     regex = "t\\(9;22\\)\\(q34;q11\\)",
     category = "specific_tx",
     priority = 100,
-    counts_for_monosomal = TRUE,
     competition_group = "translocation"
   ))
   r <- parse_karyo(

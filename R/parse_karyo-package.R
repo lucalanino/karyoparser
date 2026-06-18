@@ -24,7 +24,6 @@ utils::globalVariables(c(
   "clone_str",
   "comma_count_aberrations",
   "content",
-  "counts_for_monosomal",
   "der_inner",
   "donor",
   "donor_is_p1",

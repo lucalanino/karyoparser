@@ -258,9 +258,15 @@ test_that("sex chromosome monosomy alone doesn't qualify", {
   expect_equal(r$monosomal_karyotype, 0L)
 })
 
-test_that("marker_chromosome does NOT count for monosomal", {
+test_that("marker does NOT count for monosomal", {
   r <- pk("46,XY,-7,+mar")
   expect_equal(r$monosomal_karyotype, 0L)
+})
+
+test_that("isochromosome counts as structural for monosomal (no counts_for_monosomal)", {
+  # monosomal structural presence now comes from general flags, not a rule flag
+  expect_equal(pk("45,XX,-7,i(17)(q10)")$monosomal_karyotype, 1L)
+  expect_equal(pk("45,XX,-7,i(7)(q10)")$monosomal_karyotype, 1L)
 })
 
 test_that("sex chromosome monosomy + structural does NOT qualify as monosomal", {

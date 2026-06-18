@@ -5,7 +5,7 @@
 \title{Default Parsing Rules for Myeloid Neoplasms}
 \format{
 A \code{karyo_rules} tibble with columns: \code{flag_name}, \code{regex},
-\code{category}, \code{priority}, \code{counts_for_monosomal}, \code{competition_group}.
+\code{category}, \code{priority}, \code{competition_group}.
 }
 \usage{
 myeloid_rules
