@@ -231,6 +231,12 @@ Rule columns: `flag_name`, `regex`, `category`, `priority`,
   (e.g. no dedicated Turner/Klinefelter flags).
 - **Partial monosomy via der/dup**: `der(7)t(1;7)` is not auto-counted
   as monosomy 7.
+- **Multi-partner (three-way) translocations**: A complete `t(a;b;c)`
+  matches only the generic `general_translocation` flag (no
+  specific-breakpoint flag) and is assumed balanced; a `der()` of a
+  three-way fires only `derivative_chromosome` (no balanced/unbalanced
+  or partial-loss derivation). Both still count toward
+  `complex_karyotype`/`monosomal_karyotype`.
 - **Non-myeloid panels**: Rules are curated for AML/MDS/MPN/CML.
   Lymphoid and solid-tumor lesions are absent.
 - **Mosaicism (`mos`)**: Karyotypes with a leading `mos` prefix
