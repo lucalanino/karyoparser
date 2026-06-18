@@ -135,46 +135,58 @@ result[, c("sample_id", "original_karyotype", "preprocessed_karyotype")]
 
 ## Output Columns
 
-| Column | Type | Description |
-|----|----|----|
-| `original_karyotype` | character | Raw input string |
-| `preprocessed_karyotype` | character | Cleaned/normalized string that was parsed; NA for unfixable rows |
-| `ploidy_category` | character | `diploid`, `hyperdiploid`, `high_hypodiploid`, `low_hypodiploid`, `near_haploid`, `other`, or `unknown` |
-| `chromosome_count` | integer | Count from the most abnormal eligible clone |
-| *(aberration flags)* | integer 0/1 | One column per rule – see [Aberration Flags](#aberration-flags) |
-| `mono1`–`mono22`, `monoX`, `monoY` | integer 0/1 | Monosomy flags |
-| `tris1`–`tris22`, `trisX`, `trisY` | integer 0/1 | Trisomy flags |
-| `normal_karyotype` | integer 0/1 | 1 if `46,XX` or `46,XY` exactly |
-| `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |
-| `comma_count_aberrations` | integer | Aberration count (max across clones; idem-expanded) |
-| `complex_karyotype` | integer 0/1 | 1 if \>= 3 unique aberrations |
-| `monosomal_karyotype` | integer 0/1 | 1 if \>= 2 autosomal monosomies, or \>= 1 monosomy + \>= 1 structural aberration |
-| `mixed_ploidy` | integer 0/1 | 1 if clones span different ploidy categories |
-| `fixable_error` | integer 0/1 | 1 if the row had a fixable issue |
-| `unfixable_error` | integer 0/1 | 1 if the row had an unfixable issue (row is all NA) |
-| `chimeric_karyotype` | integer 0/1 | 1 if input contained a `//` chimeric separator |
+Each row is one input karyotype; columns fall into a few groups by
+provenance.
+
+| Group | Columns | Type | Description |
+|----|----|----|----|
+| Metadata | `original_karyotype`, `preprocessed_karyotype` | character | Raw input; cleaned/normalized string that was parsed (NA for unfixable rows) |
+| Metadata | `ploidy_category` | character | `diploid`, `hyperdiploid`, `high_hypodiploid`, `low_hypodiploid`, `near_haploid`, `other`, or `unknown` |
+| Metadata | `chromosome_count` | integer | Count from the most abnormal eligible clone |
+| Rule flags | *(one per `myeloid_rules` entry)* | integer 0/1 | Specific lesions – see [Aberration Flags](#aberration-flags) |
+| General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_derivative` | integer 0/1 | Universal structural-aberration detections |
+| Aneuploidy | `mono1`–`mono22`, `monoX`, `monoY`; `tris1`–`tris22`, `trisX`, `trisY` | integer 0/1 | Whole-chromosome loss/gain from `-`/`+` tokens |
+| Summary | `normal_karyotype` | integer 0/1 | 1 if `46,XX` or `46,XY` exactly |
+| Summary | `comma_count_aberrations` | integer | Aberration count (max across clones; idem-expanded) |
+| Summary | `complex_karyotype` | integer 0/1 | 1 if \>= 3 distinct aberrations across clones |
+| Summary | `monosomal_karyotype` | integer 0/1 | 1 if \>= 2 autosomal monosomies, or \>= 1 monosomy + \>= 1 structural aberration |
+| Summary | `mixed_ploidy` | integer 0/1 | 1 if clones span different ploidy categories |
+| Translocation balance | `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Whether the row carries balanced / unbalanced translocations |
+| Derived loss | `unbal_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation |
+| Status | `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |
+| Status | `fixable_error`, `unfixable_error` | integer 0/1 | Row had a fixable / unfixable issue (unfixable rows are all NA) |
+| Status | `chimeric_karyotype` | integer 0/1 | 1 if input contained a `//` chimeric separator |
+| Status | `chimeric_clone` | character | Which clone was parsed for a chimeric row (`"host"`, `"donor"`, or NA) |
 
 ## Aberration Flags
 
-All flags output `0` or `1`. Monosomy/trisomy flags are derived from
-`-`/`+` tokens; all others come from the rule-matching pipeline.
+All flags output `0` or `1`, and **every flag fires independently** –
+there is no priority or competition between them, so a single token can
+light up several flags at once. Flags come from three sources:
 
-Rules are organized into **competition groups** (translocation,
-inversion, deletion, etc.). Within a group, only the highest-priority
-rule fires – so `t(9;22)(q34;q11)` (priority 100) suppresses
-`general_translocation` (priority 65). Rules in **different groups
-co-fire independently**, so a complex token can contribute to multiple
-output flags simultaneously.
+- **Specific rule flags** – one per `myeloid_rules` entry, fired when
+  its regex matches a token (e.g. `t(9;22)(q34;q11)`, `del(5q)`).
+- **General structural flags** (`general_*`) – universal,
+  disease-agnostic detections (any translocation, deletion, inversion,
+  addition, dicentric, isodicentric, isochromosome, ring, insertion,
+  duplication, triplication, marker, derivative). Always computed,
+  independent of the rule set.
+- **Aneuploidy flags** (`mono*`/`tris*`) – whole-chromosome loss/gain
+  from `-`/`+` tokens.
 
-| Priority | Rule type |
-|----|----|
-| 100 | Specific translocations/inversions at canonical breakpoints |
-| 95 | Variant-band translocations; isodicentric X |
-| 90 | Variable-partner translocations |
-| 85 | Chromosome-arm-specific aberrations; isodicentric; pseudodicentric |
-| 80 | Dicentric |
-| 65–70 | General structural (ring, insertion, duplication, triplication, general translocation) |
-| 55–60 | Catch-all general rules (addition, inversion, deletion, marker, derivative) |
+Because flags are independent, a token contributes to **all** matching
+flags. For example `t(9;11)(p21;q23)` sets the specific
+`t(9;11)(p21;q23)`, the family flag `t(v;11q23)`, and
+`general_translocation`; `del(5q)` sets both `del(5q)` and
+`general_deletion`.
+
+- **Family detectors** (`t(v;11q23)`, `t(v;11p15)`, `t(3q26;v)`,
+  `t(5q)`, `t(12p)`) deliberately co-fire with the more specific flags –
+  they mean “any rearrangement involving this region/arm”.
+- **`*_other` variants** (e.g. `t(9;22)_other`) are the complement of
+  the canonical breakpoints: they fire for the same chromosome pair at
+  *non-canonical* breakpoints only (the exclusion is encoded in the
+  regex, so a canonical token sets only the specific flag).
 
 **CBF override**: Cases carrying `t(8;21)(q22;q22)`, `inv(16)(p13q22)`,
 or `t(16;16)(p13;q22)` are never classified as monosomal, per clinical
@@ -184,20 +196,20 @@ Inspect the full default rule set via `myeloid_rules`:
 
 ``` r
 myeloid_rules
-#> # A tibble: 55 × 6
-#>    flag_name      regex category priority counts_for_monosomal competition_group
-#>  * <chr>          <chr> <chr>       <dbl> <lgl>                <chr>            
-#>  1 t(15;17)(q24;… "t\\… specifi…      100 TRUE                 translocation    
-#>  2 t(8;21)(q22;q… "t\\… specifi…      100 FALSE                translocation    
-#>  3 inv(16)(p13q2… "inv… specifi…      100 FALSE                inversion        
-#>  4 t(16;16)(p13;… "t\\… specifi…      100 FALSE                translocation    
-#>  5 t(9;11)(p21;q… "t\\… specifi…      100 TRUE                 translocation    
-#>  6 t(6;9)(p22;q3… "t\\… specifi…      100 TRUE                 translocation    
-#>  7 inv(3)(q21q26) "inv… specifi…      100 TRUE                 inversion        
-#>  8 t(3;3)(q21;q2… "t\\… specifi…      100 TRUE                 translocation    
-#>  9 t(9;22)(q34;q… "t\\… specifi…      100 TRUE                 translocation    
-#> 10 t(1;3)(p36;q2… "t\\… specifi…      100 TRUE                 translocation    
-#> # ℹ 45 more rows
+#> # A tibble: 42 × 3
+#>    flag_name         regex                                              category
+#>  * <chr>             <chr>                                              <chr>   
+#>  1 t(15;17)(q24;q21) "t\\(15;17\\)\\((q24|q22);q21\\)|t\\(17;15\\)\\(q… specifi…
+#>  2 t(8;21)(q22;q22)  "t\\(8;21\\)\\((q22|q21(\\.3)?);q22\\)|t\\(21;8\\… specifi…
+#>  3 inv(16)(p13q22)   "inv\\(16\\)\\(p13q22\\)"                          specifi…
+#>  4 t(16;16)(p13;q22) "t\\(16;16\\)\\(p13;q22\\)"                        specifi…
+#>  5 t(9;11)(p21;q23)  "t\\(9;11\\)\\(p21;q23\\)|t\\(11;9\\)\\(q23;p21\\… specifi…
+#>  6 t(6;9)(p22;q34)   "t\\(6;9\\)\\(p22;q34\\)|t\\(9;6\\)\\(q34;p22\\)"  specifi…
+#>  7 inv(3)(q21q26)    "inv\\(3\\)\\(q21q26\\)"                           specifi…
+#>  8 t(3;3)(q21;q26)   "t\\(3;3\\)\\(q21;q26\\)"                          specifi…
+#>  9 t(9;22)(q34;q11)  "t\\(9;22\\)\\(q34;q11\\)|t\\(22;9\\)\\(q11;q34\\… specifi…
+#> 10 t(1;3)(p36;q21)   "t\\(1;3\\)\\(p36;q21\\)|t\\(3;1\\)\\(q21;p36\\)"  specifi…
+#> # ℹ 32 more rows
 ```
 
 ## Custom Rules
@@ -208,18 +220,20 @@ my_rules <- validate_rules(dplyr::bind_rows(
   data.frame(
     flag_name = "t(X;18)(p11;q11)",
     regex = "t\\(X;18\\)\\(p11;q11\\)|t\\(18;X\\)\\(q11;p11\\)",
-    category = "specific_tx",
-    priority = 100,
-    counts_for_monosomal = TRUE,
-    competition_group = "translocation"
+    category = "specific_tx"
   )
 ))
 
 result <- parse_karyo(df, rules = my_rules)
 ```
 
-Rule columns: `flag_name`, `regex`, `category`, `priority`,
-`counts_for_monosomal`, `competition_group`.
+Rule columns: `flag_name`, `regex`, `category`. Each rule fires
+independently when its `regex` matches a token – there is no priority
+ranking, so if you need a flag to *not* fire in some case (e.g. a
+“non-canonical breakpoints only” variant), encode that exclusion in the
+`regex` (e.g. with a negative lookahead). General structural categories
+(translocations, deletions, dicentrics, …) are detected universally by
+the parser and do **not** need to be added as rules.
 
 ## What Is Not Handled
 
@@ -234,8 +248,8 @@ Rule columns: `flag_name`, `regex`, `category`, `priority`,
 - **Multi-partner (three-way) translocations**: A complete `t(a;b;c)`
   matches only the generic `general_translocation` flag (no
   specific-breakpoint flag) and is assumed balanced; a `der()` of a
-  three-way fires only `derivative_chromosome` (no balanced/unbalanced
-  or partial-loss derivation). Both still count toward
+  three-way fires only `general_derivative` (no balanced/unbalanced or
+  partial-loss derivation). Both still count toward
   `complex_karyotype`/`monosomal_karyotype`.
 - **Non-myeloid panels**: Rules are curated for AML/MDS/MPN/CML.
   Lymphoid and solid-tumor lesions are absent.
