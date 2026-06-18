@@ -274,13 +274,13 @@ test_that("idic(X)(q13) detected", {
 test_that("idic(X)(q13.1) sub-band still matches idic(X)(q13) via prefix", {
   r <- pk("46,XX,idic(X)(q13.1)")
   expect_equal(r$`idic(X)(q13)`, 1L)
-  expect_equal(r$isodicentric, 0L)
+  expect_equal(r$general_isodicentric, 1L)
 })
 
 test_that("idic(X)(q14) does NOT match idic(X)(q13); fires isodicentric instead", {
   r <- pk("46,XX,idic(X)(q14)")
   expect_equal(r$`idic(X)(q13)`, 0L)
-  expect_equal(r$isodicentric, 1L)
+  expect_equal(r$general_isodicentric, 1L)
 })
 
 test_that("del(7)(p11) does NOT trigger del(7q)", {
@@ -295,37 +295,37 @@ test_that("del(12)(q22) does NOT trigger del(12p)", {
 
 test_that("dicentric detected", {
   r <- pk("46,XY,dic(7;9)(p11;p13)")
-  expect_equal(r$dicentric, 1L)
+  expect_equal(r$general_dicentric, 1L)
 })
 
 test_that("isodicentric detected", {
   r <- pk("46,XX,idic(7)(p11)")
-  expect_equal(r$isodicentric, 1L)
+  expect_equal(r$general_isodicentric, 1L)
 })
 
 test_that("pseudodicentric detected", {
   r <- pk("46,XX,psu dic(15;22)(q11;p11)")
-  expect_equal(r$pseudodicentric, 1L)
+  expect_equal(r$general_pseudodicentric, 1L)
 })
 
 test_that("ring chromosome detected", {
   r <- pk("46,XX,r(7)(p22q36)")
-  expect_equal(r$ring_chromosome, 1L)
+  expect_equal(r$general_ring, 1L)
 })
 
 test_that("insertion detected", {
   r <- pk("46,XY,ins(5;11)(p14;q13q23)")
-  expect_equal(r$insertion, 1L)
+  expect_equal(r$general_insertion, 1L)
 })
 
 test_that("duplication detected", {
   r <- pk("46,XX,dup(1)(q21q32)")
-  expect_equal(r$duplication, 1L)
+  expect_equal(r$general_duplication, 1L)
 })
 
 test_that("triplication detected", {
   r <- pk("46,XX,trp(1)(q21q32)")
-  expect_equal(r$triplication, 1L)
+  expect_equal(r$general_triplication, 1L)
 })
 
 test_that("general_addition detected", {
@@ -345,7 +345,7 @@ test_that("general_deletion detected", {
 
 test_that("marker_chromosome detected", {
   r <- pk("47,XY,+mar")
-  expect_equal(r$marker_chromosome, 1L)
+  expect_equal(r$general_marker, 1L)
 })
 
 test_that("general_translocation detected", {
@@ -383,22 +383,22 @@ test_that("general_translocation: Y chromosome as first partner detected", {
   expect_equal(r$general_translocation, 1L)
 })
 
-test_that("specific inv(3) fires, general_inversion does NOT", {
+test_that("specific inv(3) and general_inversion co-fire", {
   r <- pk("46,XY,inv(3)(q21q26)")
   expect_equal(r$`inv(3)(q21q26)`, 1L)
-  expect_equal(r$general_inversion, 0L)
+  expect_equal(r$general_inversion, 1L)
 })
 
-test_that("specific del(5q) fires, general_deletion does NOT", {
+test_that("specific del(5q) and general_deletion co-fire", {
   r <- pk("46,XX,del(5)(q13q33)")
   expect_equal(r$`del(5q)`, 1L)
-  expect_equal(r$general_deletion, 0L)
+  expect_equal(r$general_deletion, 1L)
 })
 
-test_that("idic(X)(q13) fires, general isodicentric does NOT", {
+test_that("idic(X)(q13) and general_isodicentric co-fire", {
   r <- pk("46,XX,idic(X)(q13)")
   expect_equal(r$`idic(X)(q13)`, 1L)
-  expect_equal(r$isodicentric, 0L)
+  expect_equal(r$general_isodicentric, 1L)
 })
 
 test_that("canonical t(9;22) fires, _other variant does NOT", {
@@ -407,71 +407,71 @@ test_that("canonical t(9;22) fires, _other variant does NOT", {
   expect_equal(r$`t(9;22)_other`, 0L)
 })
 
-test_that("specific tx fires, general_translocation does NOT", {
+test_that("specific tx and general_translocation co-fire", {
   r <- pk("46,XY,t(9;22)(q34;q11)")
   expect_equal(r$`t(9;22)(q34;q11)`, 1L)
-  expect_equal(r$general_translocation, 0L)
+  expect_equal(r$general_translocation, 1L)
 })
 
-test_that("variable partner fires, general_translocation does NOT", {
+test_that("variable partner and general_translocation co-fire", {
   r <- pk("46,XY,t(6;11)(q27;q23)")
   expect_equal(r$`t(v;11q23)`, 1L)
-  expect_equal(r$general_translocation, 0L)
+  expect_equal(r$general_translocation, 1L)
 })
 
-test_that("chromosome-specific tx fires, general_translocation does NOT", {
+test_that("chromosome-specific tx and general_translocation co-fire", {
   r <- pk("46,XX,t(5;17)(q33;p13)")
   expect_equal(r$`t(5q)`, 1L)
-  expect_equal(r$general_translocation, 0L)
+  expect_equal(r$general_translocation, 1L)
 })
 
-test_that("t(v;11p15) fires, general_translocation does NOT", {
+test_that("t(v;11p15) and general_translocation co-fire", {
   r <- pk("46,XX,t(4;11)(q21;p15)")
   expect_equal(r$`t(v;11p15)`, 1L)
-  expect_equal(r$general_translocation, 0L)
+  expect_equal(r$general_translocation, 1L)
 })
 
 test_that("der with embedded del(5q): both del(5q) and derivative_chromosome fire", {
   r <- pk("46,XX,der(5)del(5)(q11q34)")
   expect_equal(r$`del(5q)`, 1L)
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
 })
 
 test_that("der of other chrom with embedded del(5q): both fire", {
   r <- pk("46,XX,der(3)del(5)(q11q34)")
   expect_equal(r$`del(5q)`, 1L)
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
 })
 
 test_that("der with embedded ins and del: insertion, del(5q), and derivative_chromosome all fire", {
   r <- pk("46,XX,der(5)ins(5;17)(p11;??)del(5)(q11)")
-  expect_equal(r$insertion, 1L)
+  expect_equal(r$general_insertion, 1L)
   expect_equal(r$`del(5q)`, 1L)
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
 })
 
 test_that("der with unspecific embedded del: general_deletion and derivative_chromosome fire", {
   r <- pk("46,XX,der(9)del(9)(p11)")
   expect_equal(r$general_deletion, 1L)
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
 })
 
 test_that("der(8)t(8;21) with monosomy: t(8;21) and derivative_chromosome fire, monosomal overridden to 0", {
   r <- pk("45,XX,-7,der(8)t(8;21)(q22;q22)")
   expect_equal(r$`t(8;21)(q22;q22)`, 1L)
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
   expect_equal(r$monosomal_karyotype, 0L)
 })
 
-test_that("der(8)t(8;21): general_translocation suppressed within translocation group", {
+test_that("der(8)t(8;21): general_translocation stays 0 (der token, not bare t)", {
   r <- pk("45,XX,-7,der(8)t(8;21)(q22;q22)")
   expect_equal(r$general_translocation, 0L)
 })
 
-test_that("standalone t(9;22): specificity within translocation group preserved", {
+test_that("standalone t(9;22): specific and general_translocation co-fire", {
   r <- pk("46,XX,t(9;22)(q34;q11)")
   expect_equal(r$`t(9;22)(q34;q11)`, 1L)
-  expect_equal(r$general_translocation, 0L)
+  expect_equal(r$general_translocation, 1L)
 })
 
 test_that("myeloid_rules has karyo_rules class and expected columns", {
@@ -491,25 +491,34 @@ test_that("myeloid_rules has karyo_rules class and expected columns", {
   ))
 })
 
-test_that("base_rules is a karyo_rules of only general rules", {
-  expect_s3_class(base_rules, "karyo_rules")
-  expect_true(all(base_rules$category == "general"))
-  expect_true(nrow(base_rules) > 0L)
+test_that("myeloid_rules carries only disease-specific (non-general) rules", {
+  expect_false(any(myeloid_rules$category == "general"))
 })
 
-test_that("myeloid_rules is base_rules plus myeloid-specific rules", {
-  # every base rule is carried into myeloid_rules unchanged
-  base_in_myeloid <- merge(
-    as.data.frame(base_rules),
-    as.data.frame(myeloid_rules)
+test_that("general structural flags fire independently of the rule set", {
+  # general_* are detected by the parser, not by myeloid_rules
+  expect_equal(pk("46,XX,dic(1;7)(p11;p11)")$general_dicentric, 1L)
+  expect_equal(pk("47,XY,+mar")$general_marker, 1L)
+})
+
+test_that("general_* still fire with a custom rule set lacking general rules", {
+  one_rule <- validate_rules(data.frame(
+    flag_name = "t(9;22)(q34;q11)",
+    regex = "t\\(9;22\\)\\(q34;q11\\)",
+    category = "specific_tx",
+    priority = 100,
+    counts_for_monosomal = TRUE,
+    competition_group = "translocation"
+  ))
+  r <- parse_karyo(
+    "46,XX,t(9;22)(q34;q11),del(1)(q21)",
+    rules = one_rule,
+    on_issues = "warn",
+    verbose = FALSE
   )
-  expect_equal(nrow(base_in_myeloid), nrow(base_rules))
-  # myeloid_rules also carries non-general (disease-specific) rules
-  expect_true(any(myeloid_rules$category != "general"))
-})
-
-test_that("a base (general) rule still fires under myeloid_rules", {
-  expect_equal(pk("46,XX,dic(1;7)(p11;p11)")$dicentric, 1L)
+  expect_equal(r$`t(9;22)(q34;q11)`, 1L)
+  expect_equal(r$general_translocation, 1L)
+  expect_equal(r$general_deletion, 1L)
 })
 
 test_that("myeloid_rules priorities are positive numeric", {

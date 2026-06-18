@@ -23,7 +23,7 @@ test_that("psu dic normalization: preprocess_karyo normalizes before parse", {
     on_issues = "preprocess",
     verbose = FALSE
   )
-  expect_equal(r$pseudodicentric, 1L)
+  expect_equal(r$general_pseudodicentric, 1L)
 })
 
 test_that("idem and sl case normalization via preprocess_karyo", {

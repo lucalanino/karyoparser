@@ -161,7 +161,8 @@ parse_karyo <- function(
   catalog <- .column_catalog(rules)
   all_output_cols <- catalog$column
   abnormality_names <- catalog$column[
-    catalog$class %in% c("rule", "aneuploidy", "summary", "balance", "loss")
+    catalog$class %in%
+      c("rule", "general", "aneuploidy", "summary", "balance", "loss")
   ]
   char_cols <- catalog$column[catalog$type == "character"]
 
@@ -535,6 +536,7 @@ parse_karyo <- function(
   tokens <- build_clone_tokens(sample_meta)
   flags <- match_rules(tokens, rules, rule_flag_names)
   aneuploidy <- compute_aneuploidy(tokens, chroms)
+  general_flags <- compute_general_flags(tokens)
   comma_counts <- compute_comma_counts(tokens)
   unique_aberr <- compute_unique_counts(tokens)
   der_translocations <- .der_translocations(tokens)
@@ -546,11 +548,16 @@ parse_karyo <- function(
     dplyr::select(.pk_row_id) |>
     dplyr::left_join(flags, by = ".pk_row_id") |>
     dplyr::left_join(aneuploidy, by = ".pk_row_id") |>
+    dplyr::left_join(general_flags, by = ".pk_row_id") |>
     dplyr::mutate(dplyr::across(-.pk_row_id, ~ tidyr::replace_na(., 0L)))
 
-  structural_flags <- rules |>
-    dplyr::filter(counts_for_monosomal) |>
-    dplyr::pull(flag_name) |>
+  # A row has a structural aberration (for monosomal-karyotype) if any specific
+  # rule with counts_for_monosomal fires, OR any general structural flag fires
+  # (the latter covers tokens with no specific rule, e.g. a generic del/t).
+  structural_flags <- c(
+    rules |> dplyr::filter(counts_for_monosomal) |> dplyr::pull(flag_name),
+    .general_flags_for_monosomal
+  ) |>
     unique()
 
   autosomal_mono_cols <- paste0("mono", as.character(1:22))
@@ -950,6 +957,50 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   aneuploidy_tbl
 }
 
+# General, disease-agnostic structural-aberration detections. Unlike the regex
+# rules these are universal (always computed regardless of the rule set) and
+# fire INDEPENDENTLY of any specific rule matching the same token -- e.g. a
+# t(8;21) token sets both the specific t(8;21)(q22;q22) flag and
+# general_translocation. Patterns mirror the historical "general" rules and are
+# matched against the same target as match_rules (strip_bands(aberr_raw)).
+# Surfaced as the `general_*` output columns (catalog class "general"); kept as
+# a named vector so the column set and the catalog stay in sync. To later make
+# their surfacing toggleable, gate this group via the catalog class.
+.general_flag_patterns <- c(
+  general_dicentric = "dic\\(",
+  general_isodicentric = "idic\\(",
+  general_pseudodicentric = "psu dic\\(",
+  general_ring = "\\br\\(",
+  general_insertion = "ins\\(",
+  general_duplication = "dup\\(",
+  general_triplication = "trp\\(",
+  general_translocation = "^[?~]?t\\([0-9XY]",
+  general_addition = "add\\(",
+  general_inversion = "inv\\(",
+  general_deletion = "del\\(",
+  general_marker = "\\bmar\\b",
+  general_derivative = "^\\+?i?der\\("
+)
+
+# General structural flags that count as a structural aberration for the
+# monosomal-karyotype rule (everything except a lone marker).
+.general_flags_for_monosomal <- setdiff(
+  names(.general_flag_patterns),
+  "general_marker"
+)
+
+compute_general_flags <- function(tokens_tbl) {
+  match_text <- strip_bands(tokens_tbl$aberr_raw)
+  ids <- tokens_tbl$.pk_row_id
+  out <- tibble::tibble(.pk_row_id = unique(ids))
+  for (nm in names(.general_flag_patterns)) {
+    hit <- stringr::str_detect(match_text, .general_flag_patterns[[nm]])
+    hit[is.na(hit)] <- FALSE
+    out[[nm]] <- as.integer(out$.pk_row_id %in% unique(ids[hit]))
+  }
+  out
+}
+
 compute_comma_counts <- function(tokens_tbl) {
   sex_first_regex <- paste0(
     "^(",
@@ -1299,6 +1350,12 @@ compute_unique_counts <- function(tokens_tbl) {
       "rule",
       "integer",
       "Aberration flag from the rule-matching pipeline"
+    ),
+    row(
+      names(.general_flag_patterns),
+      "general",
+      "integer",
+      "General structural-aberration flag; fires independently of specific rules"
     ),
     row(
       paste0("mono", chroms),

@@ -84,42 +84,42 @@ test_that("autosomal mono + general_translocation -> monosomal", {
 
 test_that("derivative_chromosome detected", {
   r <- pk("46,XX,der(1)t(2;3)(p11;q22)")
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
 })
 
 test_that("+der() detected as derivative_chromosome", {
   r <- pk("47,XX,+der(21)")
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
 })
 
 test_that("autosomal mono + +der() -> monosomal", {
   r <- pk("45,XX,-7,+der(21)")
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
   expect_equal(r$monosomal_karyotype, 1L)
 })
 
 test_that("derivative_chromosome: autosomal mono + der() -> monosomal", {
   r <- pk("45,XX,-7,der(1)t(2;3)(p11;q22)")
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
   expect_equal(r$monosomal_karyotype, 1L)
 })
 
 test_that("derivative_chromosome: co-fires with specific rule for same token", {
   r <- pk("46,XX,der(5)t(5;8)(q11;q11)")
   expect_equal(r$`t(5q)`, 1L)
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
 })
 
 test_that("derivative_chromosome: CBF-AML der co-fires but monosomal is overridden", {
   r <- pk("45,XX,-7,der(8)t(8;21)(q22;q22)")
   expect_equal(r$`t(8;21)(q22;q22)`, 1L)
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
   expect_equal(r$monosomal_karyotype, 0L)
 })
 
 test_that("ider() detected as derivative_chromosome", {
   r <- pk("46,XX,ider(1)(q10)t(1;4)(p22;q11)")
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
 })
 
 test_that("balanced: bare t() sets balanced, not unbalanced", {
@@ -133,7 +133,7 @@ test_that("unbalanced: lone der()t() sets unbalanced, fusion flag still fires", 
   expect_equal(r$unbalanced_translocation, 1L)
   expect_equal(r$balanced_translocation, 0L)
   expect_equal(r$`t(9;22)(q34;q11)`, 1L)
-  expect_equal(r$derivative_chromosome, 1L)
+  expect_equal(r$general_derivative, 1L)
 })
 
 test_that("balanced: reciprocal der pair is balanced, not unbalanced", {
@@ -245,7 +245,7 @@ test_that("differential: general bare t() is balanced, der()t() is not general t
   der <- pk("46,XX,der(2)t(2;14)(q11;q11)")
   expect_equal(der$general_translocation, 0L)
   expect_equal(der$unbalanced_translocation, 1L)
-  expect_equal(der$derivative_chromosome, 1L)
+  expect_equal(der$general_derivative, 1L)
 })
 
 test_that("1 autosomal mono alone -> not monosomal", {
@@ -511,7 +511,16 @@ test_that(".column_catalog lists exactly the output columns, in order", {
   expect_identical(catalog$column, names(parsed))
   expect_setequal(
     unique(catalog$class),
-    c("meta", "rule", "aneuploidy", "summary", "balance", "loss", "status")
+    c(
+      "meta",
+      "rule",
+      "general",
+      "aneuploidy",
+      "summary",
+      "balance",
+      "loss",
+      "status"
+    )
   )
   expect_setequal(catalog$type, c("character", "integer"))
 })

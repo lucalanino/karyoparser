@@ -11,14 +11,19 @@ A \code{karyo_rules} tibble with columns: \code{flag_name}, \code{regex},
 myeloid_rules
 }
 \description{
-A \code{karyo_rules} tibble of regex-based rules for identifying chromosomal
-aberrations relevant to myeloid neoplasms. It is composed of the shared
-\link{base_rules} (general structural aberrations) plus myeloid-specific recurrent
+A \code{karyo_rules} tibble of regex-based rules for myeloid-specific recurrent
 lesions: specific translocations/inversions, variable-partner translocations,
 and chromosome-arm-specific deletions/additions. Passed to \code{\link[=parse_karyo]{parse_karyo()}}
 via the \code{rules} argument by default. Use \code{\link[=validate_rules]{validate_rules()}} to build a custom
 rule set with the same schema.
 }
+\details{
+General, disease-agnostic structural aberrations (dicentrics, rings,
+insertions, generic translocations/deletions, derivatives, etc.) are NOT
+rules: they are detected universally by the parser and surfaced as the
+\verb{general_*} output columns, independently of the rule set in use and of any
+specific rule firing on the same token.
+}
 \seealso{
-\link{base_rules}, \code{\link[=validate_rules]{validate_rules()}}
+\code{\link[=validate_rules]{validate_rules()}}
 }
