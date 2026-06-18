@@ -54,6 +54,18 @@ test_that("repeated aberrations across clones are deduped for complex", {
   expect_equal(r3$complex_karyotype, 1L)
 })
 
+test_that("repeated monosomies across clones are deduped for monosomal", {
+  # same single monosomy in 2 clones -> 1 distinct, not monosomal
+  r1 <- pk("45,XX,-7[10]/45,XX,-7[5]")
+  expect_equal(r1$monosomal_karyotype, 0L)
+  # one monosomy + one structural, both repeated -> monosomal
+  r2 <- pk("46,XX,-7,t(9;22)(q34;q11)[10]/46,XX,-7,t(9;22)(q34;q11)[5]")
+  expect_equal(r2$monosomal_karyotype, 1L)
+  # two distinct monosomies split one-per-clone -> monosomal
+  r3 <- pk("45,XX,-7[10]/45,XX,-5[5]")
+  expect_equal(r3$monosomal_karyotype, 1L)
+})
+
 test_that("2 autosomal monosomies -> monosomal", {
   r <- pk("44,XY,-5,-7")
   expect_equal(r$monosomal_karyotype, 1L)
