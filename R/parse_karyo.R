@@ -150,56 +150,24 @@ parse_karyo <- function(
     )
   }
   rule_flag_names <- unique(rules$flag_name)
-
   chroms <- c(as.character(1:22), "X", "Y")
 
-  # Single source of truth for the output schema.
-  #
-  # `abnormality_names` are the binary 0/1 flags that share identical downstream
-  # handling in the parsed-row pipeline (backfill missing with 0L, integer
-  # coercion, replace NA with 0). `all_output_cols` is the full schema: it adds
-  # the provenance metadata, `total_metaphases` (an NA-able count, so excluded
-  # from the 0L treatment) and the status columns (computed cross-row at the
-  # very end). Both NA/issue rows and parsed rows are derived from these, so a
-  # new feature only has to be added in one place.
-  abnormality_names <- c(
-    rule_flag_names,
-    paste0("mono", chroms),
-    paste0("tris", chroms),
-    "normal_karyotype",
-    "comma_count_aberrations",
-    "complex_karyotype",
-    "monosomal_karyotype",
-    "mixed_ploidy",
-    "balanced_translocation",
-    "unbalanced_translocation",
-    paste0("unbal_loss_", .unbal_loss_arms),
-    "unbal_partial_loss"
-  )
-
-  all_output_cols <- c(
-    "original_karyotype",
-    "preprocessed_karyotype",
-    "ploidy_category",
-    "chromosome_count",
-    abnormality_names,
-    "total_metaphases",
-    "fixable_error",
-    "unfixable_error",
-    "chimeric_karyotype",
-    "chimeric_clone"
-  )
+  # Single source of truth for the output schema: a provenance-tagged catalog
+  # of every column (see .output_schema()). `all_output_cols` is the full
+  # ordered schema; `abnormality_names` is the subset of binary 0/1 flags that
+  # share the parsed-row treatment (backfill missing with 0L, integer-coerce,
+  # NA -> 0); `char_cols` is the set of character-typed columns. Adding a
+  # feature in .output_schema() flows to all three automatically.
+  schema <- .output_schema(rules)
+  all_output_cols <- schema$column
+  abnormality_names <- schema$column[
+    schema$class %in% c("rule", "aneuploidy", "summary", "balance", "loss")
+  ]
+  char_cols <- schema$column[schema$type == "character"]
 
   empty_result <- function() {
-    char_cols <- c(
-      "original_karyotype",
-      "preprocessed_karyotype",
-      "ploidy_category",
-      "chimeric_clone"
-    )
     out <- tibble::tibble(.rows = 0L)
-    # Build in all_output_cols order so the empty result matches the column
-    # order of a normal parsed result.
+    # Build in schema order so the empty result matches a normal parsed result.
     for (nm in all_output_cols) {
       out[[nm]] <- if (nm %in% char_cols) character() else integer()
     }
@@ -500,7 +468,11 @@ parse_karyo <- function(
   # Check for empty input -----------------------------------------------------
   if (nrow(input_df) == 0) {
     if (nrow(issue_rows_df) > 0) {
-      out <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
+      out <- blank_rows(
+        issue_rows_df$original_karyotype,
+        all_output_cols,
+        char_cols
+      )
       out$.pk_row_id <- issue_rows_df$.pk_row_id
       out$fixable_error <- as.integer(
         out$.pk_row_id %in%
@@ -705,7 +677,11 @@ parse_karyo <- function(
 
   # Recombine with issue rows --------------------------------------------------
   if (nrow(issue_rows_df) > 0) {
-    br <- blank_rows(issue_rows_df$original_karyotype, all_output_cols)
+    br <- blank_rows(
+      issue_rows_df$original_karyotype,
+      all_output_cols,
+      char_cols
+    )
     br$.pk_row_id <- issue_rows_df$.pk_row_id
     out <- dplyr::bind_rows(valid_out, br) |>
       dplyr::arrange(.pk_row_id)
@@ -1276,14 +1252,152 @@ compute_unique_counts <- function(tokens_tbl) {
     )
 }
 
-blank_rows <- function(original_karyotypes, all_output_cols) {
-  n <- length(original_karyotypes)
-  char_cols <- c(
-    "original_karyotype",
-    "preprocessed_karyotype",
-    "ploidy_category",
-    "chimeric_clone"
+# Provenance-tagged catalog of every parse_karyo() output column, in output
+# order. This is the single source of truth from which parse_karyo() derives
+# the full schema, the abnormality-flag subset, and character-column typing.
+# Columns:
+#   - column: output column name
+#   - class:  provenance (meta, rule, aneuploidy, summary, balance, loss,
+#             status). The `rule` rows depend on the active rule set.
+#   - type:   storage type ("character" or "integer")
+#   - description: one-line human description
+.output_schema <- function(rules) {
+  chroms <- c(as.character(1:22), "X", "Y")
+  row <- function(column, class, type, description) {
+    tibble::tibble(
+      column = column,
+      class = class,
+      type = type,
+      description = description
+    )
+  }
+  dplyr::bind_rows(
+    row("original_karyotype", "meta", "character", "Raw input string"),
+    row(
+      "preprocessed_karyotype",
+      "meta",
+      "character",
+      "Cleaned/normalized string that was parsed; NA for unfixable rows"
+    ),
+    row(
+      "ploidy_category",
+      "meta",
+      "character",
+      "Ploidy classification of the most abnormal clone"
+    ),
+    row(
+      "chromosome_count",
+      "meta",
+      "integer",
+      "Chromosome count from the most abnormal eligible clone"
+    ),
+    row(
+      unique(rules$flag_name),
+      "rule",
+      "integer",
+      "Aberration flag from the rule-matching pipeline"
+    ),
+    row(
+      paste0("mono", chroms),
+      "aneuploidy",
+      "integer",
+      "Monosomy flag derived from '-' tokens"
+    ),
+    row(
+      paste0("tris", chroms),
+      "aneuploidy",
+      "integer",
+      "Trisomy flag derived from '+' tokens"
+    ),
+    row(
+      "normal_karyotype",
+      "summary",
+      "integer",
+      "1 if 46,XX or 46,XY exactly"
+    ),
+    row(
+      "comma_count_aberrations",
+      "summary",
+      "integer",
+      "Aberration count (max across clones; idem-expanded)"
+    ),
+    row(
+      "complex_karyotype",
+      "summary",
+      "integer",
+      "1 if >= 3 distinct aberrations across clones"
+    ),
+    row(
+      "monosomal_karyotype",
+      "summary",
+      "integer",
+      "1 if monosomal-karyotype criteria are met"
+    ),
+    row(
+      "mixed_ploidy",
+      "summary",
+      "integer",
+      "1 if clones span different ploidy categories"
+    ),
+    row(
+      "balanced_translocation",
+      "balance",
+      "integer",
+      "1 if the row carries a balanced translocation"
+    ),
+    row(
+      "unbalanced_translocation",
+      "balance",
+      "integer",
+      "1 if the row carries an unbalanced translocation"
+    ),
+    row(
+      paste0("unbal_loss_", .unbal_loss_arms),
+      "loss",
+      "integer",
+      "Partial arm loss implied by an unbalanced der translocation"
+    ),
+    row(
+      "unbal_partial_loss",
+      "loss",
+      "integer",
+      "1 if any unbalanced-derived partial loss (OR of unbal_loss_*)"
+    ),
+    row(
+      "total_metaphases",
+      "meta",
+      "integer",
+      "Sum of bracket counts; NA if no brackets"
+    ),
+    row(
+      "fixable_error",
+      "status",
+      "integer",
+      "1 if the row had a fixable issue"
+    ),
+    row(
+      "unfixable_error",
+      "status",
+      "integer",
+      "1 if the row had an unfixable issue (row is all NA)"
+    ),
+    row(
+      "chimeric_karyotype",
+      "status",
+      "integer",
+      "1 if input contained a '//' chimeric separator"
+    ),
+    row(
+      "chimeric_clone",
+      "status",
+      "character",
+      "Which clone was parsed for a chimeric row (host/donor/NA)"
+    )
   )
+}
+
+blank_rows <- function(original_karyotypes, all_output_cols, char_cols) {
+  n <- length(original_karyotypes)
   out <- tibble::tibble(.rows = n)
   # Build in all_output_cols order so the column order matches a normal result.
   for (nm in all_output_cols) {
