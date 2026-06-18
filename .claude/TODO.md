@@ -3,7 +3,7 @@
 ## Before 1.0
 
 - **[P1] R/ reorganization**: One file per export (roxygen on top); split helpers.R into cohesive groups (`input.R`, `tokens.R`, etc.); consolidate shared check/preprocess internals; design with FISH reuse in mind (expand, don't rewrite)
-- **[P2] `lymphoid_rules`**: Add exported `karyo_rules` constant for lymphoid neoplasms 
+- **[P2] `lymphoid_rules`**: Add exported `karyo_rules` constant for lymphoid neoplasms, composed as `base_rules` + lymphoid-specific lesions (mirrors how `myeloid_rules` now extends the shared `base_rules`).
 - **[P2] Myeloid rule completeness**: Final pass over `myeloid_rules` 
 - **[P2] Unbalanced partial-loss follow-ups**: Loss derivation is limited to simple single-junction `der(a)t(a;b)`; the remainders below are out-of-scope for now (rationale documented at `classify_translocation_balance()`/`derive_unbalanced_loss()` in `R/parse_karyo.R`):
   - (a) copy-number-aware GAIN derivation (needs whole-karyotype reasoning);

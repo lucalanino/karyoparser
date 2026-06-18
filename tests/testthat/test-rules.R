@@ -491,6 +491,27 @@ test_that("myeloid_rules has karyo_rules class and expected columns", {
   ))
 })
 
+test_that("base_rules is a karyo_rules of only general rules", {
+  expect_s3_class(base_rules, "karyo_rules")
+  expect_true(all(base_rules$category == "general"))
+  expect_true(nrow(base_rules) > 0L)
+})
+
+test_that("myeloid_rules is base_rules plus myeloid-specific rules", {
+  # every base rule is carried into myeloid_rules unchanged
+  base_in_myeloid <- merge(
+    as.data.frame(base_rules),
+    as.data.frame(myeloid_rules)
+  )
+  expect_equal(nrow(base_in_myeloid), nrow(base_rules))
+  # myeloid_rules also carries non-general (disease-specific) rules
+  expect_true(any(myeloid_rules$category != "general"))
+})
+
+test_that("a base (general) rule still fires under myeloid_rules", {
+  expect_equal(pk("46,XX,dic(1;7)(p11;p11)")$dicentric, 1L)
+})
+
 test_that("myeloid_rules priorities are positive numeric", {
   expect_true(
     is.integer(myeloid_rules$priority) || is.numeric(myeloid_rules$priority)

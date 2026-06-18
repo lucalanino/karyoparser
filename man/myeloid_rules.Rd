@@ -12,7 +12,13 @@ myeloid_rules
 }
 \description{
 A \code{karyo_rules} tibble of regex-based rules for identifying chromosomal
-aberrations relevant to myeloid neoplasms. Passed to \code{\link[=parse_karyo]{parse_karyo()}} via
-the \code{rules} argument by default. Use \code{\link[=validate_rules]{validate_rules()}} to build a custom
+aberrations relevant to myeloid neoplasms. It is composed of the shared
+\link{base_rules} (general structural aberrations) plus myeloid-specific recurrent
+lesions: specific translocations/inversions, variable-partner translocations,
+and chromosome-arm-specific deletions/additions. Passed to \code{\link[=parse_karyo]{parse_karyo()}}
+via the \code{rules} argument by default. Use \code{\link[=validate_rules]{validate_rules()}} to build a custom
 rule set with the same schema.
+}
+\seealso{
+\link{base_rules}, \code{\link[=validate_rules]{validate_rules()}}
 }
