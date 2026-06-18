@@ -492,6 +492,17 @@ test_that("empty input returns empty tibble", {
   expect_true("original_karyotype" %in% names(r))
 })
 
+test_that("schema is identical across parsed, issue, and empty results", {
+  parsed <- pk("46,XX")
+  empty <- pk(character(0))
+  issue <- suppressWarnings(pk(c("46,XX", "not a karyotype at all")))
+  # Guards against drift between the schema's single source of truth and the
+  # parsed-row pipeline: all three paths must yield the same columns in the
+  # same order.
+  expect_identical(names(empty), names(parsed))
+  expect_identical(names(issue), names(parsed))
+})
+
 test_that("single karyotype input works", {
   r <- pk("46,XX")
   expect_equal(nrow(r), 1)

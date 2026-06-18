@@ -152,16 +152,21 @@ parse_karyo <- function(
   rule_flag_names <- unique(rules$flag_name)
 
   chroms <- c(as.character(1:22), "X", "Y")
-  all_output_cols <- c(
-    "original_karyotype",
-    "preprocessed_karyotype",
-    "ploidy_category",
-    "chromosome_count",
+
+  # Single source of truth for the output schema.
+  #
+  # `abnormality_names` are the binary 0/1 flags that share identical downstream
+  # handling in the parsed-row pipeline (backfill missing with 0L, integer
+  # coercion, replace NA with 0). `all_output_cols` is the full schema: it adds
+  # the provenance metadata, `total_metaphases` (an NA-able count, so excluded
+  # from the 0L treatment) and the status columns (computed cross-row at the
+  # very end). Both NA/issue rows and parsed rows are derived from these, so a
+  # new feature only has to be added in one place.
+  abnormality_names <- c(
     rule_flag_names,
     paste0("mono", chroms),
     paste0("tris", chroms),
     "normal_karyotype",
-    "total_metaphases",
     "comma_count_aberrations",
     "complex_karyotype",
     "monosomal_karyotype",
@@ -169,7 +174,16 @@ parse_karyo <- function(
     "balanced_translocation",
     "unbalanced_translocation",
     paste0("unbal_loss_", .unbal_loss_arms),
-    "unbal_partial_loss",
+    "unbal_partial_loss"
+  )
+
+  all_output_cols <- c(
+    "original_karyotype",
+    "preprocessed_karyotype",
+    "ploidy_category",
+    "chromosome_count",
+    abnormality_names,
+    "total_metaphases",
     "fixable_error",
     "unfixable_error",
     "chimeric_karyotype",
@@ -177,20 +191,17 @@ parse_karyo <- function(
   )
 
   empty_result <- function() {
-    out <- tibble::tibble(original_karyotype = character())
-    out$preprocessed_karyotype <- character()
-    out$ploidy_category <- character()
-    out$chimeric_clone <- character()
-    for (nm in setdiff(
-      all_output_cols,
-      c(
-        "original_karyotype",
-        "preprocessed_karyotype",
-        "ploidy_category",
-        "chimeric_clone"
-      )
-    )) {
-      out[[nm]] <- integer()
+    char_cols <- c(
+      "original_karyotype",
+      "preprocessed_karyotype",
+      "ploidy_category",
+      "chimeric_clone"
+    )
+    out <- tibble::tibble(.rows = 0L)
+    # Build in all_output_cols order so the empty result matches the column
+    # order of a normal parsed result.
+    for (nm in all_output_cols) {
+      out[[nm]] <- if (nm %in% char_cols) character() else integer()
     }
     attr(out, "karyoparser_version") <- .karyoparser_version
     out
@@ -559,9 +570,6 @@ parse_karyo <- function(
   unbal_loss <- derive_unbalanced_loss(der_translocations)
 
   # ---- Assembly --------------------------------------------------------------
-  mono_cols <- paste0("mono", chroms)
-  tris_cols <- paste0("tris", chroms)
-
   all_flags <- dedup_df |>
     dplyr::select(.pk_row_id) |>
     dplyr::left_join(flags, by = ".pk_row_id") |>
@@ -576,21 +584,6 @@ parse_karyo <- function(
   autosomal_mono_cols <- paste0("mono", as.character(1:22))
   available_mono_cols <- intersect(autosomal_mono_cols, names(all_flags))
   available_struct_flags <- intersect(structural_flags, names(all_flags))
-
-  abnormality_names <- c(
-    rule_flag_names,
-    mono_cols,
-    tris_cols,
-    "normal_karyotype",
-    "comma_count_aberrations",
-    "complex_karyotype",
-    "monosomal_karyotype",
-    "mixed_ploidy",
-    "balanced_translocation",
-    "unbalanced_translocation",
-    paste0("unbal_loss_", .unbal_loss_arms),
-    "unbal_partial_loss"
-  )
 
   result <- all_flags |>
     dplyr::mutate(
@@ -1285,21 +1278,21 @@ compute_unique_counts <- function(tokens_tbl) {
 
 blank_rows <- function(original_karyotypes, all_output_cols) {
   n <- length(original_karyotypes)
-  out <- tibble::tibble(original_karyotype = original_karyotypes)
-  out$preprocessed_karyotype <- NA_character_
-  out$ploidy_category <- NA_character_
-  out$chimeric_clone <- NA_character_
-  other_cols <- setdiff(
-    all_output_cols,
-    c(
-      "original_karyotype",
-      "preprocessed_karyotype",
-      "ploidy_category",
-      "chimeric_clone"
-    )
+  char_cols <- c(
+    "original_karyotype",
+    "preprocessed_karyotype",
+    "ploidy_category",
+    "chimeric_clone"
   )
-  for (nm in other_cols) {
-    out[[nm]] <- rep(NA_integer_, n)
+  out <- tibble::tibble(.rows = n)
+  # Build in all_output_cols order so the column order matches a normal result.
+  for (nm in all_output_cols) {
+    out[[nm]] <- if (nm %in% char_cols) {
+      rep(NA_character_, n)
+    } else {
+      rep(NA_integer_, n)
+    }
   }
+  out$original_karyotype <- original_karyotypes
   out
 }
