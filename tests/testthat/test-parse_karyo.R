@@ -503,17 +503,17 @@ test_that("schema is identical across parsed, issue, and empty results", {
   expect_identical(names(issue), names(parsed))
 })
 
-test_that(".output_schema catalogs exactly the output columns, in order", {
-  schema <- karyoparser:::.output_schema(myeloid_rules)
+test_that(".column_catalog lists exactly the output columns, in order", {
+  catalog <- karyoparser:::.column_catalog(myeloid_rules)
   parsed <- pk("46,XX")
   # For a bare character-vector input (no id column) the output columns are
-  # exactly the schema, in schema order.
-  expect_identical(schema$column, names(parsed))
+  # exactly the catalog, in catalog order.
+  expect_identical(catalog$column, names(parsed))
   expect_setequal(
-    unique(schema$class),
+    unique(catalog$class),
     c("meta", "rule", "aneuploidy", "summary", "balance", "loss", "status")
   )
-  expect_setequal(schema$type, c("character", "integer"))
+  expect_setequal(catalog$type, c("character", "integer"))
 })
 
 test_that("single karyotype input works", {

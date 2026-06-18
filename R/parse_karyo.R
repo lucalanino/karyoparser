@@ -152,22 +152,22 @@ parse_karyo <- function(
   rule_flag_names <- unique(rules$flag_name)
   chroms <- c(as.character(1:22), "X", "Y")
 
-  # Single source of truth for the output schema: a provenance-tagged catalog
-  # of every column (see .output_schema()). `all_output_cols` is the full
-  # ordered schema; `abnormality_names` is the subset of binary 0/1 flags that
-  # share the parsed-row treatment (backfill missing with 0L, integer-coerce,
-  # NA -> 0); `char_cols` is the set of character-typed columns. Adding a
-  # feature in .output_schema() flows to all three automatically.
-  schema <- .output_schema(rules)
-  all_output_cols <- schema$column
-  abnormality_names <- schema$column[
-    schema$class %in% c("rule", "aneuploidy", "summary", "balance", "loss")
+  # Single source of truth for the output columns: a provenance-tagged catalog
+  # of every column (see .column_catalog()). `all_output_cols` is the full
+  # ordered column list; `abnormality_names` is the subset of binary 0/1 flags
+  # that share the parsed-row treatment (backfill missing with 0L,
+  # integer-coerce, NA -> 0); `char_cols` is the set of character-typed columns.
+  # Adding a feature in .column_catalog() flows to all three automatically.
+  catalog <- .column_catalog(rules)
+  all_output_cols <- catalog$column
+  abnormality_names <- catalog$column[
+    catalog$class %in% c("rule", "aneuploidy", "summary", "balance", "loss")
   ]
-  char_cols <- schema$column[schema$type == "character"]
+  char_cols <- catalog$column[catalog$type == "character"]
 
   empty_result <- function() {
     out <- tibble::tibble(.rows = 0L)
-    # Build in schema order so the empty result matches a normal parsed result.
+    # Build in catalog order so the empty result matches a normal parsed result.
     for (nm in all_output_cols) {
       out[[nm]] <- if (nm %in% char_cols) character() else integer()
     }
@@ -1254,14 +1254,17 @@ compute_unique_counts <- function(tokens_tbl) {
 
 # Provenance-tagged catalog of every parse_karyo() output column, in output
 # order. This is the single source of truth from which parse_karyo() derives
-# the full schema, the abnormality-flag subset, and character-column typing.
+# the full column list, the abnormality-flag subset, and character-column
+# typing. Distinct from the *rules* schema (flag_name/regex/...) validated by
+# validate_rules(): that describes the input rule table; this describes the
+# output result table.
 # Columns:
 #   - column: output column name
 #   - class:  provenance (meta, rule, aneuploidy, summary, balance, loss,
 #             status). The `rule` rows depend on the active rule set.
 #   - type:   storage type ("character" or "integer")
 #   - description: one-line human description
-.output_schema <- function(rules) {
+.column_catalog <- function(rules) {
   chroms <- c(as.character(1:22), "X", "Y")
   row <- function(column, class, type, description) {
     tibble::tibble(
