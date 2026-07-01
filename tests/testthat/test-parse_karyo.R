@@ -232,6 +232,39 @@ test_that("partial loss: multi-junction der is unbalanced but derives no loss", 
   expect_equal(r$unbal_partial_loss, 0L)
 })
 
+test_that("three-way: lone der of a three-way t() is unbalanced, no loss", {
+  r <- pk("46,XY,der(9)t(9;22;11)(q34;q11;q23)")
+  expect_equal(r$unbalanced_translocation, 1L)
+  expect_equal(r$balanced_translocation, 0L)
+  expect_equal(r$unbal_partial_loss, 0L)
+  expect_equal(r$general_derivative, 1L)
+})
+
+test_that("three-way: complete bare t(a;b;c) is balanced", {
+  r <- pk("46,XY,t(9;22;11)(q34;q11;q23)")
+  expect_equal(r$balanced_translocation, 1L)
+  expect_equal(r$unbalanced_translocation, 0L)
+})
+
+test_that("three-way: complete der-by-der reciprocal set is balanced", {
+  r <- pk(paste0(
+    "46,XY,der(9)t(9;22;11)(q34;q11;q23),",
+    "der(22)t(9;22;11)(q34;q11;q23),",
+    "der(11)t(9;22;11)(q34;q11;q23)"
+  ))
+  expect_equal(r$balanced_translocation, 1L)
+  expect_equal(r$unbalanced_translocation, 0L)
+  expect_equal(r$unbal_partial_loss, 0L)
+})
+
+test_that("three-way: incomplete set (2 of 3 ders) is unbalanced", {
+  r <- pk(paste0(
+    "46,XY,der(9)t(9;22;11)(q34;q11;q23),der(22)t(9;22;11)(q34;q11;q23)"
+  ))
+  expect_equal(r$unbalanced_translocation, 1L)
+  expect_equal(r$balanced_translocation, 0L)
+})
+
 test_that("partial loss: missing breakpoints yield no derived loss", {
   r <- pk("46,XX,der(5)t(5;17)")
   expect_equal(r$unbalanced_translocation, 1L)

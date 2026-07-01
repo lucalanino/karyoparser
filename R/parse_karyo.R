@@ -82,18 +82,20 @@
 #'     `der(5)t(5;17)...,der(17)t(5;17)...`). Independent of
 #'     `derivative_chromosome`. A row may be both balanced and unbalanced.
 #'   - unbalanced_translocation: 1 if the row carries an unbalanced
-#'     translocation -- a lone `der(a)t(a;b)` (reciprocal der absent) or a
-#'     whole-arm `der(a;b)`. The specific fusion flag still fires (e.g.
-#'     `der(9)t(9;22)` keeps `t(9;22)(q34;q11) = 1`).
+#'     translocation -- a lone der whose reciprocal set is incomplete (e.g.
+#'     `der(a)t(a;b)` or a lone `der(a)t(a;b;c)` three-way der) or a whole-arm
+#'     `der(a;b)`. The specific fusion flag still fires (e.g. `der(9)t(9;22)`
+#'     keeps `t(9;22)(q34;q11) = 1`). A der is balanced instead only when the
+#'     full reciprocal set is present (every partner appears as a der).
 #'   - unbal_loss_<arm>: one column per chromosome arm (`unbal_loss_1p`,
 #'     `unbal_loss_1q`, ..., `unbal_loss_22q`, `unbal_loss_Xp`, `unbal_loss_Xq`,
 #'     `unbal_loss_Yp`, `unbal_loss_Yq`), set to 1 when an unbalanced der
 #'     translocation implies loss of that arm. Kept SEPARATE from
 #'     `del(...)`/`mono*` -- an unbalanced-derived 5q loss does not set
 #'     `del(5q)`. Derivation needs explicit breakpoints and is limited to simple
-#'     single-junction `der(a)t(a;b)`; multi-junction chains and three-way
-#'     `t(a;b;c)` derivatives are flagged unbalanced but derive no loss.
-#'     Copy-number-aware gains are out of scope.
+#'     single-junction two-partner `der(a)t(a;b)`; multi-junction chains and
+#'     three-way `t(a;b;c)` derivatives are flagged unbalanced but derive no
+#'     loss. Copy-number-aware gains are out of scope.
 #'   - unbal_partial_loss: 1 if an unbalanced der translocation implies any
 #'     partial loss (OR across all `unbal_loss_*` columns).
 #'   - fixable_error: 1 if the row had at least one fixable issue (dirty marker
@@ -1012,10 +1014,61 @@ compute_comma_counts <- function(tokens_tbl) {
   c("p", "q")
 )
 
-# Extract der(a)t(a;b) tokens with a canonical translocation signature and a
-# per-(row, clone, signature) `balanced_pair` flag (TRUE when both partner
-# chromosomes appear as centromere donors -- i.e. a reciprocal der pair).
-# Shared by classify_translocation_balance() and derive_unbalanced_loss().
+# Canonicalize a der's t(...) partner list: sort partners by chromosome (keeping
+# breakpoints aligned) and build a signature so reciprocal ders of the SAME
+# translocation group together. Two-partner ders also expose p1/p2/bb1/bb2 for
+# loss derivation; multi-partner (three-way+) ders leave those NA, since loss is
+# only derived for the simple two-partner case.
+.canonical_der_t <- function(chroms_str, bands_str) {
+  chroms <- strsplit(chroms_str, ";", fixed = TRUE)[[1]]
+  bands <- if (is.na(bands_str)) {
+    rep(NA_character_, length(chroms))
+  } else {
+    b <- strsplit(bands_str, ";", fixed = TRUE)[[1]]
+    if (length(b) == length(chroms)) b else rep(NA_character_, length(chroms))
+  }
+  ord <- order(vapply(chroms, .chrom_sort_key, integer(1)))
+  chroms <- chroms[ord]
+  bands <- bands[ord]
+  n <- length(chroms)
+  sig <- paste0(
+    "t(",
+    paste(chroms, collapse = ";"),
+    ")(",
+    paste(tidyr::replace_na(bands, ""), collapse = ";"),
+    ")"
+  )
+  two <- n == 2L
+  list(
+    n = n,
+    sig = sig,
+    chroms = chroms,
+    p1 = if (two) chroms[[1]] else NA_character_,
+    p2 = if (two) chroms[[2]] else NA_character_,
+    bb1 = if (two) bands[[1]] else NA_character_,
+    bb2 = if (two) bands[[2]] else NA_character_
+  )
+}
+
+# TRUE when the donor multiset covers the partner multiset -- i.e. every partner
+# chromosome appears as a centromere donor at least as many times as it occurs
+# in the translocation. This is the complete reciprocal set (balanced); a lone
+# der leaves some partner un-donored (unbalanced). Generalizes the two-partner
+# rule (heterologous: both partners donored; homologous t(a;a): two der(a)) to
+# any number of partners.
+.donors_cover_partners <- function(donors, partners) {
+  all(vapply(
+    unique(partners),
+    function(chrom) sum(donors == chrom) >= sum(partners == chrom),
+    logical(1)
+  ))
+}
+
+# Extract der(...)t(...) tokens with a canonical translocation signature and a
+# per-(row, clone, signature) `balanced_pair` flag (TRUE when the reciprocal set
+# is complete -- every partner appears as a centromere donor). Handles any number
+# of translocation partners (two-way and three-way+). Shared by
+# classify_translocation_balance() and derive_unbalanced_loss().
 .der_translocations <- function(tokens_tbl) {
   der_t <- tokens_tbl |>
     dplyr::filter(!is.na(clone_id), aberr_raw != "") |>
@@ -1023,20 +1076,18 @@ compute_comma_counts <- function(tokens_tbl) {
       raw = strip_bands(aberr_raw),
       is_der = stringr::str_detect(raw, "^\\+?i?der\\("),
       der_inner = stringr::str_match(raw, "^\\+?i?der\\(([^)]+)\\)")[, 2],
-      t_c1 = stringr::str_match(raw, "t\\(([0-9XY]+);([0-9XY]+)\\)")[, 2],
-      t_c2 = stringr::str_match(raw, "t\\(([0-9XY]+);([0-9XY]+)\\)")[, 3],
-      t_b1 = stringr::str_match(
+      t_chroms = stringr::str_match(
         raw,
-        "t\\([0-9XY]+;[0-9XY]+\\)\\(([^;)]+);([^)]+)\\)"
+        "t\\(([0-9XY]+(?:;[0-9XY]+)+)\\)"
       )[, 2],
-      t_b2 = stringr::str_match(
+      t_bands = stringr::str_match(
         raw,
-        "t\\([0-9XY]+;[0-9XY]+\\)\\(([^;)]+);([^)]+)\\)"
-      )[, 3]
+        "t\\([0-9XY]+(?:;[0-9XY]+)+\\)\\(([^)]+)\\)"
+      )[, 2]
     ) |>
     dplyr::filter(
       is_der,
-      !is.na(t_c1),
+      !is.na(t_chroms),
       !is.na(der_inner),
       !stringr::str_detect(der_inner, ";")
     )
@@ -1045,56 +1096,49 @@ compute_comma_counts <- function(tokens_tbl) {
     return(
       der_t |>
         dplyr::mutate(
+          n_partners = integer(0),
           p1 = character(0),
           p2 = character(0),
           bb1 = character(0),
           bb2 = character(0),
           donor = character(0),
+          t_sig = character(0),
           balanced_pair = logical(0)
         )
     )
   }
 
+  canon <- purrr::pmap(
+    list(der_t$t_chroms, der_t$t_bands),
+    .canonical_der_t
+  )
+
   der_t |>
     dplyr::mutate(
-      swap = .chrom_sort_key(t_c1) > .chrom_sort_key(t_c2),
-      p1 = dplyr::if_else(swap, t_c2, t_c1),
-      p2 = dplyr::if_else(swap, t_c1, t_c2),
-      bb1 = dplyr::if_else(swap, t_b2, t_b1),
-      bb2 = dplyr::if_else(swap, t_b1, t_b2),
-      t_sig = paste0(
-        "t(",
-        p1,
-        ";",
-        p2,
-        ")(",
-        tidyr::replace_na(bb1, ""),
-        ";",
-        tidyr::replace_na(bb2, ""),
-        ")"
-      ),
-      donor = der_inner
+      donor = der_inner,
+      n_partners = purrr::map_int(canon, "n"),
+      t_sig = purrr::map_chr(canon, "sig"),
+      p1 = purrr::map_chr(canon, "p1"),
+      p2 = purrr::map_chr(canon, "p2"),
+      bb1 = purrr::map_chr(canon, "bb1"),
+      bb2 = purrr::map_chr(canon, "bb2"),
+      partners = purrr::map(canon, "chroms")
     ) |>
     dplyr::group_by(.pk_row_id, clone_id, t_sig) |>
     dplyr::mutate(
-      balanced_pair = dplyr::if_else(
-        p1 == p2,
-        # Homologous t(a;a): both reciprocal products are der(a), so donor set
-        # membership cannot distinguish one der from two. Require >= 2 ders for
-        # the same signature before calling it a balanced reciprocal pair.
-        dplyr::n() >= 2L,
-        (p1 %in% donor) & (p2 %in% donor)
-      )
+      balanced_pair = .donors_cover_partners(donor, partners[[1]])
     ) |>
     dplyr::ungroup()
 }
 
 # Classify each row as carrying balanced and/or unbalanced translocations.
 #
-# Balanced  := a bare t(...) token, OR a der()t() reciprocal pair where both
-#              partner chromosomes appear as centromere donors within a clone.
-# Unbalanced := a lone der(a)t(a;b) (the reciprocal der is absent), OR a
-#              whole-arm der(a;b) (single derivative). A row may be both (mixed).
+# Balanced  := a bare t(...) token, OR a complete der()t() reciprocal set where
+#              every partner chromosome appears as a centromere donor within a
+#              clone (two-way pair or three-way+ set).
+# Unbalanced := a der()t() whose reciprocal set is incomplete -- e.g. a lone
+#              der(a)t(a;b) or a lone der(a)t(a;b;c) -- OR a whole-arm der(a;b)
+#              (single derivative). A row may be both (mixed).
 #
 # These flags are independent of `derivative_chromosome`, which still fires.
 classify_translocation_balance <- function(
@@ -1167,6 +1211,7 @@ derive_unbalanced_loss <- function(der_t) {
   dt <- der_t |>
     dplyr::filter(
       !balanced_pair,
+      n_partners == 2L,
       stringr::str_count(raw, "t\\(") == 1L,
       donor == p1 | donor == p2
     )

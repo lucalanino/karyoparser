@@ -245,9 +245,12 @@ the parser and do **not** need to be added as rules.
   as monosomy 7.
 - **Multi-partner (three-way) translocations**: A complete `t(a;b;c)`
   matches only the generic `general_translocation` flag (no
-  specific-breakpoint flag) and is assumed balanced; a `der()` of a
-  three-way fires only `general_derivative` (no balanced/unbalanced or
-  partial-loss derivation). Both still count toward
+  specific-breakpoint flag) and is assumed balanced. A `der()` of a
+  three-way is classified for translocation balance – a lone der is
+  `unbalanced_translocation`, a complete der-by-der reciprocal set is
+  `balanced_translocation` – but derives no partial loss
+  (`unbal_loss_*`); partial-loss derivation remains limited to simple
+  two-partner `der(a)t(a;b)`. Both still count toward
   `complex_karyotype`/`monosomal_karyotype`.
 - **Non-myeloid panels**: Rules are curated for AML/MDS/MPN/CML.
   Lymphoid and solid-tumor lesions are absent.
