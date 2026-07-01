@@ -150,7 +150,7 @@ provenance.
 | Summary | `complex_karyotype` | integer 0/1 | 1 if \>= 3 distinct aberrations across clones |
 | Summary | `monosomal_karyotype` | integer 0/1 | 1 if \>= 2 autosomal monosomies, or \>= 1 monosomy + \>= 1 structural aberration |
 | Translocation balance | `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Whether the row carries balanced / unbalanced translocations |
-| Derived loss | `unbal_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation |
+| Derived loss | `unbal_partial_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation |
 | Status | `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |
 | Status | `fixable_error`, `unfixable_error` | integer 0/1 | Row had a fixable / unfixable issue (unfixable rows are all NA) |
 | Status | `chimeric_karyotype` | integer 0/1 | 1 if input contained a `//` chimeric separator |
@@ -240,13 +240,13 @@ the parser and do **not** need to be added as rules.
 - **Copy number \> 1**: Gain/loss are binary – `+8,+8` yields
   `tris8 = 1`.
 - **Partial gain, and offsetting of partial loss**: An unbalanced
-  `der(a)t(a;b)` records the implied partial *loss* (`unbal_loss_*`) but
-  never a partial *gain* – there is no `unbal_gain_*`. The loss is
+  `der(a)t(a;b)` records the implied partial *loss* (`unbal_partial_loss_*`) but
+  never a partial *gain* – there is no `unbal_partial_gain_*`. The loss is
   derived token-locally from the der breakpoints: it fires purely from
   the der’s structure and is **not** reconciled against the rest of the
   karyotype. So a co-occurring gain of the same material (e.g. `+9` or a
   `dup`) that would offset the loss does **not** suppress it –
-  `47,XX,+9,der(9)t(9;22)(q34;q11)` still reports `unbal_loss_9q = 1`
+  `47,XX,+9,der(9)t(9;22)(q34;q11)` still reports `unbal_partial_loss_9q = 1`
   even though distal 9q sits at two copies.
 - **Sex chromosome syndromes**: Only simple monosomy/trisomy is captured
   (e.g. no dedicated Turner/Klinefelter flags).
@@ -265,7 +265,7 @@ the parser and do **not** need to be added as rules.
   three-way is classified for translocation balance – a lone der is
   `unbalanced_translocation`, a complete der-by-der reciprocal set is
   `balanced_translocation` – but derives no partial loss
-  (`unbal_loss_*`); partial-loss derivation remains limited to simple
+  (`unbal_partial_loss_*`); partial-loss derivation remains limited to simple
   two-partner `der(a)t(a;b)`. Both still count toward
   `complex_karyotype`/`monosomal_karyotype`.
 - **Non-myeloid panels**: Rules are curated for AML/MDS/MPN/CML.

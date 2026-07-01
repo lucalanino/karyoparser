@@ -183,40 +183,40 @@ test_that("balanced: two homologous der of same signature form a reciprocal pair
   expect_equal(r$unbalanced_translocation, 0L)
 })
 
-test_that("partial loss: der(5)t(5;17) implies unbal_loss_5q + unbal_loss_17p", {
+test_that("partial loss: der(5)t(5;17) implies unbal_partial_loss_5q + unbal_partial_loss_17p", {
   r <- pk("46,XY,der(5)t(5;17)(q11;q11)")
-  expect_equal(r$unbal_loss_5q, 1L)
-  expect_equal(r$unbal_loss_17p, 1L)
+  expect_equal(r$unbal_partial_loss_5q, 1L)
+  expect_equal(r$unbal_partial_loss_17p, 1L)
   expect_equal(r$unbal_partial_loss, 1L)
   expect_equal(r$`del(5q)`, 0L)
 })
 
-test_that("partial loss: real del(5q) does not set any unbal_loss column", {
+test_that("partial loss: real del(5q) does not set any unbal_partial_loss column", {
   r <- pk("46,XX,del(5q)")
   expect_equal(r$`del(5q)`, 1L)
-  expect_equal(r$unbal_loss_5q, 0L)
+  expect_equal(r$unbal_partial_loss_5q, 0L)
   expect_equal(r$unbal_partial_loss, 0L)
 })
 
 test_that("partial loss: balanced reciprocal pair implies no loss", {
   r <- pk("46,XX,der(5)t(5;17)(q11;q11),der(17)t(5;17)(q11;q11)")
   expect_equal(r$unbal_partial_loss, 0L)
-  expect_equal(r$unbal_loss_5q, 0L)
-  expect_equal(r$unbal_loss_17p, 0L)
+  expect_equal(r$unbal_partial_loss_5q, 0L)
+  expect_equal(r$unbal_partial_loss_17p, 0L)
 })
 
 test_that("partial loss: all arms exposed, including non-myeloid ones", {
   r <- pk("45,XX,der(9)t(9;22)(q34;q11)")
   expect_equal(r$unbal_partial_loss, 1L)
-  expect_equal(r$unbal_loss_9q, 1L)
-  expect_equal(r$unbal_loss_22p, 1L)
-  expect_equal(r$unbal_loss_5q, 0L)
+  expect_equal(r$unbal_partial_loss_9q, 1L)
+  expect_equal(r$unbal_partial_loss_22p, 1L)
+  expect_equal(r$unbal_partial_loss_5q, 0L)
 })
 
 test_that("partial loss: sex-chromosome arms are exposed", {
   r <- pk("46,Y,der(X)t(X;5)(q21;q31)")
-  expect_equal(r$unbal_loss_Xq, 1L)
-  expect_equal(r$unbal_loss_5p, 1L)
+  expect_equal(r$unbal_partial_loss_Xq, 1L)
+  expect_equal(r$unbal_partial_loss_5p, 1L)
   expect_equal(r$unbal_partial_loss, 1L)
 })
 

@@ -87,17 +87,18 @@
 #'     `der(a;b)`. The specific fusion flag still fires (e.g. `der(9)t(9;22)`
 #'     keeps `t(9;22)(q34;q11) = 1`). A der is balanced instead only when the
 #'     full reciprocal set is present (every partner appears as a der).
-#'   - unbal_loss_<arm>: one column per chromosome arm (`unbal_loss_1p`,
-#'     `unbal_loss_1q`, ..., `unbal_loss_22q`, `unbal_loss_Xp`, `unbal_loss_Xq`,
-#'     `unbal_loss_Yp`, `unbal_loss_Yq`), set to 1 when an unbalanced der
-#'     translocation implies loss of that arm. Kept SEPARATE from
-#'     `del(...)`/`mono*` -- an unbalanced-derived 5q loss does not set
-#'     `del(5q)`. Derivation needs explicit breakpoints and is limited to simple
-#'     single-junction two-partner `der(a)t(a;b)`; multi-junction chains and
-#'     three-way `t(a;b;c)` derivatives are flagged unbalanced but derive no
+#'   - unbal_partial_loss_<arm>: one column per chromosome arm
+#'     (`unbal_partial_loss_1p`, `unbal_partial_loss_1q`, ...,
+#'     `unbal_partial_loss_22q`, `unbal_partial_loss_Xp`, `unbal_partial_loss_Xq`,
+#'     `unbal_partial_loss_Yp`, `unbal_partial_loss_Yq`), set to 1 when an
+#'     unbalanced der translocation implies partial loss of that arm. Kept
+#'     SEPARATE from `del(...)`/`mono*` -- an unbalanced-derived 5q loss does not
+#'     set `del(5q)`. Derivation needs explicit breakpoints and is limited to
+#'     simple single-junction two-partner `der(a)t(a;b)`; multi-junction chains
+#'     and three-way `t(a;b;c)` derivatives are flagged unbalanced but derive no
 #'     loss. Copy-number-aware gains are out of scope.
 #'   - unbal_partial_loss: 1 if an unbalanced der translocation implies any
-#'     partial loss (OR across all `unbal_loss_*` columns).
+#'     partial loss (OR across all `unbal_partial_loss_*` columns).
 #'   - fixable_error: 1 if the row had at least one fixable issue (dirty marker
 #'     or chimeric separator) and no unfixable issue, regardless of whether the
 #'     fixable issue was auto-corrected. 0 when `unfixable_error = 1`.
@@ -544,7 +545,7 @@ parse_karyo <- function(
   unique_aberr <- compute_unique_counts(tokens)
   der_translocations <- .der_translocations(tokens)
   balance_flags <- classify_translocation_balance(tokens, der_translocations)
-  unbal_loss <- derive_unbalanced_loss(der_translocations)
+  unbal_partial_loss <- derive_unbalanced_loss(der_translocations)
 
   # ---- Assembly --------------------------------------------------------------
   all_flags <- dedup_df |>
@@ -625,7 +626,7 @@ parse_karyo <- function(
     ) |>
     dplyr::left_join(comma_counts, by = ".pk_row_id") |>
     dplyr::left_join(balance_flags, by = ".pk_row_id") |>
-    dplyr::left_join(unbal_loss, by = ".pk_row_id") |>
+    dplyr::left_join(unbal_partial_loss, by = ".pk_row_id") |>
     dplyr::left_join(
       sample_meta |>
         dplyr::select(
@@ -1008,8 +1009,9 @@ compute_comma_counts <- function(tokens_tbl) {
 }
 
 # All chromosome arms (autosomes 1-22 plus X/Y, each p and q) for which
-# unbalanced-derived partial losses get their own `unbal_loss_<arm>` column.
-.unbal_loss_arms <- paste0(
+# unbalanced-derived partial losses get their own `unbal_partial_loss_<arm>`
+# column.
+.unbal_partial_loss_arms <- paste0(
   rep(c(as.character(1:22), "X", "Y"), each = 2),
   c("p", "q")
 )
@@ -1190,7 +1192,7 @@ classify_translocation_balance <- function(
 # Derive implied partial losses from lone (unbalanced) der(a)t(a;b)(bp_a;bp_b):
 #   - chromosome a loses material distal to bp_a -> arm(bp_a)
 #   - partner b loses its centromere-side material  -> opposite arm of bp_b
-# Emitted into dedicated `unbal_loss_<arm>` columns (one per chromosome arm,
+# Emitted into dedicated `unbal_partial_loss_<arm>` columns (one per chromosome arm,
 # autosomes plus X/Y) plus a generic `unbal_partial_loss` flag. These are kept
 # SEPARATE from del()/mono* signals -- an unbalanced-derived 5q loss is not
 # conflated with a true del(5q).
@@ -1202,7 +1204,7 @@ classify_translocation_balance <- function(
 # derived for them (they are still flagged unbalanced by the classifier).
 # Copy-number-aware gains are out of scope (they need whole-karyotype reasoning).
 derive_unbalanced_loss <- function(der_t) {
-  cols <- paste0("unbal_loss_", .unbal_loss_arms)
+  cols <- paste0("unbal_partial_loss_", .unbal_partial_loss_arms)
   empty <- tibble::tibble(.pk_row_id = integer())
   for (nm in c(cols, "unbal_partial_loss")) {
     empty[[nm]] <- integer()
@@ -1244,9 +1246,9 @@ derive_unbalanced_loss <- function(der_t) {
     dplyr::mutate(unbal_partial_loss = 1L)
 
   named <- long |>
-    dplyr::filter(seg %in% .unbal_loss_arms) |>
+    dplyr::filter(seg %in% .unbal_partial_loss_arms) |>
     dplyr::distinct(.pk_row_id, seg) |>
-    dplyr::mutate(col = paste0("unbal_loss_", seg), value = 1L) |>
+    dplyr::mutate(col = paste0("unbal_partial_loss_", seg), value = 1L) |>
     dplyr::select(.pk_row_id, col, value) |>
     tidyr::pivot_wider(
       names_from = col,
@@ -1399,7 +1401,7 @@ compute_unique_counts <- function(tokens_tbl) {
       "1 if the row carries an unbalanced translocation"
     ),
     row(
-      paste0("unbal_loss_", .unbal_loss_arms),
+      paste0("unbal_partial_loss_", .unbal_partial_loss_arms),
       "loss",
       "integer",
       "Partial arm loss implied by an unbalanced der translocation"
@@ -1408,7 +1410,7 @@ compute_unique_counts <- function(tokens_tbl) {
       "unbal_partial_loss",
       "loss",
       "integer",
-      "1 if any unbalanced-derived partial loss (OR of unbal_loss_*)"
+      "1 if any unbalanced-derived partial loss (OR of unbal_partial_loss_*)"
     ),
     row(
       "total_metaphases",

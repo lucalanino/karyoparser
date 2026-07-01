@@ -110,17 +110,18 @@ translocation -- a lone der whose reciprocal set is incomplete (e.g.
 \verb{der(a;b)}. The specific fusion flag still fires (e.g. \verb{der(9)t(9;22)}
 keeps \verb{t(9;22)(q34;q11) = 1}). A der is balanced instead only when the
 full reciprocal set is present (every partner appears as a der).
-\item unbal_loss_\if{html}{\out{<arm>}}: one column per chromosome arm (\code{unbal_loss_1p},
-\code{unbal_loss_1q}, ..., \code{unbal_loss_22q}, \code{unbal_loss_Xp}, \code{unbal_loss_Xq},
-\code{unbal_loss_Yp}, \code{unbal_loss_Yq}), set to 1 when an unbalanced der
-translocation implies loss of that arm. Kept SEPARATE from
-\code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q loss does not set
-\verb{del(5q)}. Derivation needs explicit breakpoints and is limited to simple
-single-junction two-partner \verb{der(a)t(a;b)}; multi-junction chains and
-three-way \verb{t(a;b;c)} derivatives are flagged unbalanced but derive no
+\item unbal_partial_loss_\if{html}{\out{<arm>}}: one column per chromosome arm
+(\code{unbal_partial_loss_1p}, \code{unbal_partial_loss_1q}, ...,
+\code{unbal_partial_loss_22q}, \code{unbal_partial_loss_Xp}, \code{unbal_partial_loss_Xq},
+\code{unbal_partial_loss_Yp}, \code{unbal_partial_loss_Yq}), set to 1 when an
+unbalanced der translocation implies partial loss of that arm. Kept
+SEPARATE from \code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q loss does not
+set \verb{del(5q)}. Derivation needs explicit breakpoints and is limited to
+simple single-junction two-partner \verb{der(a)t(a;b)}; multi-junction chains
+and three-way \verb{t(a;b;c)} derivatives are flagged unbalanced but derive no
 loss. Copy-number-aware gains are out of scope.
 \item unbal_partial_loss: 1 if an unbalanced der translocation implies any
-partial loss (OR across all \verb{unbal_loss_*} columns).
+partial loss (OR across all \verb{unbal_partial_loss_*} columns).
 \item fixable_error: 1 if the row had at least one fixable issue (dirty marker
 or chimeric separator) and no unfixable issue, regardless of whether the
 fixable issue was auto-corrected. 0 when \code{unfixable_error = 1}.
