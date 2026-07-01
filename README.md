@@ -239,11 +239,15 @@ the parser and do **not** need to be added as rules.
   breakpoints are not stored.
 - **Copy number \> 1**: Gain/loss are binary – `+8,+8` yields
   `tris8 = 1`.
-- **Partial gain via unbalanced der**: An unbalanced `der(a)t(a;b)`
-  records the implied partial *loss* (`unbal_loss_*`) but not the
-  partial *gain* of the fused-on segment. Net gain depends on
-  whole-karyotype copy-number balance (other tokens can offset it), so
-  no `unbal_gain_*` is derived.
+- **Partial gain, and offsetting of partial loss**: An unbalanced
+  `der(a)t(a;b)` records the implied partial *loss* (`unbal_loss_*`) but
+  never a partial *gain* – there is no `unbal_gain_*`. The loss is
+  derived token-locally from the der breakpoints: it fires purely from
+  the der’s structure and is **not** reconciled against the rest of the
+  karyotype. So a co-occurring gain of the same material (e.g. `+9` or a
+  `dup`) that would offset the loss does **not** suppress it –
+  `47,XX,+9,der(9)t(9;22)(q34;q11)` still reports `unbal_loss_9q = 1`
+  even though distal 9q sits at two copies.
 - **Sex chromosome syndromes**: Only simple monosomy/trisomy is captured
   (e.g. no dedicated Turner/Klinefelter flags).
 - **Partial monosomy via der/dup**: `der(7)t(1;7)` is not auto-counted
