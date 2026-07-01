@@ -239,10 +239,22 @@ the parser and do **not** need to be added as rules.
   breakpoints are not stored.
 - **Copy number \> 1**: Gain/loss are binary – `+8,+8` yields
   `tris8 = 1`.
+- **Partial gain via unbalanced der**: An unbalanced `der(a)t(a;b)`
+  records the implied partial *loss* (`unbal_loss_*`) but not the
+  partial *gain* of the fused-on segment. Net gain depends on
+  whole-karyotype copy-number balance (other tokens can offset it), so
+  no `unbal_gain_*` is derived.
 - **Sex chromosome syndromes**: Only simple monosomy/trisomy is captured
   (e.g. no dedicated Turner/Klinefelter flags).
 - **Partial monosomy via der/dup**: `der(7)t(1;7)` is not auto-counted
   as monosomy 7.
+- **`idem` token-level expansion**: `idem` (stemline shorthand) is
+  expanded for aberration *counting* but not for token-level
+  flag/balance analysis. Consequence: a reciprocal der pair split across
+  the `idem` boundary (stemline carries `der(a)`, an `idem` subclone
+  adds `der(b)`) is reported `unbalanced_translocation = 1` only,
+  missing the `balanced_translocation = 1` the idem-inherited partner
+  implies.
 - **Multi-partner (three-way) translocations**: A complete `t(a;b;c)`
   matches only the generic `general_translocation` flag (no
   specific-breakpoint flag) and is assumed balanced. A `der()` of a
