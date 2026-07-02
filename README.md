@@ -136,7 +136,12 @@ result[, c("sample_id", "original_karyotype", "preprocessed_karyotype")]
 ## Output Columns
 
 Each row is one input karyotype; columns fall into a few groups by
-provenance.
+provenance. The full output is wide (167 columns for the default
+`myeloid_rules`); pass `columns` to `parse_karyo()` to keep only
+selected groups – e.g. `columns = c("summary", "balance")` – while
+metadata and status columns are always included. Valid values are
+`"rule"`, `"general"`, `"aneuploidy"`, `"summary"`, `"balance"`,
+`"loss"` (matching the groups below).
 
 | Group | Columns | Type | Description |
 |----|----|----|----|
@@ -240,14 +245,15 @@ the parser and do **not** need to be added as rules.
 - **Copy number \> 1**: Gain/loss are binary – `+8,+8` yields
   `tris8 = 1`.
 - **Partial gain, and offsetting of partial loss**: An unbalanced
-  `der(a)t(a;b)` records the implied partial *loss* (`unbal_partial_loss_*`) but
-  never a partial *gain* – there is no `unbal_partial_gain_*`. The loss is
-  derived token-locally from the der breakpoints: it fires purely from
-  the der’s structure and is **not** reconciled against the rest of the
-  karyotype. So a co-occurring gain of the same material (e.g. `+9` or a
-  `dup`) that would offset the loss does **not** suppress it –
-  `47,XX,+9,der(9)t(9;22)(q34;q11)` still reports `unbal_partial_loss_9q = 1`
-  even though distal 9q sits at two copies.
+  `der(a)t(a;b)` records the implied partial *loss*
+  (`unbal_partial_loss_*`) but never a partial *gain* – there is no
+  `unbal_partial_gain_*`. The loss is derived token-locally from the der
+  breakpoints: it fires purely from the der’s structure and is **not**
+  reconciled against the rest of the karyotype. So a co-occurring gain
+  of the same material (e.g. `+9` or a `dup`) that would offset the loss
+  does **not** suppress it – `47,XX,+9,der(9)t(9;22)(q34;q11)` still
+  reports `unbal_partial_loss_9q = 1` even though distal 9q sits at two
+  copies.
 - **Sex chromosome syndromes**: Only simple monosomy/trisomy is captured
   (e.g. no dedicated Turner/Klinefelter flags).
 - **Partial monosomy via der/dup**: `der(7)t(1;7)` is not auto-counted
@@ -265,8 +271,8 @@ the parser and do **not** need to be added as rules.
   three-way is classified for translocation balance – a lone der is
   `unbalanced_translocation`, a complete der-by-der reciprocal set is
   `balanced_translocation` – but derives no partial loss
-  (`unbal_partial_loss_*`); partial-loss derivation remains limited to simple
-  two-partner `der(a)t(a;b)`. Both still count toward
+  (`unbal_partial_loss_*`); partial-loss derivation remains limited to
+  simple two-partner `der(a)t(a;b)`. Both still count toward
   `complex_karyotype`/`monosomal_karyotype`.
 - **Non-myeloid panels**: Rules are curated for AML/MDS/MPN/CML.
   Lymphoid and solid-tumor lesions are absent.

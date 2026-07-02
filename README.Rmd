@@ -120,6 +120,11 @@ result[, c("sample_id", "original_karyotype", "preprocessed_karyotype")]
 ## Output Columns
 
 Each row is one input karyotype; columns fall into a few groups by provenance.
+The full output is wide (167 columns for the default `myeloid_rules`); pass
+`columns` to `parse_karyo()` to keep only selected groups -- e.g.
+`columns = c("summary", "balance")` -- while metadata and status columns are
+always included. Valid values are `"rule"`, `"general"`, `"aneuploidy"`,
+`"summary"`, `"balance"`, `"loss"` (matching the groups below).
 
 | Group | Columns | Type | Description |
 |---|---|---|---|
