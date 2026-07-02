@@ -563,6 +563,53 @@ test_that(".column_catalog lists exactly the output columns, in order", {
   expect_setequal(catalog$type, c("character", "integer"))
 })
 
+test_that("columns = NULL (default) returns the full catalog", {
+  catalog <- karyoparser:::.column_catalog(myeloid_rules)
+  parsed <- pk("46,XX")
+  expect_identical(names(parsed), catalog$column)
+})
+
+test_that("columns subsets to the requested classes plus meta/status", {
+  parsed <- parse_karyo(
+    c("46,XX", "47,XY,+21,t(9;22)(q34;q11.2)"),
+    on_issues = "warn",
+    verbose = FALSE,
+    columns = c("summary", "balance")
+  )
+  catalog <- karyoparser:::.column_catalog(myeloid_rules)
+  expected <- catalog$column[
+    catalog$class %in% c("meta", "status", "summary", "balance")
+  ]
+  expect_identical(names(parsed), expected)
+  expect_true("balanced_translocation" %in% names(parsed))
+  expect_false("mono21" %in% names(parsed))
+  expect_false(any(startsWith(names(parsed), "unbal_partial_loss")))
+})
+
+test_that("columns always keeps meta and status classes", {
+  parsed <- pk("46,XX", columns = "balance")
+  expect_true(all(
+    c(
+      "original_karyotype",
+      "preprocessed_karyotype",
+      "chromosome_count",
+      "total_metaphases",
+      "fixable_error",
+      "unfixable_error",
+      "chimeric_karyotype",
+      "chimeric_clone"
+    ) %in%
+      names(parsed)
+  ))
+})
+
+test_that("columns errors on an unknown class", {
+  expect_error(
+    pk("46,XX", columns = "bogus"),
+    "Unknown `columns` value"
+  )
+})
+
 test_that("single karyotype input works", {
   r <- pk("46,XX")
   expect_equal(nrow(r), 1)

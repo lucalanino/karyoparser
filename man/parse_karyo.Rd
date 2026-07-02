@@ -11,7 +11,8 @@ parse_karyo(
   id_column = NULL,
   verbose = FALSE,
   on_issues = c("stop", "preprocess", "warn"),
-  on_chimeric = c("default", "host", "donor")
+  on_chimeric = c("default", "host", "donor"),
+  columns = NULL
 )
 }
 \arguments{
@@ -79,6 +80,22 @@ Rows with two or more \verb{//} separators (\code{multiple_chimeric_separator}) 
 always unfixable and return NA. For \code{karyo_preprocessed} input the clone
 selection was baked in at preprocess time and is inherited; passing an
 explicit, conflicting \code{on_chimeric} raises an error.
+}}
+
+\item{columns}{Character vector selecting which output-column classes to
+include, or \code{NULL} (default) for the full output. \code{original_karyotype},
+\code{preprocessed_karyotype}, \code{chromosome_count}, \code{total_metaphases},
+\code{fixable_error}, \code{unfixable_error}, \code{chimeric_karyotype}, and
+\code{chimeric_clone} are always included regardless of \code{columns}. Valid
+values (any combination):
+\itemize{
+\item \code{"rule"}: rule-matching aberration flags (from \code{rules})
+\item \code{"general"}: disease-agnostic structural flags (\verb{general_*})
+\item \code{"aneuploidy"}: \verb{mono*}/\verb{tris*} monosomy/trisomy flags
+\item \code{"summary"}: \code{normal_karyotype}, \code{comma_count_aberrations},
+\code{complex_karyotype}, \code{monosomal_karyotype}
+\item \code{"balance"}: \code{balanced_translocation}, \code{unbalanced_translocation}
+\item \code{"loss"}: \verb{unbal_partial_loss_<arm>} and \code{unbal_partial_loss}
 }}
 }
 \value{
