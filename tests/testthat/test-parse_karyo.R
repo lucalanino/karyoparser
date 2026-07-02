@@ -610,6 +610,25 @@ test_that("columns errors on an unknown class", {
   )
 })
 
+test_that("columns = 'rule' reflects the flag names of a custom `rules` table", {
+  custom_rules <- validate_rules(data.frame(
+    flag_name = "my_custom_flag",
+    regex = "t\\(9;22\\)\\(q34;q11\\)",
+    category = "specific_tx"
+  ))
+  parsed <- parse_karyo(
+    "46,XX,t(9;22)(q34;q11)",
+    rules = custom_rules,
+    on_issues = "warn",
+    verbose = FALSE,
+    columns = "rule"
+  )
+  expect_true("my_custom_flag" %in% names(parsed))
+  expect_equal(parsed$my_custom_flag, 1L)
+  expect_false("t(15;17)(q24;q21)" %in% names(parsed))
+  expect_false("general_translocation" %in% names(parsed))
+})
+
 test_that("single karyotype input works", {
   r <- pk("46,XX")
   expect_equal(nrow(r), 1)
