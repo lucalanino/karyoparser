@@ -567,6 +567,74 @@ test_that("parse_karyo() errors when rules is a plain data frame", {
   expect_error(parse_karyo("46,XX", rules = df), "karyo_rules")
 })
 
+test_that("rules accepts a list of karyo_rules tables and combines their flags", {
+  set_a <- validate_rules(data.frame(
+    flag_name = "flagA",
+    regex = "t\\(9;22\\)\\(q34;q11\\)",
+    category = "specific_tx"
+  ))
+  set_b <- validate_rules(data.frame(
+    flag_name = "flagB",
+    regex = "del\\(5\\)\\(q13q33\\)",
+    category = "specific_del"
+  ))
+  r <- parse_karyo(
+    c("46,XX,t(9;22)(q34;q11)", "46,XX,del(5)(q13q33)"),
+    rules = list(set_a, set_b),
+    on_issues = "warn",
+    verbose = FALSE
+  )
+  expect_true(all(c("flagA", "flagB") %in% names(r)))
+  expect_equal(r$flagA, c(1L, 0L))
+  expect_equal(r$flagB, c(0L, 1L))
+})
+
+test_that("a single-element rules list behaves like passing the table directly", {
+  r_list <- parse_karyo(
+    "46,XX,t(9;22)(q34;q11)",
+    rules = list(myeloid_rules),
+    on_issues = "warn",
+    verbose = FALSE
+  )
+  r_direct <- pk("46,XX,t(9;22)(q34;q11)")
+  expect_identical(r_list, r_direct)
+})
+
+test_that("rules list: a flag_name shared across tables is OR'd, not deduplicated into two columns", {
+  set_a <- validate_rules(data.frame(
+    flag_name = "shared_flag",
+    regex = "t\\(9;22\\)\\(q34;q11\\)",
+    category = "specific_tx"
+  ))
+  set_b <- validate_rules(data.frame(
+    flag_name = "shared_flag",
+    regex = "del\\(5\\)\\(q13q33\\)",
+    category = "specific_del"
+  ))
+  r <- parse_karyo(
+    c("46,XX,t(9;22)(q34;q11)", "46,XX,del(5)(q13q33)", "46,XX"),
+    rules = list(set_a, set_b),
+    on_issues = "warn",
+    verbose = FALSE
+  )
+  expect_equal(sum(names(r) == "shared_flag"), 1L)
+  expect_equal(r$shared_flag, c(1L, 1L, 0L))
+})
+
+test_that("rules errors on an empty list", {
+  expect_error(
+    parse_karyo("46,XX", rules = list()),
+    "at least one"
+  )
+})
+
+test_that("rules errors when a list element is not a karyo_rules object", {
+  expect_error(
+    parse_karyo("46,XX", rules = list(myeloid_rules, "not a karyo_rules")),
+    "Every element of `rules`"
+  )
+})
+
 test_that("preprocessed_karyotype under on_issues='warn' is normalize_iscn() of input", {
   r <- parse_karyo(c("46,XX", "46,XY,+8"), on_issues = "warn", verbose = FALSE)
   expect_equal(r$preprocessed_karyotype[1], "46,XX")

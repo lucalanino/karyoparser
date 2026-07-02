@@ -9,9 +9,14 @@
 #'   by `preprocess_karyo()`. When a `karyo_preprocessed` object is passed, the
 #'   `preprocessed` column is used automatically and cached issue indices and id
 #'   column are reused -- no additional arguments required.
-#' @param rules A `karyo_rules` object (default: [myeloid_rules]). Use
-#'   [validate_rules()] to validate and convert a custom data frame into an
-#'   accepted rules object.
+#' @param rules A `karyo_rules` object (default: [myeloid_rules]), or a list
+#'   of `karyo_rules` objects to combine (e.g. `list(myeloid_rules,
+#'   lymphoid_rules)`). Rules already fire independently within a single
+#'   table -- multiple rules can match the same token -- so combining tables
+#'   just widens the pool; there is no cross-table priority or
+#'   deduplication, so a `flag_name` shared by two tables is treated as one
+#'   flag that either table can fire. Use [validate_rules()] to validate and
+#'   convert a custom data frame into an accepted rules object.
 #' @param karyotype_column Character. Name of the karyotype column when input is
 #'   a plain data frame. If `NULL` (default), auto-detected from common names
 #'   (`karyotype`, `iscn`, etc.). Ignored for character vector or
@@ -156,6 +161,28 @@ parse_karyo <- function(
   on_chimeric <- match.arg(on_chimeric)
 
   # Validate rules early (needed for empty result structure) ------------------
+  # `rules` may be a single karyo_rules object, or a list of karyo_rules
+  # objects to combine (e.g. list(myeloid_rules, lymphoid_rules)). Excluding
+  # data frames here matters because a data.frame is itself a list -- without
+  # it, a plain (unvalidated) rules data frame would be mistaken for a list of
+  # rules tables instead of hitting the karyo_rules class check below.
+  if (!is.data.frame(rules) && is.list(rules)) {
+    if (length(rules) == 0L) {
+      stop(
+        "`rules` must contain at least one `karyo_rules` object.",
+        call. = FALSE
+      )
+    }
+    is_karyo_rules <- vapply(rules, inherits, logical(1), what = "karyo_rules")
+    if (!all(is_karyo_rules)) {
+      stop(
+        "Every element of `rules` must be a `karyo_rules` object. ",
+        "Use `validate_rules()` to validate a custom rules table.",
+        call. = FALSE
+      )
+    }
+    rules <- validate_rules(dplyr::bind_rows(lapply(rules, tibble::as_tibble)))
+  }
   if (!inherits(rules, "karyo_rules")) {
     stop(
       "`rules` must be a `karyo_rules` object. ",
