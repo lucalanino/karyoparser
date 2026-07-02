@@ -9,8 +9,8 @@
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![License:
 MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![R-CMD-check](https://github.com/lucalanino/karyo-parser/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/lucalanino/karyo-parser/actions/workflows/R-CMD-check.yaml)
-[![format-check](https://github.com/lucalanino/karyo-parser/actions/workflows/format-check.yaml/badge.svg)](https://github.com/lucalanino/karyo-parser/actions/workflows/format-check.yaml)
+[![R-CMD-check](https://github.com/lucalanino/karyoparser/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/lucalanino/karyoparser/actions/workflows/R-CMD-check.yaml)
+[![format-check](https://github.com/lucalanino/karyoparser/actions/workflows/format-check.yaml/badge.svg)](https://github.com/lucalanino/karyoparser/actions/workflows/format-check.yaml)
 <!-- badges: end -->
 
 An R package for parsing ISCN karyotype strings into structured binary
@@ -21,7 +21,7 @@ aberrations.
 
 ``` r
 # install.packages("pak")
-pak::pak("lucalanino/karyo-parser")
+pak::pak("lucalanino/karyoparser")
 ```
 
 Requires R \>= 4.1.0.
