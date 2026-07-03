@@ -161,6 +161,23 @@ metadata and status columns are always included. Valid values are
 | Status | `chimeric_karyotype` | integer 0/1 | 1 if input contained a `//` chimeric separator |
 | Status | `chimeric_clone` | character | Which clone was parsed for a chimeric row (`"host"`, `"donor"`, or NA) |
 
+### Return object classes and attributes
+
+`check_karyo()` and `preprocess_karyo()` return tibbles with an extra S3
+class, so their output can be piped straight into the next pipeline step
+without re-specifying arguments:
+
+| Function | Class | Notes |
+|----|----|----|
+| `check_karyo()` | `karyo_check` (+ `tbl_df`) | Accepted as `preprocess_karyo()` input; the assessment is reused instead of re-run. |
+| `preprocess_karyo()` | `karyo_preprocessed` (+ `tbl_df`) | Accepted as `parse_karyo()` input; the `preprocessed` column and cached id/issue info are reused automatically. |
+| `parse_karyo()` | plain `tbl_df` | No custom class. |
+
+`parse_karyo()` output also carries a `karyoparser_version` attribute
+(`attr(result, "karyoparser_version")`), set to the installed package
+version, so a saved result can be traced back to the version that produced
+it.
+
 ## Aberration Flags
 
 All flags output `0` or `1`, and **every flag fires independently** –
