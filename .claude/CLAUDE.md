@@ -24,6 +24,9 @@ Rscript -e "devtools::test_active_file('R/{name}.R', desc = 'blah')"
 # To redocument the package
 Rscript -e "devtools::document()"
 
+# To reknit README.md from README.Rmd
+Rscript -e "devtools::build_readme()"
+
 # To check pkgdown documentation
 Rscript -e "pkgdown::check_pkgdown()"
 
@@ -55,6 +58,7 @@ air format .
 - Wrap roxygen comments at 80 characters.
 - Internal functions should not have roxygen documentation, comments should be minimal to none
 - Always re-document the package after changing a roxygen2 comment.
+- `README.md` is generated from `README.Rmd` -- never edit `README.md` directly. After changing `README.Rmd`, run `devtools::build_readme()` to reknit it.
 
 ### Versioning
 
