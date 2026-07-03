@@ -168,13 +168,13 @@ match_rules <- function(tokens_tbl, rules, rule_flag_names) {
   match_text <- strip_bands(tokens_tbl$aberr_raw)
   ids <- tokens_tbl$.pk_row_id
   out <- tibble::tibble(.pk_row_id = unique(ids))
-  for (nm in rule_flag_names) {
+  for (nm in .sanitize_flag_name(rule_flag_names)) {
     out[[nm]] <- 0L
   }
   for (j in seq_len(nrow(rules))) {
     hit <- stringr::str_detect(match_text, rules$regex[j])
     hit[is.na(hit)] <- FALSE
-    nm <- rules$flag_name[j]
+    nm <- .sanitize_flag_name(rules$flag_name[j])
     out[[nm]] <- pmax(
       out[[nm]],
       as.integer(out$.pk_row_id %in% unique(ids[hit]))

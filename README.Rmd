@@ -45,7 +45,7 @@ result <- parse_karyo(
   verbose = FALSE
 )
 
-result[, c("original_karyotype", "chromosome_count", "tris21", "t(9;22)(q34;q11)", "normal_karyotype")]
+result[, c("original_karyotype", "chromosome_count", "tris21", "t_9_22_q34_q11", "normal_karyotype")]
 ```
 
 One function call, one tibble. Each row is an input karyotype; each column is a
@@ -211,14 +211,14 @@ flags at once. Flags come from three sources:
   `-`/`+` tokens.
 
 Because flags are independent, a token contributes to **all** matching flags.
-For example `t(9;11)(p21;q23)` sets the specific `t(9;11)(p21;q23)`, the family
-flag `t(v;11q23)`, and `general_translocation`; `del(5q)` sets both `del(5q)`
+For example `t(9;11)(p21;q23)` sets the specific `t_9_11_p21_q23`, the family
+flag `t_v_11q23`, and `general_translocation`; `del(5q)` sets both `del_5q`
 and `general_deletion`.
 
-- **Family detectors** (`t(v;11q23)`, `t(v;11p15)`, `t(3q26;v)`, `t(5q)`,
-  `t(12p)`) deliberately co-fire with the more specific flags -- they mean "any
+- **Family detectors** (`t_v_11q23`, `t_v_11p15`, `t_3q26_v`, `t_5q`,
+  `t_12p`) deliberately co-fire with the more specific flags -- they mean "any
   rearrangement involving this region/arm".
-- **`*_other` variants** (e.g. `t(9;22)_other`) are the complement of the
+- **`*_other` variants** (e.g. `t_9_22_other`) are the complement of the
   canonical breakpoints: they fire for the same chromosome pair at
   *non-canonical* breakpoints only (the exclusion is encoded in the regex, so a
   canonical token sets only the specific flag).
@@ -257,6 +257,14 @@ patterns for the same flag belong in one `regex` (e.g. joined with `|`), not
 in separate rows. General structural categories (translocations, deletions,
 dicentrics, ...) are detected universally by the parser and do **not** need to
 be added as rules.
+
+`flag_name` can use ISCN-style punctuation for readability -- the output
+column is a sanitized version, with runs of non-alphanumeric characters
+replaced by `_` (e.g. `t(X;18)(p11;q11)` becomes `t_X_18_p11_q11`). This keeps
+output columns free of characters (`(`, `)`, `;`) that would otherwise force
+backtick-quoting (`` r$`t(X;18)(p11;q11)` ``) in interactive use.
+`validate_rules()` also errors if two distinct `flag_name` values sanitize to
+the same column name.
 
 ## What Is Not Handled
 

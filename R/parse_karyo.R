@@ -21,7 +21,9 @@
 #'   tables: [validate_rules()] errors if the same `flag_name` appears more
 #'   than once, since there is no cross-table priority to resolve the
 #'   conflict. Use [validate_rules()] to validate and convert a custom data
-#'   frame into an accepted rules object.
+#'   frame into an accepted rules object. Each rule's output column is a
+#'   sanitized version of its `flag_name` (non-alphanumeric characters
+#'   replaced by `_`), e.g. `"t(9;22)(q34;q11)"` becomes `t_9_22_q34_q11`.
 #' @param karyotype_column Character. Name of the karyotype column when input is
 #'   a plain data frame. If `NULL` (default), auto-detected from common names
 #'   (`karyotype`, `iscn`, etc.). Ignored for character vector or
@@ -91,7 +93,8 @@
 #'     only `normalize_iscn()` is applied (chimeric rows are clone-selected in
 #'     every mode). `NA_character_` for issue rows.
 #'   - chromosome_count: Integer chromosome count extracted from the karyotype
-#'   - One column per aberration flag (0/1 binary)
+#'   - One column per aberration flag (0/1 binary); rule-based columns are
+#'     named after a sanitized `flag_name` (see `rules` above)
 #'   - monoX, monoY, mono1-22: Monosomy flags for each chromosome
 #'   - trisX, trisY, tris1-22: Trisomy flags for each chromosome
 #'   - normal_karyotype: 1 if 46,XX or 46,XY, else 0
@@ -108,7 +111,7 @@
 #'     translocation -- a lone der whose reciprocal set is incomplete (e.g.
 #'     `der(a)t(a;b)` or a lone `der(a)t(a;b;c)` three-way der) or a whole-arm
 #'     `der(a;b)`. The specific fusion flag still fires (e.g. `der(9)t(9;22)`
-#'     keeps `t(9;22)(q34;q11) = 1`). A der is balanced instead only when the
+#'     keeps `t_9_22_q34_q11 = 1`). A der is balanced instead only when the
 #'     full reciprocal set is present (every partner appears as a der).
 #'   - unbal_partial_loss_<arm>: one column per chromosome arm
 #'     (`unbal_partial_loss_1p`, `unbal_partial_loss_1q`, ...,
@@ -116,7 +119,7 @@
 #'     `unbal_partial_loss_Yp`, `unbal_partial_loss_Yq`), set to 1 when an
 #'     unbalanced der translocation implies partial loss of that arm. Kept
 #'     SEPARATE from `del(...)`/`mono*` -- an unbalanced-derived 5q loss does not
-#'     set `del(5q)`. Derivation needs explicit breakpoints and is limited to
+#'     set `del_5q`. Derivation needs explicit breakpoints and is limited to
 #'     simple single-junction two-partner `der(a)t(a;b)`; multi-junction chains
 #'     and three-way `t(a;b;c)` derivatives are flagged unbalanced but derive no
 #'     loss. Copy-number-aware gains are out of scope.
@@ -671,7 +674,9 @@ parse_karyo <- function(
     )
 
   # CBF-AML cases are never monosomal per clinical guidelines, regardless of co-firing rules.
-  cbf_flags <- c("t(8;21)(q22;q22)", "inv(16)(p13q22)", "t(16;16)(p13;q22)")
+  cbf_flags <- .sanitize_flag_name(
+    c("t(8;21)(q22;q22)", "inv(16)(p13q22)", "t(16;16)(p13;q22)")
+  )
   available_cbf <- intersect(cbf_flags, names(result))
   if (length(available_cbf) > 0) {
     result <- result |>

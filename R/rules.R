@@ -10,7 +10,11 @@
 #'   mutual exclusivity (where wanted) must be encoded in the `regex` itself.
 #'   `flag_name` must be unique -- each maps to exactly one output column, so
 #'   alternative patterns for the same flag must be combined into a single
-#'   `regex` (e.g. with `|`) rather than given as separate rows.
+#'   `regex` (e.g. with `|`) rather than given as separate rows. `flag_name` can
+#'   use ISCN-style punctuation (e.g. `"t(9;22)(q34;q11)"`) for readability --
+#'   the output column name is a sanitized version, with runs of
+#'   non-alphanumeric characters replaced by `_` (e.g. `t_9_22_q34_q11`).
+#'   `flag_name` values that sanitize to the same column name are rejected.
 #'
 #' @return A `karyo_rules` object (tibble subclass) accepted by [parse_karyo()].
 #' @export
@@ -40,7 +44,26 @@ validate_rules <- function(rules) {
       call. = FALSE
     )
   }
+  sanitized <- .sanitize_flag_name(rules$flag_name)
+  collides <- duplicated(sanitized) | duplicated(sanitized, fromLast = TRUE)
+  if (any(collides)) {
+    stop(
+      "`rules` has `flag_name` value(s) that collide once sanitized into an ",
+      "output column name: ",
+      paste(unique(rules$flag_name[collides]), collapse = ", "),
+      ". Rename one of the conflicting flag_name values so they remain ",
+      "distinct after stripping non-alphanumeric characters.",
+      call. = FALSE
+    )
+  }
   structure(rules, class = c("karyo_rules", class(rules)))
+}
+
+# Output column name for a rule's flag_name: non-alphanumeric runs -> "_",
+# trimmed of leading/trailing "_" (e.g. "t(9;22)(q34;q11)" -> "t_9_22_q34_q11").
+.sanitize_flag_name <- function(x) {
+  x <- gsub("[^A-Za-z0-9]+", "_", x)
+  gsub("^_+|_+$", "", x)
 }
 
 #' Default Parsing Rules for Myeloid Neoplasms

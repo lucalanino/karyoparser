@@ -106,13 +106,13 @@ test_that("derivative_chromosome: autosomal mono + der() -> monosomal", {
 
 test_that("derivative_chromosome: co-fires with specific rule for same token", {
   r <- pk("46,XX,der(5)t(5;8)(q11;q11)")
-  expect_equal(r$`t(5q)`, 1L)
+  expect_equal(r$t_5q, 1L)
   expect_equal(r$general_derivative, 1L)
 })
 
 test_that("derivative_chromosome: CBF-AML der co-fires but monosomal is overridden", {
   r <- pk("45,XX,-7,der(8)t(8;21)(q22;q22)")
-  expect_equal(r$`t(8;21)(q22;q22)`, 1L)
+  expect_equal(r$t_8_21_q22_q22, 1L)
   expect_equal(r$general_derivative, 1L)
   expect_equal(r$monosomal_karyotype, 0L)
 })
@@ -132,7 +132,7 @@ test_that("unbalanced: lone der()t() sets unbalanced, fusion flag still fires", 
   r <- pk("46,XY,der(9)t(9;22)(q34;q11)")
   expect_equal(r$unbalanced_translocation, 1L)
   expect_equal(r$balanced_translocation, 0L)
-  expect_equal(r$`t(9;22)(q34;q11)`, 1L)
+  expect_equal(r$t_9_22_q34_q11, 1L)
   expect_equal(r$general_derivative, 1L)
 })
 
@@ -170,11 +170,11 @@ test_that("unbalanced: lone homologous der is unbalanced, recurrent flag still f
   r3 <- pk("46,XX,der(3)t(3;3)(q21;q26)")
   expect_equal(r3$unbalanced_translocation, 1L)
   expect_equal(r3$balanced_translocation, 0L)
-  expect_equal(r3$`t(3;3)(q21;q26)`, 1L)
+  expect_equal(r3$t_3_3_q21_q26, 1L)
   r16 <- pk("46,XX,der(16)t(16;16)(p13;q22)")
   expect_equal(r16$unbalanced_translocation, 1L)
   expect_equal(r16$balanced_translocation, 0L)
-  expect_equal(r16$`t(16;16)(p13;q22)`, 1L)
+  expect_equal(r16$t_16_16_p13_q22, 1L)
 })
 
 test_that("balanced: two homologous der of same signature form a reciprocal pair", {
@@ -188,12 +188,12 @@ test_that("partial loss: der(5)t(5;17) implies unbal_partial_loss_5q + unbal_par
   expect_equal(r$unbal_partial_loss_5q, 1L)
   expect_equal(r$unbal_partial_loss_17p, 1L)
   expect_equal(r$unbal_partial_loss, 1L)
-  expect_equal(r$`del(5q)`, 0L)
+  expect_equal(r$del_5q, 0L)
 })
 
 test_that("partial loss: real del(5q) does not set any unbal_partial_loss column", {
   r <- pk("46,XX,del(5q)")
-  expect_equal(r$`del(5q)`, 1L)
+  expect_equal(r$del_5q, 1L)
   expect_equal(r$unbal_partial_loss_5q, 0L)
   expect_equal(r$unbal_partial_loss, 0L)
 })
@@ -309,13 +309,13 @@ test_that("sex chromosome monosomy + structural does NOT qualify as monosomal", 
 
 test_that("CBF-AML inv(16) overrides monosomal karyotype to 0", {
   r <- pk("45,XX,-7,inv(16)(p13q22)")
-  expect_equal(r$`inv(16)(p13q22)`, 1L)
+  expect_equal(r$inv_16_p13q22, 1L)
   expect_equal(r$monosomal_karyotype, 0L)
 })
 
 test_that("CBF-AML t(16;16) overrides monosomal karyotype to 0", {
   r <- pk("45,XX,-7,t(16;16)(p13;q22)")
-  expect_equal(r$`t(16;16)(p13;q22)`, 1L)
+  expect_equal(r$t_16_16_p13_q22, 1L)
   expect_equal(r$monosomal_karyotype, 0L)
 })
 
@@ -493,7 +493,7 @@ test_that("full pipeline: normal karyotype", {
 
 test_that("full pipeline: APL t(15;17)", {
   r <- pk("46,XX,t(15;17)(q24;q21)")
-  expect_equal(r$`t(15;17)(q24;q21)`, 1L)
+  expect_equal(r$t_15_17_q24_q21, 1L)
   expect_equal(r$chromosome_count, 46L)
   expect_equal(r$normal_karyotype, 0L)
   expect_equal(r$complex_karyotype, 0L)
@@ -504,7 +504,7 @@ test_that("full pipeline: complex monosomal karyotype", {
   expect_equal(r$mono5, 1L)
   expect_equal(r$mono7, 1L)
   expect_equal(r$tris8, 1L)
-  expect_equal(r$`del(17p)`, 1L)
+  expect_equal(r$del_17p, 1L)
   expect_equal(r$complex_karyotype, 1L)
   expect_equal(r$monosomal_karyotype, 1L)
 })
@@ -513,7 +513,7 @@ test_that("full pipeline: composite karyotype with metaphases", {
   r <- pk("46,XX,del(5)(q13)[10]/47,XX,del(5)(q13),+8[5]")
   expect_true(!is.na(r$total_metaphases))
   expect_equal(r$total_metaphases, 15L)
-  expect_equal(r$`del(5q)`, 1L)
+  expect_equal(r$del_5q, 1L)
   expect_equal(r$tris8, 1L)
 })
 
@@ -625,7 +625,7 @@ test_that("columns = 'rule' reflects the flag names of a custom `rules` table", 
   )
   expect_true("my_custom_flag" %in% names(parsed))
   expect_equal(parsed$my_custom_flag, 1L)
-  expect_false("t(15;17)(q24;q21)" %in% names(parsed))
+  expect_false("t_15_17_q24_q21" %in% names(parsed))
   expect_false("general_translocation" %in% names(parsed))
 })
 
@@ -686,7 +686,7 @@ test_that("dedup works with data.frame input and ID column", {
   r <- pk(df)
   expect_equal(nrow(r), 3)
   expect_equal(r$sample_id, c("A", "B", "C"))
-  expect_equal(r$`del(7q)`[1], r$`del(7q)`[3])
+  expect_equal(r$del_7q[1], r$del_7q[3])
 })
 
 test_that("dedup handles mix of valid and invalid karyotypes", {
@@ -1047,7 +1047,7 @@ test_that("on_issues='preprocess': chimeric row truncated and parsed", {
     verbose = FALSE
   )))
   expect_false(is.na(r$chromosome_count))
-  expect_equal(r$`t(9;22)(q34;q11)`, 1L)
+  expect_equal(r$t_9_22_q34_q11, 1L)
 })
 
 test_that("on_issues='preprocess': clean row in same batch unaffected by chimeric truncation", {

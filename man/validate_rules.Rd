@@ -13,7 +13,11 @@ validate_rules(rules)
 mutual exclusivity (where wanted) must be encoded in the \code{regex} itself.
 \code{flag_name} must be unique -- each maps to exactly one output column, so
 alternative patterns for the same flag must be combined into a single
-\code{regex} (e.g. with \code{|}) rather than given as separate rows.}
+\code{regex} (e.g. with \code{|}) rather than given as separate rows. \code{flag_name} can
+use ISCN-style punctuation (e.g. \code{"t(9;22)(q34;q11)"}) for readability --
+the output column name is a sanitized version, with runs of
+non-alphanumeric characters replaced by \verb{_} (e.g. \code{t_9_22_q34_q11}).
+\code{flag_name} values that sanitize to the same column name are rejected.}
 }
 \value{
 A \code{karyo_rules} object (tibble subclass) accepted by \code{\link[=parse_karyo]{parse_karyo()}}.

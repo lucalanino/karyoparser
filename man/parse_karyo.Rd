@@ -29,7 +29,9 @@ just widens the pool. \code{flag_name} must be unique across the combined
 tables: \code{\link[=validate_rules]{validate_rules()}} errors if the same \code{flag_name} appears more
 than once, since there is no cross-table priority to resolve the
 conflict. Use \code{\link[=validate_rules]{validate_rules()}} to validate and convert a custom data
-frame into an accepted rules object.}
+frame into an accepted rules object. Each rule's output column is a
+sanitized version of its \code{flag_name} (non-alphanumeric characters
+replaced by \verb{_}), e.g. \code{"t(9;22)(q34;q11)"} becomes \code{t_9_22_q34_q11}.}
 
 \item{karyotype_column}{Character. Name of the karyotype column when input is
 a plain data frame. If \code{NULL} (default), auto-detected from common names
@@ -113,7 +115,8 @@ karyotype string, consistent across all \code{on_issues} modes. In
 only \code{normalize_iscn()} is applied (chimeric rows are clone-selected in
 every mode). \code{NA_character_} for issue rows.
 \item chromosome_count: Integer chromosome count extracted from the karyotype
-\item One column per aberration flag (0/1 binary)
+\item One column per aberration flag (0/1 binary); rule-based columns are
+named after a sanitized \code{flag_name} (see \code{rules} above)
 \item monoX, monoY, mono1-22: Monosomy flags for each chromosome
 \item trisX, trisY, tris1-22: Trisomy flags for each chromosome
 \item normal_karyotype: 1 if 46,XX or 46,XY, else 0
@@ -130,7 +133,7 @@ chromosomes appear as centromere donors (e.g.
 translocation -- a lone der whose reciprocal set is incomplete (e.g.
 \verb{der(a)t(a;b)} or a lone \verb{der(a)t(a;b;c)} three-way der) or a whole-arm
 \verb{der(a;b)}. The specific fusion flag still fires (e.g. \verb{der(9)t(9;22)}
-keeps \verb{t(9;22)(q34;q11) = 1}). A der is balanced instead only when the
+keeps \code{t_9_22_q34_q11 = 1}). A der is balanced instead only when the
 full reciprocal set is present (every partner appears as a der).
 \item unbal_partial_loss_\if{html}{\out{<arm>}}: one column per chromosome arm
 (\code{unbal_partial_loss_1p}, \code{unbal_partial_loss_1q}, ...,
@@ -138,7 +141,7 @@ full reciprocal set is present (every partner appears as a der).
 \code{unbal_partial_loss_Yp}, \code{unbal_partial_loss_Yq}), set to 1 when an
 unbalanced der translocation implies partial loss of that arm. Kept
 SEPARATE from \code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q loss does not
-set \verb{del(5q)}. Derivation needs explicit breakpoints and is limited to
+set \code{del_5q}. Derivation needs explicit breakpoints and is limited to
 simple single-junction two-partner \verb{der(a)t(a;b)}; multi-junction chains
 and three-way \verb{t(a;b;c)} derivatives are flagged unbalanced but derive no
 loss. Copy-number-aware gains are out of scope.

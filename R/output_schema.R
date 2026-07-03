@@ -24,7 +24,7 @@
       "Chromosome count from the most abnormal eligible clone"
     ),
     row(
-      unique(rules$flag_name),
+      .sanitize_flag_name(unique(rules$flag_name)),
       "rule",
       "integer",
       "Aberration flag from the rule-matching pipeline"
