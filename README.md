@@ -51,13 +51,14 @@ column is a binary flag (0/1) or a count.
 
 ## Main Functions
 
-| Function / Object    | Description                                          |
-|----------------------|------------------------------------------------------|
-| `parse_karyo()`      | Parse karyotype strings into a wide feature tibble   |
-| `check_karyo()`      | Scan for formatting artifacts and structural errors  |
-| `preprocess_karyo()` | Clean and normalize dirty strings                    |
-| `validate_rules()`   | Build a custom `karyo_rules` object                  |
-| `myeloid_rules`      | Default rule set for myeloid neoplasms (data object) |
+| Function / Object | Description |
+|----|----|
+| `parse_karyo()` | Parse karyotype strings into a wide feature tibble |
+| `check_karyo()` | Scan for formatting artifacts and structural errors |
+| `preprocess_karyo()` | Clean and normalize dirty strings |
+| `validate_rules()` | Build a custom `karyo_rules` object |
+| `myeloid_rules` | Default rule set for myeloid neoplasms (data object) |
+| `example_karyotypes` | Synthetic karyotypes for trying out the package (data object) |
 
 ### The three pipeline functions
 
@@ -116,6 +117,60 @@ result[, c("sample_id", "original_karyotype", "chromosome_count", "tris21")]
 #> 1 S1        46,XX                                    46      0
 #> 2 S2        47,XY,+21[10]/46,XY[5]                   47      1
 #> 3 S3        46,XX,t(9;22)(q34;q11)[20]               46      0
+```
+
+### Example Dataset
+
+`example_karyotypes` ships with the package: 100 synthetic ISCN strings
+for trying out the functions above without bringing your own data. It
+covers one example per `myeloid_rules` flag, general structural
+aberrations, aneuploidy-only cases, balanced/unbalanced translocations,
+complex and monosomal karyotypes, and a range of messy or out-of-scope
+strings (leading dots, HTML entities, FISH suffixes,
+`mos`/`ncSCA`/constitutional markers, …) for exercising `check_karyo()`
+and `preprocess_karyo()`.
+
+``` r
+example_karyotypes
+#> # A tibble: 100 × 2
+#>    sample_id karyotype                  
+#>    <chr>     <chr>                      
+#>  1 EX001     46,XX[20]                  
+#>  2 EX002     46,XY[20]                  
+#>  3 EX003     46,XY                      
+#>  4 EX004     46,XX,t(15;17)(q24;q21)[20]
+#>  5 EX005     46,XY,t(8;21)(q22;q22)[18] 
+#>  6 EX006     46,XX,inv(16)(p13q22)[15]  
+#>  7 EX007     46,XY,t(16;16)(p13;q22)[12]
+#>  8 EX008     46,XX,t(9;11)(p21;q23)[14] 
+#>  9 EX009     46,XY,t(6;9)(p22;q34)[16]  
+#> 10 EX010     46,XX,inv(3)(q21q26)[10]   
+#> # ℹ 90 more rows
+
+ck <- check_karyo(example_karyotypes)
+table(fixable = ck$fixable, unfixable = ck$unfixable)
+#>        unfixable
+#> fixable  0  1
+#>       0 87  5
+#>       1  8  0
+
+result <- parse_karyo(example_karyotypes, on_issues = "preprocess", verbose = FALSE)
+#> Chimeric: 3 (on_chimeric = "default").
+result[, c("sample_id", "chromosome_count", "general_translocation", "complex_karyotype")]
+#> # A tibble: 100 × 4
+#>    sample_id chromosome_count general_translocation complex_karyotype
+#>    <chr>                <int>                 <int>             <int>
+#>  1 EX001                   46                     0                 0
+#>  2 EX002                   46                     0                 0
+#>  3 EX003                   46                     0                 0
+#>  4 EX004                   46                     1                 0
+#>  5 EX005                   46                     1                 0
+#>  6 EX006                   46                     0                 0
+#>  7 EX007                   46                     1                 0
+#>  8 EX008                   46                     1                 0
+#>  9 EX009                   46                     1                 0
+#> 10 EX010                   46                     0                 0
+#> # ℹ 90 more rows
 ```
 
 ### `on_issues` parameter

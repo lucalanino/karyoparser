@@ -60,6 +60,7 @@ binary flag (0/1) or a count.
 | `preprocess_karyo()` | Clean and normalize dirty strings |
 | `validate_rules()` | Build a custom `karyo_rules` object |
 | `myeloid_rules` | Default rule set for myeloid neoplasms (data object) |
+| `example_karyotypes` | Synthetic karyotypes for trying out the package (data object) |
 
 ### The three pipeline functions
 
@@ -108,6 +109,26 @@ df <- data.frame(
 
 result <- parse_karyo(df, verbose = FALSE)
 result[, c("sample_id", "original_karyotype", "chromosome_count", "tris21")]
+```
+
+### Example Dataset
+
+`example_karyotypes` ships with the package: 100 synthetic ISCN strings for
+trying out the functions above without bringing your own data. It covers one
+example per `myeloid_rules` flag, general structural aberrations,
+aneuploidy-only cases, balanced/unbalanced translocations, complex and
+monosomal karyotypes, and a range of messy or out-of-scope strings (leading
+dots, HTML entities, FISH suffixes, `mos`/`ncSCA`/constitutional markers, ...)
+for exercising `check_karyo()` and `preprocess_karyo()`.
+
+```{r example-data}
+example_karyotypes
+
+ck <- check_karyo(example_karyotypes)
+table(fixable = ck$fixable, unfixable = ck$unfixable)
+
+result <- parse_karyo(example_karyotypes, on_issues = "preprocess", verbose = FALSE)
+result[, c("sample_id", "chromosome_count", "general_translocation", "complex_karyotype")]
 ```
 
 ### `on_issues` parameter

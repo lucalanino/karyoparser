@@ -1,6 +1,6 @@
 Package: karyoparser
 Title: Parse ISCN Karyotype Strings
-Version: 0.23.0
+Version: 0.24.0
 Authors@R:
     person("Luca", "Lanino", role = c("aut", "cre"), email = "luca@lanino.me")
 Description: Parses ISCN (International System for Human Cytogenomic
@@ -25,6 +25,7 @@ Collate:
     'assess.R'
     'check_karyo.R'
     'chromosome_count.R'
+    'data.R'
     'flags.R'
     'input.R'
     'output_schema.R'
