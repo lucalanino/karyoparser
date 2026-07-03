@@ -600,7 +600,7 @@ test_that("a single-element rules list behaves like passing the table directly",
   expect_identical(r_list, r_direct)
 })
 
-test_that("rules list: a flag_name shared across tables is OR'd, not deduplicated into two columns", {
+test_that("rules list: a flag_name shared across tables errors instead of merging", {
   set_a <- validate_rules(data.frame(
     flag_name = "shared_flag",
     regex = "t\\(9;22\\)\\(q34;q11\\)",
@@ -611,14 +611,24 @@ test_that("rules list: a flag_name shared across tables is OR'd, not deduplicate
     regex = "del\\(5\\)\\(q13q33\\)",
     category = "specific_del"
   ))
-  r <- parse_karyo(
-    c("46,XX,t(9;22)(q34;q11)", "46,XX,del(5)(q13q33)", "46,XX"),
-    rules = list(set_a, set_b),
-    on_issues = "warn",
-    verbose = FALSE
+  expect_error(
+    parse_karyo(
+      c("46,XX,t(9;22)(q34;q11)", "46,XX,del(5)(q13q33)", "46,XX"),
+      rules = list(set_a, set_b),
+      on_issues = "warn",
+      verbose = FALSE
+    ),
+    "duplicate `flag_name`"
   )
-  expect_equal(sum(names(r) == "shared_flag"), 1L)
-  expect_equal(r$shared_flag, c(1L, 1L, 0L))
+})
+
+test_that("validate_rules() errors on duplicate flag_name within a single table", {
+  bad <- data.frame(
+    flag_name = c("del(5q)", "del(5q)"),
+    regex = c("del\\(5q", "del\\(5\\)\\(q"),
+    category = "chromosome_specific"
+  )
+  expect_error(validate_rules(bad), "duplicate `flag_name`")
 })
 
 test_that("rules errors on an empty list", {

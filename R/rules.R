@@ -8,6 +8,9 @@
 #'   (character), `category` (character). Each rule fires independently when its
 #'   `regex` matches a token; there is no priority/competition between rules, so
 #'   mutual exclusivity (where wanted) must be encoded in the `regex` itself.
+#'   `flag_name` must be unique -- each maps to exactly one output column, so
+#'   alternative patterns for the same flag must be combined into a single
+#'   `regex` (e.g. with `|`) rather than given as separate rows.
 #'
 #' @return A `karyo_rules` object (tibble subclass) accepted by [parse_karyo()].
 #' @export
@@ -26,6 +29,16 @@ validate_rules <- function(rules) {
   }
   if (nrow(rules) == 0L) {
     stop("`rules` must have at least one row.", call. = FALSE)
+  }
+  dupes <- unique(rules$flag_name[duplicated(rules$flag_name)])
+  if (length(dupes) > 0L) {
+    stop(
+      "`rules` has duplicate `flag_name` value(s): ",
+      paste(dupes, collapse = ", "),
+      ". Each flag_name must map to exactly one rule -- combine alternative ",
+      "patterns into a single regex instead.",
+      call. = FALSE
+    )
   }
   structure(rules, class = c("karyo_rules", class(rules)))
 }

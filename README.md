@@ -288,9 +288,13 @@ Rule columns: `flag_name`, `regex`, `category`. Each rule fires
 independently when its `regex` matches a token – there is no priority
 ranking, so if you need a flag to *not* fire in some case (e.g. a
 “non-canonical breakpoints only” variant), encode that exclusion in the
-`regex` (e.g. with a negative lookahead). General structural categories
-(translocations, deletions, dicentrics, …) are detected universally by
-the parser and do **not** need to be added as rules.
+`regex` (e.g. with a negative lookahead). `flag_name` must be unique –
+`validate_rules()` errors on duplicates, whether within one table or
+across tables combined via `list()` – so alternative patterns for the
+same flag belong in one `regex` (e.g. joined with `|`), not in separate
+rows. General structural categories (translocations, deletions,
+dicentrics, …) are detected universally by the parser and do **not**
+need to be added as rules.
 
 ## What Is Not Handled
 

@@ -25,10 +25,11 @@ column are reused -- no additional arguments required.}
 \item{rules}{A \code{karyo_rules} object (default: \link{myeloid_rules}), or a list
 of \code{karyo_rules} objects to combine (e.g. \code{list(myeloid_rules, lymphoid_rules)}). Rules already fire independently within a single
 table -- multiple rules can match the same token -- so combining tables
-just widens the pool; there is no cross-table priority or
-deduplication, so a \code{flag_name} shared by two tables is treated as one
-flag that either table can fire. Use \code{\link[=validate_rules]{validate_rules()}} to validate and
-convert a custom data frame into an accepted rules object.}
+just widens the pool. \code{flag_name} must be unique across the combined
+tables: \code{\link[=validate_rules]{validate_rules()}} errors if the same \code{flag_name} appears more
+than once, since there is no cross-table priority to resolve the
+conflict. Use \code{\link[=validate_rules]{validate_rules()}} to validate and convert a custom data
+frame into an accepted rules object.}
 
 \item{karyotype_column}{Character. Name of the karyotype column when input is
 a plain data frame. If \code{NULL} (default), auto-detected from common names
