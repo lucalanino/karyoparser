@@ -230,25 +230,24 @@ result[, c("sample_id", "original_karyotype", "preprocessed_karyotype")]
 Each row is one input karyotype; columns fall into a few groups by
 provenance. The full output is wide (167 columns for the default
 `myeloid_rules`); pass `columns` to `parse_karyo()` to keep only
-selected groups – e.g. `columns = c("summary", "balance")` – while
-metadata and status columns are always included. Valid values are
-`"rule"`, `"general"`, `"aneuploidy"`, `"summary"`, `"balance"`,
-`"loss"` (matching the groups below).
+selected groups – e.g. `columns = c("classification", "general")` –
+while metadata and status columns are always included. Valid values are
+`"classification"`, `"rule"`, `"general"`, `"aneuploidy"`, `"summary"`,
+`"der_loss"` (matching the groups below).
 
 | Group | Columns | Type | Description |
 |----|----|----|----|
 | Metadata | `original_karyotype`, `preprocessed_karyotype` | character | Raw input; cleaned/normalized string that was parsed (NA for unfixable rows) |
-| Metadata | `chromosome_count` | integer | Count from the most abnormal eligible clone |
+| Classification | `normal_karyotype` | integer 0/1 | 1 if `46,XX` or `46,XY` exactly |
+| Classification | `complex_karyotype` | integer 0/1 | 1 if \>= 3 distinct aberrations across clones |
+| Classification | `monosomal_karyotype` | integer 0/1 | 1 if \>= 2 autosomal monosomies, or \>= 1 monosomy + \>= 1 structural aberration |
 | Rule flags | *(one per `myeloid_rules` entry)* | integer 0/1 | Specific lesions – see [Aberration Flags](#aberration-flags) |
-| General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_derivative` | integer 0/1 | Universal structural-aberration detections |
+| General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_derivative`, `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Universal structural-aberration detections, incl. translocation balance |
 | Aneuploidy | `mono1`–`mono22`, `monoX`, `monoY`; `tris1`–`tris22`, `trisX`, `trisY` | integer 0/1 | Whole-chromosome loss/gain from `-`/`+` tokens |
-| Summary | `normal_karyotype` | integer 0/1 | 1 if `46,XX` or `46,XY` exactly |
 | Summary | `comma_count_aberrations` | integer | Aberration count (max across clones; idem-expanded) |
-| Summary | `complex_karyotype` | integer 0/1 | 1 if \>= 3 distinct aberrations across clones |
-| Summary | `monosomal_karyotype` | integer 0/1 | 1 if \>= 2 autosomal monosomies, or \>= 1 monosomy + \>= 1 structural aberration |
-| Translocation balance | `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Whether the row carries balanced / unbalanced translocations |
+| Summary | `chromosome_count` | integer | Count from the most abnormal eligible clone |
+| Summary | `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |
 | Derived loss | `unbal_partial_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation |
-| Status | `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |
 | Status | `fixable_error`, `unfixable_error` | integer 0/1 | Row had a fixable / unfixable issue (unfixable rows are all NA) |
 | Status | `chimeric_karyotype` | integer 0/1 | 1 if input contained a `//` chimeric separator |
 | Status | `chimeric_clone` | character | Which clone was parsed for a chimeric row (`"host"`, `"donor"`, or NA) |

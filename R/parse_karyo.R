@@ -73,17 +73,18 @@
 #'   explicit, conflicting `on_chimeric` raises an error.
 #' @param columns Character vector selecting which output-column classes to
 #'   include, or `NULL` (default) for the full output. `original_karyotype`,
-#'   `preprocessed_karyotype`, `chromosome_count`, `total_metaphases`,
-#'   `fixable_error`, `unfixable_error`, `chimeric_karyotype`, and
-#'   `chimeric_clone` are always included regardless of `columns`. Valid
-#'   values (any combination):
+#'   `preprocessed_karyotype`, `fixable_error`, `unfixable_error`,
+#'   `chimeric_karyotype`, and `chimeric_clone` are always included regardless
+#'   of `columns`. Valid values (any combination):
+#'   - `"classification"`: `normal_karyotype`, `complex_karyotype`,
+#'     `monosomal_karyotype`
 #'   - `"rule"`: rule-matching aberration flags (from `rules`)
-#'   - `"general"`: disease-agnostic structural flags (`general_*`)
+#'   - `"general"`: disease-agnostic structural flags (`general_*`,
+#'     `balanced_translocation`, `unbalanced_translocation`)
 #'   - `"aneuploidy"`: `mono*`/`tris*` monosomy/trisomy flags
-#'   - `"summary"`: `normal_karyotype`, `comma_count_aberrations`,
-#'     `complex_karyotype`, `monosomal_karyotype`
-#'   - `"balance"`: `balanced_translocation`, `unbalanced_translocation`
-#'   - `"loss"`: `unbal_partial_loss_<arm>` and `unbal_partial_loss`
+#'   - `"summary"`: `comma_count_aberrations`, `chromosome_count`,
+#'     `total_metaphases`
+#'   - `"der_loss"`: `unbal_partial_loss_<arm>` and `unbal_partial_loss`
 #'
 #' @return A tibble with columns:
 #'   - original_karyotype: Input karyotype string (always the raw input)
@@ -236,9 +237,11 @@ parse_karyo <- function(
   }
 
   all_output_cols <- catalog$column
+  # chromosome_count/total_metaphases excluded: NA is meaningful for them, not backfillable to 0.
   abnormality_names <- catalog$column[
     catalog$class %in%
-      c("rule", "general", "aneuploidy", "summary", "balance", "loss")
+      c("rule", "general", "aneuploidy", "classification", "der_loss") |
+      catalog$column == "comma_count_aberrations"
   ]
   char_cols <- catalog$column[catalog$type == "character"]
 
@@ -730,18 +733,9 @@ parse_karyo <- function(
     ) |>
     dplyr::left_join(dedup_df, by = ".pk_row_id") |>
     dplyr::rename(preprocessed_karyotype = original_karyotype) |>
-    dplyr::relocate(preprocessed_karyotype, .before = 1) |>
-    dplyr::relocate(chromosome_count, .after = preprocessed_karyotype)
+    dplyr::relocate(preprocessed_karyotype, .before = 1)
 
-  keep_cols <- intersect(
-    c(
-      "preprocessed_karyotype",
-      "chromosome_count",
-      abnormality_names,
-      "total_metaphases"
-    ),
-    names(result)
-  )
+  keep_cols <- intersect(all_output_cols, names(result))
 
   # ---- Join back to original rows if deduped ---------------------------------
   if (deduped) {

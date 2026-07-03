@@ -554,9 +554,9 @@ test_that(".column_catalog lists exactly the output columns, in order", {
       "rule",
       "general",
       "aneuploidy",
+      "classification",
       "summary",
-      "balance",
-      "loss",
+      "der_loss",
       "status"
     )
   )
@@ -574,26 +574,25 @@ test_that("columns subsets to the requested classes plus meta/status", {
     c("46,XX", "47,XY,+21,t(9;22)(q34;q11.2)"),
     on_issues = "warn",
     verbose = FALSE,
-    columns = c("summary", "balance")
+    columns = c("classification", "general")
   )
   catalog <- karyoparser:::.column_catalog(myeloid_rules)
   expected <- catalog$column[
-    catalog$class %in% c("meta", "status", "summary", "balance")
+    catalog$class %in% c("meta", "status", "classification", "general")
   ]
   expect_identical(names(parsed), expected)
   expect_true("balanced_translocation" %in% names(parsed))
   expect_false("mono21" %in% names(parsed))
   expect_false(any(startsWith(names(parsed), "unbal_partial_loss")))
+  expect_false("chromosome_count" %in% names(parsed))
 })
 
 test_that("columns always keeps meta and status classes", {
-  parsed <- pk("46,XX", columns = "balance")
+  parsed <- pk("46,XX", columns = "general")
   expect_true(all(
     c(
       "original_karyotype",
       "preprocessed_karyotype",
-      "chromosome_count",
-      "total_metaphases",
       "fixable_error",
       "unfixable_error",
       "chimeric_karyotype",
@@ -601,6 +600,8 @@ test_that("columns always keeps meta and status classes", {
     ) %in%
       names(parsed)
   ))
+  expect_false("chromosome_count" %in% names(parsed))
+  expect_false("total_metaphases" %in% names(parsed))
 })
 
 test_that("columns errors on an unknown class", {

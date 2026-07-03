@@ -91,18 +91,19 @@ explicit, conflicting \code{on_chimeric} raises an error.
 
 \item{columns}{Character vector selecting which output-column classes to
 include, or \code{NULL} (default) for the full output. \code{original_karyotype},
-\code{preprocessed_karyotype}, \code{chromosome_count}, \code{total_metaphases},
-\code{fixable_error}, \code{unfixable_error}, \code{chimeric_karyotype}, and
-\code{chimeric_clone} are always included regardless of \code{columns}. Valid
-values (any combination):
+\code{preprocessed_karyotype}, \code{fixable_error}, \code{unfixable_error},
+\code{chimeric_karyotype}, and \code{chimeric_clone} are always included regardless
+of \code{columns}. Valid values (any combination):
 \itemize{
+\item \code{"classification"}: \code{normal_karyotype}, \code{complex_karyotype},
+\code{monosomal_karyotype}
 \item \code{"rule"}: rule-matching aberration flags (from \code{rules})
-\item \code{"general"}: disease-agnostic structural flags (\verb{general_*})
+\item \code{"general"}: disease-agnostic structural flags (\verb{general_*},
+\code{balanced_translocation}, \code{unbalanced_translocation})
 \item \code{"aneuploidy"}: \verb{mono*}/\verb{tris*} monosomy/trisomy flags
-\item \code{"summary"}: \code{normal_karyotype}, \code{comma_count_aberrations},
-\code{complex_karyotype}, \code{monosomal_karyotype}
-\item \code{"balance"}: \code{balanced_translocation}, \code{unbalanced_translocation}
-\item \code{"loss"}: \verb{unbal_partial_loss_<arm>} and \code{unbal_partial_loss}
+\item \code{"summary"}: \code{comma_count_aberrations}, \code{chromosome_count},
+\code{total_metaphases}
+\item \code{"der_loss"}: \verb{unbal_partial_loss_<arm>} and \code{unbal_partial_loss}
 }}
 }
 \value{
