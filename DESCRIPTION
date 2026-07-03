@@ -21,7 +21,7 @@ Imports:
     tidyr
 Config/roxygen2/version: 8.0.0
 Collate: 
-    'parse_karyo-package.R'
+    'karyoparser-package.R'
     'assess.R'
     'check_karyo.R'
     'chromosome_count.R'

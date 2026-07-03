@@ -1,4 +1,4 @@
-#' @include parse_karyo-package.R
+#' @include karyoparser-package.R
 NULL
 
 truncate_str <- function(s, max_len = 40) {
