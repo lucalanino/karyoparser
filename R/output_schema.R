@@ -1,15 +1,4 @@
-# Provenance-tagged catalog of every parse_karyo() output column, in output
-# order. This is the single source of truth from which parse_karyo() derives
-# the full column list, the abnormality-flag subset, and character-column
-# typing. Distinct from the *rules* schema (flag_name/regex/...) validated by
-# validate_rules(): that describes the input rule table; this describes the
-# output result table.
-# Columns:
-#   - column: output column name
-#   - class:  provenance (meta, rule, aneuploidy, summary, balance, loss,
-#             status). The `rule` rows depend on the active rule set.
-#   - type:   storage type ("character" or "integer")
-#   - description: one-line human description
+# Single source of truth for parse_karyo()'s output column list, order, and typing.
 .column_catalog <- function(rules) {
   chroms <- c(as.character(1:22), "X", "Y")
   row <- function(column, class, type, description) {
@@ -142,7 +131,6 @@
 blank_rows <- function(original_karyotypes, all_output_cols, char_cols) {
   n <- length(original_karyotypes)
   out <- tibble::tibble(.rows = n)
-  # Build in all_output_cols order so the column order matches a normal result.
   for (nm in all_output_cols) {
     out[[nm]] <- if (nm %in% char_cols) {
       rep(NA_character_, n)

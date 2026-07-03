@@ -1,16 +1,10 @@
-# All chromosome arms (autosomes 1-22 plus X/Y, each p and q) for which
-# unbalanced-derived partial losses get their own `unbal_partial_loss_<arm>`
-# column.
+# Arms for which unbal_partial_loss_<arm> gets its own column.
 .unbal_partial_loss_arms <- paste0(
   rep(c(as.character(1:22), "X", "Y"), each = 2),
   c("p", "q")
 )
 
-# Canonicalize a der's t(...) partner list: sort partners by chromosome (keeping
-# breakpoints aligned) and build a signature so reciprocal ders of the SAME
-# translocation group together. Two-partner ders also expose p1/p2/bb1/bb2 for
-# loss derivation; multi-partner (three-way+) ders leave those NA, since loss is
-# only derived for the simple two-partner case.
+# Sorts a der's t(...) partners into a signature so reciprocal ders group together.
 .canonical_der_t <- function(chroms_str, bands_str) {
   chroms <- strsplit(chroms_str, ";", fixed = TRUE)[[1]]
   bands <- if (is.na(bands_str)) {
@@ -42,12 +36,7 @@
   )
 }
 
-# TRUE when the donor multiset covers the partner multiset -- i.e. every partner
-# chromosome appears as a centromere donor at least as many times as it occurs
-# in the translocation. This is the complete reciprocal set (balanced); a lone
-# der leaves some partner un-donored (unbalanced). Generalizes the two-partner
-# rule (heterologous: both partners donored; homologous t(a;a): two der(a)) to
-# any number of partners.
+# TRUE when every partner chromosome is donored at least as often as it recurs (balanced).
 .donors_cover_partners <- function(donors, partners) {
   all(vapply(
     unique(partners),
@@ -56,10 +45,7 @@
   ))
 }
 
-# Extract der(...)t(...) tokens with a canonical translocation signature and a
-# per-(row, clone, signature) `balanced_pair` flag (TRUE when the reciprocal set
-# is complete -- every partner appears as a centromere donor). Handles any number
-# of translocation partners (two-way and three-way+). Shared by
+# Extracts der(...)t(...) tokens with a t-signature and balanced_pair flag; shared by
 # classify_translocation_balance() and derive_unbalanced_loss().
 .der_translocations <- function(tokens_tbl) {
   der_t <- tokens_tbl |>
@@ -123,16 +109,8 @@
     dplyr::ungroup()
 }
 
-# Classify each row as carrying balanced and/or unbalanced translocations.
-#
-# Balanced  := a bare t(...) token, OR a complete der()t() reciprocal set where
-#              every partner chromosome appears as a centromere donor within a
-#              clone (two-way pair or three-way+ set).
-# Unbalanced := a der()t() whose reciprocal set is incomplete -- e.g. a lone
-#              der(a)t(a;b) or a lone der(a)t(a;b;c) -- OR a whole-arm der(a;b)
-#              (single derivative). A row may be both (mixed).
-#
-# These flags are independent of `derivative_chromosome`, which still fires.
+# Balanced: bare t(...), or a complete der()t() reciprocal set. Unbalanced: an
+# incomplete der()t() reciprocal set, or a whole-arm der(a;b). A row may be both.
 classify_translocation_balance <- function(
   tokens_tbl,
   der_t = .der_translocations(tokens_tbl)
@@ -179,20 +157,8 @@ classify_translocation_balance <- function(
   )
 }
 
-# Derive implied partial losses from lone (unbalanced) der(a)t(a;b)(bp_a;bp_b):
-#   - chromosome a loses material distal to bp_a -> arm(bp_a)
-#   - partner b loses its centromere-side material  -> opposite arm of bp_b
-# Emitted into dedicated `unbal_partial_loss_<arm>` columns (one per chromosome arm,
-# autosomes plus X/Y) plus a generic `unbal_partial_loss` flag. These are kept
-# SEPARATE from del()/mono* signals -- an unbalanced-derived 5q loss is not
-# conflated with a true del(5q).
-#
-# Scope: only SIMPLE single-junction ders are resolved -- exactly one two-partner
-# t() whose centromere donor is one of the partners. Multi-junction chains
-# (der with >1 t(), three-way t(a;b;c), or a der named after a non-partner
-# chromosome) cannot be resolved by this two-partner model, so no loss is
-# derived for them (they are still flagged unbalanced by the classifier).
-# Copy-number-aware gains are out of scope (they need whole-karyotype reasoning).
+# Derives implied arm loss from a lone der(a)t(a;b)(bp_a;bp_b): kept separate from
+# del()/mono* signals. Only simple two-partner, single-junction ders are resolved.
 derive_unbalanced_loss <- function(der_t) {
   cols <- paste0("unbal_partial_loss_", .unbal_partial_loss_arms)
   empty <- tibble::tibble(.pk_row_id = integer())
@@ -257,7 +223,6 @@ derive_unbalanced_loss <- function(der_t) {
     ))
 }
 
-# Numeric sort key for a chromosome label (X -> 23, Y -> 24).
 .chrom_sort_key <- function(chrom) {
   dplyr::case_when(
     chrom == "X" ~ 23L,
@@ -266,17 +231,14 @@ derive_unbalanced_loss <- function(der_t) {
   )
 }
 
-# First arm letter (p/q) of a band string, or NA.
 .arm_of <- function(band) {
   stringr::str_extract(band, "^[pq]")
 }
 
-# Opposite chromosome arm.
 .opp_arm <- function(arm) {
   dplyr::case_when(arm == "p" ~ "q", arm == "q" ~ "p", TRUE ~ NA_character_)
 }
 
-# Combine chromosome + arm into a segment key (e.g. "5q"), NA if arm unknown.
 .arm_segment <- function(chrom, arm) {
   dplyr::if_else(is.na(arm) | is.na(chrom), NA_character_, paste0(chrom, arm))
 }

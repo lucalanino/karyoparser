@@ -61,11 +61,8 @@ empty_issues_tibble <- function() {
     ),
     detail = "String starts with dot(s) (and any stray whitespace) before chromosome count"
   ),
-  # Runs after leading_dot so each clone starts at '^' or a '/' separator with a
-  # bare chromosome count. Repairs a missing or dotted separator between the
-  # count and the sex complement, e.g. '46XY,...' or '45.XY,...' -> '46,XY,...'.
-  # The (?=[,\[/]|$) boundary keeps the sex match from swallowing trailing
-  # tokens, and the comma between count and sex blocks a match on clean clones.
+  # Runs after leading_dot; repairs a missing/dotted count-sex separator, e.g.
+  # '46XY,...' or '45.XY,...' -> '46,XY,...'.
   count_sex_separator = list(
     detect = paste0(
       "(?:^|/)\\d+(?:~\\d+)?[.]?(?:",
@@ -89,17 +86,13 @@ empty_issues_tibble <- function() {
     detect = "[. ]+(?:nuc )?ish\\b",
     use_trimmed = FALSE,
     fix = list(
-      # 'nuc ish' is interphase/nuclear FISH: its [N] and [N/M] brackets are
-      # FISH cell counts, never the karyotype metaphase count. Strip the whole
-      # clause -- including any trailing count bracket -- to end of string (or
-      # to a '//' chimeric clone boundary, which a single-'/' FISH count like
-      # '[20/200]' cannot trigger).
+      # 'nuc ish' brackets are FISH cell counts, not the metaphase count; strip
+      # the whole clause to end of string (or a '//' chimeric boundary).
       list(
         pattern = "[. ]+nuc ish\\b.*?(?=//|$)",
         replacement = ""
       ),
-      # Bare '.ish'/'ish' is metaphase FISH and may sit mid-clone, so it must
-      # stop before the karyotype's own metaphase count bracket and preserve it.
+      # Bare '.ish'/'ish' may sit mid-clone; stop before the metaphase count bracket.
       list(
         pattern = "[. ]+ish\\b.*?(?=\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]|$)",
         replacement = ""
@@ -113,43 +106,34 @@ empty_issues_tibble <- function() {
       "\\]\\s+[A-Z][a-z]",
       "\\s+\\.\\s*[A-Z]",
       "\\)\\s+[A-Z][a-z]",
-      # Narrative right after a count+sex normal karyotype with no bracket/paren,
-      # e.g. "46,XY Normal male karyotype".
+      # Narrative after a count+sex normal karyotype with no bracket/paren.
       paste0("^\\d+(?:~\\d+)?,(?:", .sex_alt, ")\\s+[A-Z][a-z]")
     ),
     use_trimmed = FALSE,
     fix = list(
-      # Rule 1: strip everything after the last metaphase-count bracket.
-      # Greedy .* anchors to the rightmost [n], [cpN], or [n~m] bracket.
+      # Strip everything after the last metaphase-count bracket ([n]/[cpN]/[n~m]).
       list(
         pattern = "^(.*\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]).*$",
         replacement = "\\1"
       ),
-      # Rule 2: collapse ] ./ separator artifact left between clones.
+      # Collapse ] ./ separator artifact left between clones.
       list(
         pattern = "\\]\\s*\\./",
         replacement = "]/"
       ),
-      # Rule 3: strip narrative after last ')' when no metaphase bracket present
-      # (e.g. "46,XX,t(9;22)(q34;q11.2) Abnormal female karyotype").
-      # Requires Capital+lowercase to avoid false positives on ISCN tokens.
+      # Strip narrative after last ')' when no metaphase bracket is present.
       list(
         pattern = "^(.*\\))\\s+[A-Z][a-z].*$",
         replacement = "\\1"
       ),
-      # Rule 4: fallback for strings with no metaphase bracket or parens.
+      # Fallback for strings with no metaphase bracket or parens.
       list(
         pattern = "\\s+\\.\\s*[A-Z].*$",
         replacement = ""
       ),
-      # Rule 5: strip narrative after a count+sex normal karyotype that has no
-      # metaphase bracket or parenthesis to anchor on (e.g.
-      # "46,XY Normal male karyotype"). Anchored to '<count>,<sex>' so it cannot
-      # touch strings where a comma (not a space) follows the sex complement,
-      # such as "46,XX,add(9)... Updated ISCN ...". The negative lookahead keeps
-      # it from eating an "Updated ISCN" marker that sits directly after the sex
-      # complement (e.g. "46,XX Updated ISCN ...") -- that row must stay
-      # unfixable, not be silently reduced to a clean "46,XX".
+      # Strip narrative after a count+sex karyotype with no bracket/paren to anchor
+      # on; the lookahead keeps an "Updated ISCN" marker unfixable rather than
+      # silently truncating it to a clean count+sex.
       list(
         pattern = paste0(
           "^(?!.*(?i:Updated ISCN))(\\d+(?:~\\d+)?,(?:",
@@ -194,8 +178,7 @@ empty_issues_tibble <- function() {
     ),
     detail = "Space between count and 'mar' token (e.g. '+1~4 mar' should be '+1~4mar')"
   ),
-  # Detected on the raw string before normalize_iscn() strips leading punctuation.
-  # The fix strips the leading './/' (or '//') prefix, leaving the donor clone(s).
+  # Detected before normalize_iscn() strips leading punctuation.
   zero_host_chimera = list(
     detect = "^[.]*//",
     use_trimmed = TRUE,
@@ -229,7 +212,6 @@ empty_issues_tibble <- function() {
   "unparseable_bracket"
 )
 
-# Scan raw karyotype strings for dirty patterns; returns long issues tibble.
 flag_unpreprocessed <- function(x) {
   issue_list <- vector("list", length(x) * length(.dirty_patterns))
   n_issues <- 0L
@@ -262,7 +244,6 @@ flag_unpreprocessed <- function(x) {
   dplyr::bind_rows(issue_list[seq_len(n_issues)])
 }
 
-# Single source of truth for the dirty-fix loop.
 .apply_dirty_fixes <- function(x) {
   x <- stringr::str_trim(x)
   for (nm in names(.dirty_patterns)) {
@@ -274,7 +255,6 @@ flag_unpreprocessed <- function(x) {
   stringr::str_trim(x)
 }
 
-# Check normalized karyotype strings for structural errors; returns long issues tibble.
 validate_karyotypes <- function(karyotypes) {
   issue_list <- vector("list", length(karyotypes))
   n_issues <- 0L
@@ -289,18 +269,12 @@ validate_karyotypes <- function(karyotypes) {
     )
   }
 
-  # Sex complement carrying a constitutional 'c' suffix (optionally with a '?'
-  # uncertainty marker), e.g. '47,XXYc' or '47,XXXc?'. Constitutional
-  # abnormalities are out of scope, so these are flagged unfixable rather than
-  # mislabelled as no_sex_complement.
+  # Constitutional sex complement, e.g. '47,XXYc'; out of scope, flagged unfixable
+  # rather than mislabelled no_sex_complement.
   const_sex_re <- paste0("^(?:", .sex_alt, ")c\\??$")
 
-  # A clone may carry no plain sex complement when its sex chromosomes are
-  # themselves aberrant (e.g. '51,add(X)(q26),-Y,...' or '44,-X,t(X;14)...').
-  # Such a token still accounts for sex, so it must not trip no_sex_complement.
-  # Match a numerical sex gain/loss ('-Y', '+X', '-Xx2') or X/Y appearing as a
-  # chromosome inside an aberration's parenthesised list ('(X)', '(X;', ';Y)').
-  # The operator/paren context keeps this from matching a bare 'XX(ncSCA)'.
+  # An aberrant sex chromosome (e.g. '-Y', '+X', or X/Y inside a der/t() paren list)
+  # still accounts for sex, so it must not trip no_sex_complement.
   sex_aberr_re <- "(?:^[+-](?:X|Y)(?:x\\d+)?$)|[(;](?:X|Y)[);]"
 
   for (i in seq_along(karyotypes)) {
@@ -311,11 +285,8 @@ validate_karyotypes <- function(karyotypes) {
       next
     }
 
-    # Mosaicism ('mos' prefix) and non-clonal single-cell abnormalities
-    # ('ncSCA') are out of scope. Flag them specifically -- and before the
-    # chromosome-count / sex-complement checks -- so a present count is not
-    # mislabelled no_chromosome_count just because of a leading 'mos', and an
-    # ncSCA token is not mislabelled no_sex_complement.
+    # Checked before the count/sex checks so these out-of-scope constructs
+    # aren't mislabelled no_chromosome_count / no_sex_complement.
     if (stringr::str_detect(k, "(?i)^mos\\b")) {
       add_issue(
         i,
@@ -454,16 +425,10 @@ validate_karyotypes <- function(karyotypes) {
   dplyr::bind_rows(issue_list[seq_len(n_issues)])
 }
 
-# Run the full fix-and-classify pipeline; shared by check, preprocess, and parse.
-# Clone selection for chimeric rows is governed by `on_chimeric`:
-#   "default" -- host clone for normal chimeras, donor for zero-host chimeras
-#   "host"    -- host clone only; zero-host chimeras become NA (fixable, the
-#                NA is policy-induced rather than a data defect)
-#   "donor"   -- everything after '//' (the donor population)
+# Shared fix-and-classify pipeline for check/preprocess/parse.
 .assess_karyotypes <- function(x, on_chimeric = c("default", "host", "donor")) {
   on_chimeric <- match.arg(on_chimeric)
   n <- length(x)
-  # zero_host_chimera is a chimeric concern, not a plain dirty fix.
   DIRTY_TYPES <- setdiff(
     .fixable_issue_types,
     c("chimeric_separator", "zero_host_chimera")
@@ -477,12 +442,10 @@ validate_karyotypes <- function(karyotypes) {
     dirty_issues$row_index[dirty_issues$issue_type == "zero_host_chimera"]
   )
 
-  # Dirty fixes include the zero_host_chimera fix, which strips a leading './/'
-  # prefix -- so zero-host rows arrive here already reduced to their donor.
+  # zero_host_chimera's fix already strips the leading './/', reducing it to a donor.
   partially_fixed <- .apply_dirty_fixes(x)
   norm_partial <- normalize_iscn(partially_fixed)
 
-  # Classify chimeric rows by counting '//' separators in the normalized string.
   has_count <- !is.na(norm_partial) & stringr::str_detect(norm_partial, "^\\d")
   n_sep <- ifelse(
     is.na(norm_partial),
@@ -495,7 +458,6 @@ validate_karyotypes <- function(karyotypes) {
     zhc_row_indices
   )
 
-  # ---- Clone selection per on_chimeric --------------------------------------
   selected <- norm_partial
   chimeric_clone <- rep(NA_character_, n)
 
@@ -525,15 +487,12 @@ validate_karyotypes <- function(karyotypes) {
     }
   }
 
-  # Two or more '//' separators cannot resolve to a single donor: unfixable.
   if (length(multi_row_indices) > 0) {
     selected[multi_row_indices] <- NA_character_
   }
 
-  # ---- Structural validation of the selected clone --------------------------
   struct_issues <- validate_karyotypes(selected)
-  # Rows blanked purely by chimeric policy (donor-only under "host", or 2+ '//')
-  # must not be reported as structural 'empty'; they are handled separately.
+  # Rows blanked by chimeric policy must not surface as structural 'empty'.
   policy_na <- c(
     multi_row_indices,
     if (on_chimeric == "host") zhc_row_indices else integer(0)
@@ -582,10 +541,8 @@ validate_karyotypes <- function(karyotypes) {
   ) |>
     dplyr::arrange(row_index)
 
-  # Zero-host chimeras under "host" policy yield no parseable clone, so their
-  # output is NA (set via `selected` above). The NA is policy-induced, not a
-  # data defect -- the same string parses fine under "default"/"donor" -- so the
-  # row stays classified as a (fixable) zero_host_chimera, not unfixable.
+  # Zero-host-under-"host" NAs are policy-induced, not a data defect, so the row
+  # stays classified fixable (zero_host_chimera), not unfixable.
   unfixable_types <- setdiff(.all_issue_types, .fixable_issue_types)
   unfixable_row_indices <- unique(
     reported_issues$row_index[reported_issues$issue_type %in% unfixable_types]

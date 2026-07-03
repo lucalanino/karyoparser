@@ -1,5 +1,3 @@
-# Candidate column names for auto-detection of the karyotype column in data
-# frames passed to check_karyo(), preprocess_karyo(), or parse_karyo().
 .karyotype_col_candidates <- c(
   "karyotype",
   "Karyotype",
@@ -12,7 +10,6 @@
   "iscn_string"
 )
 
-# Candidate column names for auto-detection of the id column in data frames.
 .id_col_candidates <- c(
   "sample_id",
   "Sample_ID",
@@ -38,7 +35,6 @@
   "subject"
 )
 
-# Extract karyotype and ID vectors from a data frame; shared by all three exported functions.
 .extract_df_input <- function(
   x,
   karyotype_column,
@@ -46,7 +42,6 @@
   verbose,
   caller
 ) {
-  # --- Karyotype column -------------------------------------------------------
   if (is.null(karyotype_column)) {
     detected_karyo <- intersect(.karyotype_col_candidates, names(x))[1]
     if (is.na(detected_karyo)) {
@@ -78,7 +73,6 @@
     }
   }
 
-  # Type guard: karyotype column must be character (or factor, which coerces)
   col_val <- x[[karyotype_col_name]]
   if (!is.character(col_val)) {
     warning(
@@ -93,7 +87,6 @@
   }
   raw_vec <- as.character(col_val)
 
-  # --- ID column --------------------------------------------------------------
   if (is.null(id_column)) {
     detected_id <- intersect(.id_col_candidates, names(x))[1]
     id_col_name <- if (!is.na(detected_id)) detected_id else NULL

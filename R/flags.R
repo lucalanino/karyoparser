@@ -31,15 +31,7 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   aneuploidy_tbl
 }
 
-# General, disease-agnostic structural-aberration detections. Unlike the regex
-# rules these are universal (always computed regardless of the rule set) and
-# fire INDEPENDENTLY of any specific rule matching the same token -- e.g. a
-# t(8;21) token sets both the specific t(8;21)(q22;q22) flag and
-# general_translocation. Patterns mirror the historical "general" rules and are
-# matched against the same target as match_rules (strip_bands(aberr_raw)).
-# Surfaced as the `general_*` output columns (catalog class "general"); kept as
-# a named vector so the column set and the catalog stay in sync. To later make
-# their surfacing toggleable, gate this group via the catalog class.
+# Universal structural flags: fire independently of any rule match on the same token.
 .general_flag_patterns <- c(
   general_dicentric = "dic\\(",
   general_isodicentric = "idic\\(",
@@ -57,8 +49,7 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   general_derivative = "^\\+?i?der\\("
 )
 
-# General structural flags that count as a structural aberration for the
-# monosomal-karyotype rule (everything except a lone marker).
+# Structural flags counted by the monosomal-karyotype rule (excludes a lone marker).
 .general_flags_for_monosomal <- setdiff(
   names(.general_flag_patterns),
   "general_marker"

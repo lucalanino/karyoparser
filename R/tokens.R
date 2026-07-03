@@ -163,12 +163,7 @@ build_clone_tokens <- function(sample_meta) {
     dplyr::mutate(aberr_norm = normalize_token(aberr_raw))
 }
 
-# Each rule fires independently: a flag is 1 for a row if any of the row's
-# tokens matches the rule's regex. Rules do not compete -- a single token can
-# light up several flags at once (e.g. a specific t(9;11)(p21;q23) plus the
-# family flag t(v;11q23)). Mutual exclusivity, where wanted (e.g. a "*_other"
-# variant must not fire for its own canonical breakpoints), is expressed in the
-# regex itself via negative lookahead, not via a priority ranking.
+# Rules fire independently; mutual exclusivity, where wanted, is encoded in the regex itself.
 match_rules <- function(tokens_tbl, rules, rule_flag_names) {
   match_text <- strip_bands(tokens_tbl$aberr_raw)
   ids <- tokens_tbl$.pk_row_id

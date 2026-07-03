@@ -1,5 +1,4 @@
 extract_clone_data <- function(karyotype) {
-  # Split into clones before removing brackets
   clones <- stringr::str_split(karyotype, "/")[[1]]
   lapply(clones, function(cl) {
     bracket <- stringr::str_extract(cl, "\\[[^\\]]+\\]")
