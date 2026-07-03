@@ -260,15 +260,14 @@ my_rules <- validate_rules(dplyr::bind_rows(
   as.data.frame(myeloid_rules),
   data.frame(
     flag_name = "t(X;18)(p11;q11)",
-    regex = "t\\(X;18\\)\\(p11;q11\\)|t\\(18;X\\)\\(q11;p11\\)",
-    category = "specific_tx"
+    regex = "t\\(X;18\\)\\(p11;q11\\)|t\\(18;X\\)\\(q11;p11\\)"
   )
 ))
 
 result <- parse_karyo(df, rules = my_rules)
 ```
 
-Rule columns: `flag_name`, `regex`, `category`. Each rule fires independently
+Rule columns: `flag_name`, `regex`. Each rule fires independently
 when its `regex` matches a token -- there is no priority ranking, so if you need
 a flag to *not* fire in some case (e.g. a "non-canonical breakpoints only"
 variant), encode that exclusion in the `regex` (e.g. with a negative lookahead).

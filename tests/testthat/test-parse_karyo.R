@@ -613,8 +613,7 @@ test_that("columns errors on an unknown class", {
 test_that("columns = 'rule' reflects the flag names of a custom `rules` table", {
   custom_rules <- validate_rules(data.frame(
     flag_name = "my_custom_flag",
-    regex = "t\\(9;22\\)\\(q34;q11\\)",
-    category = "specific_tx"
+    regex = "t\\(9;22\\)\\(q34;q11\\)"
   ))
   parsed <- parse_karyo(
     "46,XX,t(9;22)(q34;q11)",

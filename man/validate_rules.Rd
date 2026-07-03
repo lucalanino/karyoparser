@@ -8,7 +8,7 @@ validate_rules(rules)
 }
 \arguments{
 \item{rules}{A data frame with columns: \code{flag_name} (character), \code{regex}
-(character), \code{category} (character). Each rule fires independently when its
+(character). Each rule fires independently when its
 \code{regex} matches a token; there is no priority/competition between rules, so
 mutual exclusivity (where wanted) must be encoded in the \code{regex} itself.
 \code{flag_name} must be unique -- each maps to exactly one output column, so

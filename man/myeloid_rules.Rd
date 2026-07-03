@@ -4,8 +4,7 @@
 \alias{myeloid_rules}
 \title{Default Parsing Rules for Myeloid Neoplasms}
 \format{
-A \code{karyo_rules} tibble with columns: \code{flag_name}, \code{regex},
-\code{category}.
+A \code{karyo_rules} tibble with columns: \code{flag_name}, \code{regex}.
 }
 \usage{
 myeloid_rules

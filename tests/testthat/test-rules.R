@@ -499,8 +499,7 @@ test_that("myeloid_rules has karyo_rules class and expected columns", {
   expect_true(all(
     c(
       "flag_name",
-      "regex",
-      "category"
+      "regex"
     ) %in%
       names(myeloid_rules)
   ))
@@ -509,8 +508,7 @@ test_that("myeloid_rules has karyo_rules class and expected columns", {
 test_that("a punctuation-heavy flag_name maps to a sanitized, backtick-free column name", {
   custom <- validate_rules(data.frame(
     flag_name = "t(9;22)(q34;q11)",
-    regex = "t\\(9;22\\)\\(q34;q11\\)",
-    category = "specific_tx"
+    regex = "t\\(9;22\\)\\(q34;q11\\)"
   ))
   r <- parse_karyo(
     "46,XX,t(9;22)(q34;q11)",
@@ -520,10 +518,6 @@ test_that("a punctuation-heavy flag_name maps to a sanitized, backtick-free colu
   )
   expect_true("t_9_22_q34_q11" %in% names(r))
   expect_equal(r$t_9_22_q34_q11, 1L)
-})
-
-test_that("myeloid_rules carries only disease-specific (non-general) rules", {
-  expect_false(any(myeloid_rules$category == "general"))
 })
 
 test_that("general structural flags fire independently of the rule set", {
@@ -545,7 +539,6 @@ test_that("general_* still fire with a custom rule set lacking general rules", {
   one_rule <- validate_rules(data.frame(
     flag_name = "t(9;22)(q34;q11)",
     regex = "t\\(9;22\\)\\(q34;q11\\)",
-    category = "specific_tx",
     priority = 100,
     competition_group = "translocation"
   ))
@@ -568,7 +561,7 @@ test_that("validate_rules() attaches karyo_rules class to a valid data frame", {
 })
 
 test_that("validate_rules() errors on missing columns", {
-  bad <- myeloid_rules[, c("flag_name", "regex")]
+  bad <- myeloid_rules[, "flag_name"]
   class(bad) <- setdiff(class(bad), "karyo_rules")
   expect_error(validate_rules(bad), "missing required columns")
 })
@@ -586,13 +579,11 @@ test_that("parse_karyo() errors when rules is a plain data frame", {
 test_that("rules accepts a list of karyo_rules tables and combines their flags", {
   set_a <- validate_rules(data.frame(
     flag_name = "flagA",
-    regex = "t\\(9;22\\)\\(q34;q11\\)",
-    category = "specific_tx"
+    regex = "t\\(9;22\\)\\(q34;q11\\)"
   ))
   set_b <- validate_rules(data.frame(
     flag_name = "flagB",
-    regex = "del\\(5\\)\\(q13q33\\)",
-    category = "specific_del"
+    regex = "del\\(5\\)\\(q13q33\\)"
   ))
   r <- parse_karyo(
     c("46,XX,t(9;22)(q34;q11)", "46,XX,del(5)(q13q33)"),
@@ -619,13 +610,11 @@ test_that("a single-element rules list behaves like passing the table directly",
 test_that("rules list: a flag_name shared across tables errors instead of merging", {
   set_a <- validate_rules(data.frame(
     flag_name = "shared_flag",
-    regex = "t\\(9;22\\)\\(q34;q11\\)",
-    category = "specific_tx"
+    regex = "t\\(9;22\\)\\(q34;q11\\)"
   ))
   set_b <- validate_rules(data.frame(
     flag_name = "shared_flag",
-    regex = "del\\(5\\)\\(q13q33\\)",
-    category = "specific_del"
+    regex = "del\\(5\\)\\(q13q33\\)"
   ))
   expect_error(
     parse_karyo(
@@ -641,8 +630,7 @@ test_that("rules list: a flag_name shared across tables errors instead of mergin
 test_that("validate_rules() errors on duplicate flag_name within a single table", {
   bad <- data.frame(
     flag_name = c("del(5q)", "del(5q)"),
-    regex = c("del\\(5q", "del\\(5\\)\\(q"),
-    category = "chromosome_specific"
+    regex = c("del\\(5q", "del\\(5\\)\\(q")
   )
   expect_error(validate_rules(bad), "duplicate `flag_name`")
 })
@@ -650,8 +638,7 @@ test_that("validate_rules() errors on duplicate flag_name within a single table"
 test_that("validate_rules() errors when distinct flag_names collide once sanitized", {
   bad <- data.frame(
     flag_name = c("t(9;22)", "t(9,22)"),
-    regex = c("t\\(9;22\\)", "t\\(9;22\\)"),
-    category = "chromosome_specific"
+    regex = c("t\\(9;22\\)", "t\\(9;22\\)")
   )
   expect_error(validate_rules(bad), "collide once sanitized")
 })

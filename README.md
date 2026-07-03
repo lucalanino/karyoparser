@@ -308,19 +308,19 @@ Inspect the full default rule set via `myeloid_rules`:
 
 ``` r
 myeloid_rules
-#> # A tibble: 42 × 3
-#>    flag_name         regex                                              category
-#>  * <chr>             <chr>                                              <chr>   
-#>  1 t(15;17)(q24;q21) "t\\(15;17\\)\\((q24|q22);q21\\)|t\\(17;15\\)\\(q… specifi…
-#>  2 t(8;21)(q22;q22)  "t\\(8;21\\)\\((q22|q21(\\.3)?);q22\\)|t\\(21;8\\… specifi…
-#>  3 inv(16)(p13q22)   "inv\\(16\\)\\(p13q22\\)"                          specifi…
-#>  4 t(16;16)(p13;q22) "t\\(16;16\\)\\(p13;q22\\)"                        specifi…
-#>  5 t(9;11)(p21;q23)  "t\\(9;11\\)\\(p21;q23\\)|t\\(11;9\\)\\(q23;p21\\… specifi…
-#>  6 t(6;9)(p22;q34)   "t\\(6;9\\)\\(p22;q34\\)|t\\(9;6\\)\\(q34;p22\\)"  specifi…
-#>  7 inv(3)(q21q26)    "inv\\(3\\)\\(q21q26\\)"                           specifi…
-#>  8 t(3;3)(q21;q26)   "t\\(3;3\\)\\(q21;q26\\)"                          specifi…
-#>  9 t(9;22)(q34;q11)  "t\\(9;22\\)\\(q34;q11\\)|t\\(22;9\\)\\(q11;q34\\… specifi…
-#> 10 t(1;3)(p36;q21)   "t\\(1;3\\)\\(p36;q21\\)|t\\(3;1\\)\\(q21;p36\\)"  specifi…
+#> # A tibble: 42 × 2
+#>    flag_name         regex                                                      
+#>  * <chr>             <chr>                                                      
+#>  1 t(15;17)(q24;q21) "t\\(15;17\\)\\((q24|q22);q21\\)|t\\(17;15\\)\\(q21;(q24|q…
+#>  2 t(8;21)(q22;q22)  "t\\(8;21\\)\\((q22|q21(\\.3)?);q22\\)|t\\(21;8\\)\\(q22;(…
+#>  3 inv(16)(p13q22)   "inv\\(16\\)\\(p13q22\\)"                                  
+#>  4 t(16;16)(p13;q22) "t\\(16;16\\)\\(p13;q22\\)"                                
+#>  5 t(9;11)(p21;q23)  "t\\(9;11\\)\\(p21;q23\\)|t\\(11;9\\)\\(q23;p21\\)"        
+#>  6 t(6;9)(p22;q34)   "t\\(6;9\\)\\(p22;q34\\)|t\\(9;6\\)\\(q34;p22\\)"          
+#>  7 inv(3)(q21q26)    "inv\\(3\\)\\(q21q26\\)"                                   
+#>  8 t(3;3)(q21;q26)   "t\\(3;3\\)\\(q21;q26\\)"                                  
+#>  9 t(9;22)(q34;q11)  "t\\(9;22\\)\\(q34;q11\\)|t\\(22;9\\)\\(q11;q34\\)"        
+#> 10 t(1;3)(p36;q21)   "t\\(1;3\\)\\(p36;q21\\)|t\\(3;1\\)\\(q21;p36\\)"          
 #> # ℹ 32 more rows
 ```
 
@@ -331,19 +331,18 @@ my_rules <- validate_rules(dplyr::bind_rows(
   as.data.frame(myeloid_rules),
   data.frame(
     flag_name = "t(X;18)(p11;q11)",
-    regex = "t\\(X;18\\)\\(p11;q11\\)|t\\(18;X\\)\\(q11;p11\\)",
-    category = "specific_tx"
+    regex = "t\\(X;18\\)\\(p11;q11\\)|t\\(18;X\\)\\(q11;p11\\)"
   )
 ))
 
 result <- parse_karyo(df, rules = my_rules)
 ```
 
-Rule columns: `flag_name`, `regex`, `category`. Each rule fires
-independently when its `regex` matches a token – there is no priority
-ranking, so if you need a flag to *not* fire in some case (e.g. a
-“non-canonical breakpoints only” variant), encode that exclusion in the
-`regex` (e.g. with a negative lookahead). `flag_name` must be unique –
+Rule columns: `flag_name`, `regex`. Each rule fires independently when
+its `regex` matches a token – there is no priority ranking, so if you
+need a flag to *not* fire in some case (e.g. a “non-canonical
+breakpoints only” variant), encode that exclusion in the `regex`
+(e.g. with a negative lookahead). `flag_name` must be unique –
 `validate_rules()` errors on duplicates, whether within one table or
 across tables combined via `list()` – so alternative patterns for the
 same flag belong in one `regex` (e.g. joined with `|`), not in separate
