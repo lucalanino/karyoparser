@@ -68,7 +68,7 @@ utils::globalVariables(c(
 ))
 
 
-# ---- Constants ---------------------------------------------------------------
+# Constants ----
 .karyoparser_version <- as.character(utils::packageVersion("karyoparser"))
 
 .sex_complements <- c(

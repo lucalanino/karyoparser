@@ -44,6 +44,7 @@ air format .
 * Don't use `_$x` or `_$[["x"]]` since this package must work on R 4.1.
 * Use `\() ...` for single-line anonymous functions. For all other cases, use `function() {...}`
 * No non-ASCII characters in R source files (CRAN requirement). In comments use `--` and `->` instead of `—`/`→`. In string literals use `\uXXXX` escapes (e.g. `—` for em dash).
+* Section header comments (rare -- most files are small and don't need them) use the RStudio/VS Code outline-navigable form `# Section Name ----`, one level (`# `) by default; nest `## Subsection Name ----` only when a section genuinely has sub-groupings. Never use full-width `# ---- Name ----------` banners.
 
 ### Testing
 
