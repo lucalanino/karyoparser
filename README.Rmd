@@ -22,8 +22,8 @@ knitr::opts_chunk$set(
 [![format-check](https://github.com/lucalanino/karyoparser/actions/workflows/format-check.yaml/badge.svg)](https://github.com/lucalanino/karyoparser/actions/workflows/format-check.yaml)
 <!-- badges: end -->
 
-An R package for parsing ISCN karyotype strings into structured binary features.
-Designed for analysis of myeloid neoplasm-related chromosomal aberrations.
+An R package that turns ISCN karyotype strings into structured binary features --
+built for analyzing myeloid neoplasm chromosomal aberrations.
 
 ## Installation
 
@@ -40,18 +40,13 @@ Requires R >= 4.1.0.
 library(karyoparser)
 
 result <- parse_karyo(
-  c("46,XX", "47,XY,+21[10]/46,XY[5]", "46,XX,t(9;22)(q34;q11)[20]"),
-  on_issues = "warn",
-  verbose = FALSE
+  c("46,XX", "47,XY,+21[10]/46,XY[5]", "46,XX,t(9;22)(q34;q11)[20]")
 )
 
 result[, c("original_karyotype", "chromosome_count", "tris21", "t_9_22_q34_q11", "normal_karyotype")]
 ```
 
-One function call, one tibble. Each row is an input karyotype; each column is a
-binary flag (0/1) or a count.
-
-## Main Functions
+## How It Works
 
 | Function / Object | Description |
 |---|---|
@@ -64,42 +59,50 @@ binary flag (0/1) or a count.
 
 ### The three pipeline functions
 
-`check_karyo()`, `preprocess_karyo()`, and `parse_karyo()` each have one job,
-and each is usable on its own -- they are not required to be called together.
+`check_karyo()`, `preprocess_karyo()`, and `parse_karyo()` each do one job, and
+none of them need the others -- call whichever one you actually need. The
+first time you're working with a new dataset, though, run all three in
+order -- diagnose, clean, extract -- so you actually see what's wrong with
+the data before it quietly turns into missing rows.
 
-- **`check_karyo()` -- diagnose.** Read-only: it never modifies a karyotype
-  string. Scans each input and returns a wide `karyo_check` tibble with one
-  `0`/`1` column per possible issue type (dirty markers, chimeric separators,
-  structural errors), plus `fixable`/`unfixable` summary columns. Use it to
-  audit a dataset's quality -- e.g. before deciding whether `on_issues =
-  "stop"` will even get past the first call -- without committing to fixing or
-  parsing anything.
-- **`preprocess_karyo()` -- clean.** The only place in the package where a
-  karyotype string is actually rewritten. Applies the fixed cleaning sequence
-  below, then `normalize_iscn()`, and returns a narrow `karyo_preprocessed`
-  tibble (`original`, `preprocessed`, `status`). Useful when you want a
-  cleaned dataset as a deliverable in its own right (e.g. to hand off, store,
-  or inspect before parsing), independent of feature extraction.
-- **`parse_karyo()` -- extract.** Does the feature extraction and nothing
-  else -- it performs no cleaning or normalization itself. Its `on_issues`
-  parameter can invoke the same checking/fixing logic as the two functions
-  above internally (`on_issues = "preprocess"`), so a single `parse_karyo()`
-  call is sufficient for most workflows; chaining `check_karyo() |>
-  preprocess_karyo() |> parse_karyo()` explicitly is only needed when you also
-  want the intermediate diagnostic or cleaned tibble for its own sake (e.g.
-  logging what was fixed, or reusing a cleaned dataset across multiple
-  `parse_karyo()` calls with different `rules`).
+- **`check_karyo()` -- diagnose.** Read-only. Scans the input and returns a
+  `karyo_check` tibble flagging issue types (dirty markers, chimeric
+  separators, structural errors), plus `fixable`/`unfixable` summary columns.
+- **`preprocess_karyo()` -- clean.** The only function that rewrites a
+  string. Fixes what's fixable and returns a narrow `karyo_preprocessed`
+  tibble (`original`, `preprocessed`, `status`).
+- **`parse_karyo()` -- extract.** Feature extraction only -- no cleaning of
+  its own. `on_issues = "preprocess"` can invoke the same check/fix logic
+  internally, so a single call is often enough; chain the three explicitly
+  when you also want the diagnostic or cleaned tibble in its own right.
 
-Each function accepts the previous step's output directly (`karyo_check` into
-`preprocess_karyo()`, `karyo_preprocessed` into `parse_karyo()`) and reuses
-its cached assessment/id column rather than re-scanning -- see [Return object
-classes and attributes](#return-object-classes-and-attributes).
+Each function takes the previous step's output directly -- `karyo_check` into
+`preprocess_karyo()`, `karyo_preprocessed` into `parse_karyo()` -- and reuses
+the cached assessment and id column instead of re-scanning. More on that in
+[Chaining pipeline steps](#chaining-pipeline-steps).
+
+### Chaining pipeline steps
+
+`check_karyo()` and `preprocess_karyo()` tag their output with an extra S3
+class, so you can pipe straight into the next step without re-specifying
+arguments:
+
+| Function | Class | Notes |
+|---|---|---|
+| `check_karyo()` | `karyo_check` (+ `tbl_df`) | Accepted as `preprocess_karyo()` input; the assessment is reused instead of re-run. |
+| `preprocess_karyo()` | `karyo_preprocessed` (+ `tbl_df`) | Accepted as `parse_karyo()` input; the `preprocessed` column and cached id/issue info are reused automatically. |
+| `parse_karyo()` | plain `tbl_df` | No custom class. |
+
+`parse_karyo()`'s output also carries a `karyoparser_version` attribute
+(`attr(result, "karyoparser_version")`) set to the installed package
+version, so you can trace a saved result back to whatever version produced
+it.
 
 ### Data frame input
 
-`parse_karyo()` accepts a data frame and auto-detects the karyotype column
-(from common names: `karyotype`, `iscn`, `karyo`, ...) and an optional id
-column (`sample_id`, `patient_id`, `id`, `mrn`, ...).
+`parse_karyo()` also takes a data frame directly. It auto-detects the
+karyotype column (common names like `karyotype`, `iscn`, `karyo`, ...) and an
+optional id column (`sample_id`, `patient_id`, `id`, `mrn`, ...).
 
 ```{r df-input}
 df <- data.frame(
@@ -111,13 +114,26 @@ result <- parse_karyo(df, verbose = FALSE)
 result[, c("sample_id", "original_karyotype", "chromosome_count", "tris21")]
 ```
 
+### Fixable vs. unfixable
+
+Every issue `check_karyo()` finds is either **fixable** (a formatting
+artifact -- stray whitespace, HTML entities, a missing comma, a FISH suffix,
+...) or **unfixable** (a structural problem, like no chromosome count).
+`preprocess_karyo()` only touches the fixable kind. Unfixable rows always
+come out `NA`, no matter which `on_issues` mode you use -- that's usually
+where an unexpected wall of `NA`s in your output comes from. Check
+`check_karyo()`'s `fixable`/`unfixable` columns before you parse, so you know
+which rows will vanish and why.
+
+## Usage
+
 ### Example Dataset
 
-`example_karyotypes` ships with the package: 100 synthetic ISCN strings for
-trying out the functions above without bringing your own data. It covers one
+`example_karyotypes` ships with the package -- 100 synthetic ISCN strings so
+you can try everything above without bringing your own data. It covers one
 example per `myeloid_rules` flag, general structural aberrations,
 aneuploidy-only cases, balanced/unbalanced translocations, complex and
-monosomal karyotypes, and a range of messy or out-of-scope strings (leading
+monosomal karyotypes, plus a batch of messy or out-of-scope strings (leading
 dots, HTML entities, FISH suffixes, `mos`/`ncSCA`/constitutional markers, ...)
 for exercising `check_karyo()` and `preprocess_karyo()`.
 
@@ -131,55 +147,17 @@ result <- parse_karyo(example_karyotypes, on_issues = "preprocess", verbose = FA
 result[, c("sample_id", "chromosome_count", "general_translocation", "complex_karyotype")]
 ```
 
-### `on_issues` parameter
+## Output Reference
 
-| Value | Dirty rows | Chimeric rows (`//`) | Unfixable rows |
-|---|---|---|---|
-| `"stop"` (default) | Error immediately | Error immediately | Error immediately |
-| `"preprocess"` | Auto-cleaned via `preprocess_karyo()` | Truncated to first clone | Always NA |
-| `"warn"` | NA + warning | NA + warning | Always NA |
+### Output Columns
 
-Use `"stop"` to catch data quality problems early. Switch to `"preprocess"` once
-you understand the issues.
-
-## Preprocessing
-
-`preprocess_karyo()` applies a fixed sequence of cleaning steps to dirty strings:
-
-1. Trim whitespace
-2. Normalize unicode spaces, dashes, and fullwidth characters
-3. Collapse embedded newlines/tabs
-4. Decode HTML entities (`&lt;`, `&gt;`, `&amp;`)
-5. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
-6. Strip FISH/nuc ish suffix
-7. Strip trailing narrative
-8. Collapse mid-string line-wrap artifacts
-9. Insert missing comma after sex chromosome complement
-10. Remove space before `mar` token
-11. `normalize_iscn()`: whitespace collapsing, delimiter tightening, idem/sl/cp normalization
-
-```{r preprocess}
-# Check what issues exist, then clean
-ck <- check_karyo(c(".46,XX", "47,XY,+21[10] .Lab note"), verbose = TRUE)
-```
-
-```{r three-step}
-# Full three-step pipeline -- id column propagates automatically
-ck <- check_karyo(df)
-clean <- preprocess_karyo(ck)
-result <- parse_karyo(clean, verbose = FALSE)
-result[, c("sample_id", "original_karyotype", "preprocessed_karyotype")]
-```
-
-## Output Columns
-
-Each row is one input karyotype; columns fall into a few groups by provenance.
-The full output is wide (167 columns for the default `myeloid_rules`); pass
-`columns` to `parse_karyo()` to keep only selected groups -- e.g.
-`columns = c("classification", "general")` -- while metadata and status
-columns are always included. Valid values are `"classification"`, `"rule"`,
-`"general"`, `"aneuploidy"`, `"summary"`, `"der_loss"` (matching the groups
-below).
+Each row is one input karyotype; columns fall into a handful of groups by
+provenance. The full output is wide -- 167 columns for the default
+`myeloid_rules` -- so pass `columns` to `parse_karyo()` to keep just the
+groups you want, e.g. `columns = c("classification", "general")`. Metadata
+and status columns are always included regardless. Valid values:
+`"classification"`, `"rule"`, `"general"`, `"aneuploidy"`, `"summary"`,
+`"der_loss"` (matching the groups below).
 
 | Group | Columns | Type | Description |
 |---|---|---|---|
@@ -198,56 +176,36 @@ below).
 | Status | `chimeric_karyotype` | integer 0/1 | 1 if input contained a `//` chimeric separator |
 | Status | `chimeric_clone` | character | Which clone was parsed for a chimeric row (`"host"`, `"donor"`, or NA) |
 
-### Return object classes and attributes
+### Aberration Flags
 
-`check_karyo()` and `preprocess_karyo()` return tibbles with an extra S3
-class, so their output can be piped straight into the next pipeline step
-without re-specifying arguments:
-
-| Function | Class | Notes |
-|---|---|---|
-| `check_karyo()` | `karyo_check` (+ `tbl_df`) | Accepted as `preprocess_karyo()` input; the assessment is reused instead of re-run. |
-| `preprocess_karyo()` | `karyo_preprocessed` (+ `tbl_df`) | Accepted as `parse_karyo()` input; the `preprocessed` column and cached id/issue info are reused automatically. |
-| `parse_karyo()` | plain `tbl_df` | No custom class. |
-
-`parse_karyo()` output also carries a `karyoparser_version` attribute
-(`attr(result, "karyoparser_version")`), set to the installed package
-version, so a saved result can be traced back to the version that produced
-it.
-
-## Aberration Flags
-
-All flags output `0` or `1`, and **every flag fires independently** -- there is
-no priority or competition between them, so a single token can light up several
-flags at once. Flags come from three sources:
+Every flag is `0` or `1`, and **every flag fires independently** -- there's no
+priority or competition between them, so one token can light up several flags
+at once. They come from three sources:
 
 - **Specific rule flags** -- one per `myeloid_rules` entry, fired when its regex
   matches a token (e.g. `t(9;22)(q34;q11)`, `del(5q)`).
 - **General structural flags** (`general_*`) -- universal, disease-agnostic
   detections (any translocation, deletion, inversion, addition, dicentric,
   isodicentric, pseudodicentric, isochromosome, ring, insertion, duplication,
-  triplication, marker, derivative). Always computed, independent of the rule
-  set.
+  triplication, marker, derivative). Always on, regardless of which rule set
+  you pass.
 - **Aneuploidy flags** (`mono*`/`tris*`) -- whole-chromosome loss/gain from
   `-`/`+` tokens.
 
-Because flags are independent, a token contributes to **all** matching flags.
-For example `t(9;11)(p21;q23)` sets the specific `t_9_11_p21_q23`, the family
-flag `t_v_11q23`, and `general_translocation`; `del(5q)` sets both `del_5q`
-and `general_deletion`.
+Since flags don't compete, a token can trip **all** its matches at once.
+`t(9;11)(p21;q23)` sets the specific `t_9_11_p21_q23`, the family flag
+`t_v_11q23`, and `general_translocation`; `del(5q)` sets both `del_5q` and
+`general_deletion`.
 
 - **Family detectors** (`t_v_11q23`, `t_v_11p15`, `t_3q26_v`, `t_5q`,
   `t_12p`) deliberately co-fire with the more specific flags -- they mean "any
   rearrangement involving this region/arm".
 - **`*_other` variants** (e.g. `t_9_22_other`) are the complement of the
   canonical breakpoints: they fire for the same chromosome pair at
-  *non-canonical* breakpoints only (the exclusion is encoded in the regex, so a
-  canonical token sets only the specific flag).
+  *non-canonical* breakpoints only -- the exclusion lives in the regex itself,
+  so a canonical token sets just the specific flag.
 
-**CBF override**: Cases carrying `t(8;21)(q22;q22)`, `inv(16)(p13q22)`, or
-`t(16;16)(p13;q22)` are never classified as monosomal, per clinical guidelines.
-
-Inspect the full default rule set via `myeloid_rules`:
+Here's the full default rule set:
 
 ```{r rules}
 myeloid_rules
@@ -267,37 +225,36 @@ my_rules <- validate_rules(dplyr::bind_rows(
 result <- parse_karyo(df, rules = my_rules)
 ```
 
-Rule columns: `flag_name`, `regex`. Each rule fires independently
-when its `regex` matches a token -- there is no priority ranking, so if you need
-a flag to *not* fire in some case (e.g. a "non-canonical breakpoints only"
-variant), encode that exclusion in the `regex` (e.g. with a negative lookahead).
-`flag_name` must be unique -- `validate_rules()` errors on duplicates, whether
-within one table or across tables combined via `list()` -- so alternative
-patterns for the same flag belong in one `regex` (e.g. joined with `|`), not
-in separate rows. General structural categories (translocations, deletions,
-dicentrics, ...) are detected universally by the parser and do **not** need to
-be added as rules.
+Rule columns: `flag_name` and `regex`. Rules fire independently when their
+`regex` matches a token, with no priority ranking -- so if you need a flag to
+*not* fire in some case (e.g. a "non-canonical breakpoints only" variant),
+encode that exclusion in the `regex` itself (a negative lookahead works
+well). `flag_name` must be unique -- `validate_rules()` errors on duplicates,
+whether within one table or across tables combined via `list()` -- so
+alternative patterns for the same flag belong in one `regex` (joined with
+`|`), not separate rows. General structural categories (translocations,
+deletions, dicentrics, ...) are already detected universally by the parser,
+so you don't need rules for those.
 
 `flag_name` can use ISCN-style punctuation for readability -- the output
 column is a sanitized version, with runs of non-alphanumeric characters
-replaced by `_` (e.g. `t(X;18)(p11;q11)` becomes `t_X_18_p11_q11`). This keeps
+replaced by `_` (`t(X;18)(p11;q11)` becomes `t_X_18_p11_q11`). That keeps
 output columns free of characters (`(`, `)`, `;`) that would otherwise force
 backtick-quoting (`` r$`t(X;18)(p11;q11)` ``) in interactive use.
-`validate_rules()` also errors if two distinct `flag_name` values sanitize to
-the same column name.
+`validate_rules()` also catches the rare case where two different
+`flag_name` values sanitize down to the same column name.
 
 ## What Is Not Handled
 
-- **Sub-band breakpoints**: Bands are stripped before matching; precise breakpoints are not stored.
-- **Copy number > 1**: Gain/loss are binary -- `+8,+8` yields `tris8 = 1`.
-- **Partial gain, and offsetting of partial loss**: An unbalanced `der(a)t(a;b)` records the implied partial *loss* (`unbal_partial_loss_*`) but never a partial *gain* -- there is no `unbal_partial_gain_*`. The loss is derived token-locally from the der breakpoints: it fires purely from the der's structure and is **not** reconciled against the rest of the karyotype. So a co-occurring gain of the same material (e.g. `+9` or a `dup`) that would offset the loss does **not** suppress it -- `47,XX,+9,der(9)t(9;22)(q34;q11)` still reports `unbal_partial_loss_9q = 1` even though distal 9q sits at two copies.
-- **Sex chromosome syndromes**: Only simple monosomy/trisomy is captured (e.g. no dedicated Turner/Klinefelter flags).
-- **Partial monosomy via der/dup**: `der(7)t(1;7)` is not auto-counted as monosomy 7.
-- **`idem` token-level expansion**: `idem` (stemline shorthand) is expanded for aberration *counting* but not for token-level flag/balance analysis. Consequence: a reciprocal der pair split across the `idem` boundary (stemline carries `der(a)`, an `idem` subclone adds `der(b)`) is reported `unbalanced_translocation = 1` only, missing the `balanced_translocation = 1` the idem-inherited partner implies.
-- **Multi-partner (three-way) translocations**: A complete `t(a;b;c)` matches only the generic `general_translocation` flag (no specific-breakpoint flag) and is assumed balanced. A `der()` of a three-way is classified for translocation balance -- a lone der is `unbalanced_translocation`, a complete der-by-der reciprocal set is `balanced_translocation` -- but derives no partial loss (`unbal_partial_loss_*`); partial-loss derivation remains limited to simple two-partner `der(a)t(a;b)`. Both still count toward `complex_karyotype`/`monosomal_karyotype`.
-- **Non-myeloid panels**: Rules are curated for AML/MDS/MPN/CML. Lymphoid and solid-tumor lesions are absent.
-- **Mosaicism (`mos`)**: Karyotypes with a leading `mos` prefix (e.g. `mos 47,XXY[10]/46,XY[5]`) are flagged `mosaic_karyotype` and left unparsed.
-- **Non-clonal single-cell abnormalities (`ncSCA`)**: Karyotypes carrying an `ncSCA` token are flagged `non_clonal_sca` and left unparsed.
-- **Constitutional abnormalities (`c`)**: Sex complements with a constitutional `c` suffix (e.g. `47,XXYc`) are flagged `constitutional_sex_complement` rather than parsed as acquired.
-- **Array CGH / SNP array notation**: `seq[GRCh38]` format is not parsed.
-- **FISH-only results**: Single-locus FISH outside ISCN strings are not processed.
+- **Sub-band breakpoints**: bands are stripped before matching, so precise breakpoints aren't stored.
+- **Copy number > 1**: gain/loss is binary -- `+8,+8` still just gives `tris8 = 1`.
+- **Partial gain, and offsetting partial loss**: an unbalanced `der(a)t(a;b)` records the implied partial loss (`unbal_partial_loss_*`), but never the matching gain -- there's no `unbal_partial_gain_*`. The loss comes straight from the der's own breakpoints, not from reconciling the whole karyotype, so a co-occurring gain that would offset it (e.g. `+9` alongside `der(9)t(9;22)(q34;q11)`) doesn't suppress the loss flag -- `unbal_partial_loss_9q` still fires even though distal 9q is really at two copies.
+- **Sex chromosome syndromes**: we track plain monosomy/trisomy, not syndromes -- no dedicated Turner or Klinefelter flag.
+- **`idem` across clones**: `idem` gets expanded for aberration counting, but flag and balance checks stay clone-local. So a reciprocal der pair split across an `idem` boundary (one der in the stemline, its partner in an `idem` subclone) reads as `unbalanced_translocation` only -- we miss the `balanced_translocation` the pair actually implies.
+- **Three-way translocations**: a complete `t(a;b;c)` only trips the generic `general_translocation` flag and is assumed balanced -- no specific-breakpoint rule fires for it. A lone `der()` from a three-way still gets classified balanced/unbalanced, but we don't derive partial loss from it; that's limited to plain two-partner `der(a)t(a;b)`.
+- **Non-myeloid panels**: the bundled rules cover AML/MDS/MPN/CML. Lymphoid and solid-tumor lesions aren't in scope.
+- **Mosaicism (`mos`)**: flagged `mosaic_karyotype` and left unparsed.
+- **Non-clonal single-cell abnormalities (`ncSCA`)**: flagged `non_clonal_sca` and left unparsed.
+- **Constitutional abnormalities (`c`)**: a constitutional suffix like `47,XXYc` gets flagged `constitutional_sex_complement` instead of being parsed as an acquired change.
+- **Array CGH / SNP arrays**: `seq[GRCh38]`-style notation isn't parsed.
+- **FISH-only results**: standalone FISH results outside an ISCN karyotype string aren't processed.
