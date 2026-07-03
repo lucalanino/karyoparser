@@ -1,10 +1,11 @@
 #' Check Karyotype Strings for Issues
 #'
 #' Checks raw karyotype strings for formatting artifacts and structural errors.
-#' Returns a wide-format tibble with one row per input string: each possible
-#' issue type is a column (`0`/`1`), plus summary `fixable` and `unfixable`
-#' columns. When `verbose = TRUE`, prints a count summary and per-issue-type
-#' breakdown.
+#' Read-only: this is a diagnostic step and never modifies a karyotype string
+#' (cleaning happens in `preprocess_karyo()`). Returns a wide-format tibble
+#' with one row per input string: each possible issue type is a column
+#' (`0`/`1`), plus summary `fixable` and `unfixable` columns. When `verbose =
+#' TRUE`, prints a count summary and per-issue-type breakdown.
 #'
 #' Fixable issues (resolvable by `parse_karyo()` under
 #' `on_issues = "preprocess"`):

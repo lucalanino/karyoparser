@@ -160,7 +160,11 @@ chimera under \code{on_chimeric = "host"})
 \description{
 Parses ISCN karyotype notation into structured binary features for analysis.
 Extracts specific translocations, deletions, monosomies, trisomies, and other
-chromosomal aberrations according to configurable rules.
+chromosomal aberrations according to configurable rules. Performs no
+cleaning or normalization itself -- that is \code{preprocess_karyo()}'s job --
+but \code{on_issues = "preprocess"} invokes the same checking/fixing logic as
+\code{check_karyo()}/\code{preprocess_karyo()} internally, so a single call is
+usually enough without chaining all three explicitly.
 }
 \examples{
 # Basic usage with character vector

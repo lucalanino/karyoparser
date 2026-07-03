@@ -44,10 +44,10 @@ propagate the id column without re-scanning.
 }
 \description{
 Checks raw karyotype strings for formatting artifacts and structural errors.
-Returns a wide-format tibble with one row per input string: each possible
-issue type is a column (\code{0}/\code{1}), plus summary \code{fixable} and \code{unfixable}
-columns. When \code{verbose = TRUE}, prints a count summary and per-issue-type
-breakdown.
+Read-only: this is a diagnostic step and never modifies a karyotype string
+(cleaning happens in \code{preprocess_karyo()}). Returns a wide-format tibble
+with one row per input string: each possible issue type is a column
+(\code{0}/\code{1}), plus summary \code{fixable} and \code{unfixable} columns. When \code{verbose = TRUE}, prints a count summary and per-issue-type breakdown.
 }
 \details{
 Fixable issues (resolvable by \code{parse_karyo()} under

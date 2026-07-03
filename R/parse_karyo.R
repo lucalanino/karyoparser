@@ -2,7 +2,11 @@
 #'
 #' Parses ISCN karyotype notation into structured binary features for analysis.
 #' Extracts specific translocations, deletions, monosomies, trisomies, and other
-#' chromosomal aberrations according to configurable rules.
+#' chromosomal aberrations according to configurable rules. Performs no
+#' cleaning or normalization itself -- that is `preprocess_karyo()`'s job --
+#' but `on_issues = "preprocess"` invokes the same checking/fixing logic as
+#' `check_karyo()`/`preprocess_karyo()` internally, so a single call is
+#' usually enough without chaining all three explicitly.
 #'
 #' @param karyotypes A character vector of karyotype strings, a data frame
 #'   containing a karyotype column, or a `karyo_preprocessed` tibble returned

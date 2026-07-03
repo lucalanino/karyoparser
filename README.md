@@ -59,6 +59,43 @@ column is a binary flag (0/1) or a count.
 | `validate_rules()`   | Build a custom `karyo_rules` object                  |
 | `myeloid_rules`      | Default rule set for myeloid neoplasms (data object) |
 
+### The three pipeline functions
+
+`check_karyo()`, `preprocess_karyo()`, and `parse_karyo()` each have one
+job, and each is usable on its own – they are not required to be called
+together.
+
+- **`check_karyo()` – diagnose.** Read-only: it never modifies a
+  karyotype string. Scans each input and returns a wide `karyo_check`
+  tibble with one `0`/`1` column per possible issue type (dirty markers,
+  chimeric separators, structural errors), plus `fixable`/`unfixable`
+  summary columns. Use it to audit a dataset’s quality – e.g. before
+  deciding whether `on_issues = "stop"` will even get past the first
+  call – without committing to fixing or parsing anything.
+- **`preprocess_karyo()` – clean.** The only place in the package where
+  a karyotype string is actually rewritten. Applies the fixed cleaning
+  sequence below, then `normalize_iscn()`, and returns a narrow
+  `karyo_preprocessed` tibble (`original`, `preprocessed`, `status`).
+  Useful when you want a cleaned dataset as a deliverable in its own
+  right (e.g. to hand off, store, or inspect before parsing),
+  independent of feature extraction.
+- **`parse_karyo()` – extract.** Does the feature extraction and nothing
+  else – it performs no cleaning or normalization itself. Its
+  `on_issues` parameter can invoke the same checking/fixing logic as the
+  two functions above internally (`on_issues = "preprocess"`), so a
+  single `parse_karyo()` call is sufficient for most workflows; chaining
+  `check_karyo() |> preprocess_karyo() |> parse_karyo()` explicitly is
+  only needed when you also want the intermediate diagnostic or cleaned
+  tibble for its own sake (e.g. logging what was fixed, or reusing a
+  cleaned dataset across multiple `parse_karyo()` calls with different
+  `rules`).
+
+Each function accepts the previous step’s output directly (`karyo_check`
+into `preprocess_karyo()`, `karyo_preprocessed` into `parse_karyo()`)
+and reuses its cached assessment/id column rather than re-scanning – see
+[Return object classes and
+attributes](#return-object-classes-and-attributes).
+
 ### Data frame input
 
 `parse_karyo()` accepts a data frame and auto-detects the karyotype
@@ -175,8 +212,8 @@ without re-specifying arguments:
 
 `parse_karyo()` output also carries a `karyoparser_version` attribute
 (`attr(result, "karyoparser_version")`), set to the installed package
-version, so a saved result can be traced back to the version that produced
-it.
+version, so a saved result can be traced back to the version that
+produced it.
 
 ## Aberration Flags
 
