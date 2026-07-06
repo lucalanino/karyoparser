@@ -1,3 +1,7 @@
 .DS_Store
 dev-data/
 settings.local.json
+inst/doc
+docs
+/doc/
+/Meta/

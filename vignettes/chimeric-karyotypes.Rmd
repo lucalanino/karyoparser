@@ -1,0 +1,123 @@
+---
+title: "Chimeric Karyotypes"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Chimeric Karyotypes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(karyoparser)
+```
+
+A `//` in an ISCN karyotype string separates two independent cell
+populations -- typically host tissue (before `//`) and a donor/engrafted
+population (after `//`), as seen post-transplant. karyoparser only parses one
+clone per row, so it has to pick a side; the `on_chimeric` argument (on
+`parse_karyo()` and `preprocess_karyo()`) controls which one.
+
+## `on_chimeric`: choosing a clone
+
+- `"default"`: host clone (before `//`) for normal chimeras; donor clone
+  (after `//`) for zero-host chimeras (a leading `.//` prefix -- see below).
+- `"host"`: host clone only; zero-host chimeras return `NA`.
+- `"donor"`: everything after `//` (the donor population).
+
+```{r host-donor}
+parse_karyo(
+  "47,XY,+8[15]//46,XX[5]",
+  on_issues = "warn",
+  on_chimeric = "host"
+)[, c("preprocessed_karyotype", "chimeric_clone", "tris8")]
+
+parse_karyo(
+  "46,XX[15]//47,XY,+8[5]",
+  on_issues = "warn",
+  on_chimeric = "donor"
+)[, c("preprocessed_karyotype", "chimeric_clone", "tris8")]
+```
+
+`chimeric_karyotype` is `1` for both rows (any `//` separator), and
+`chimeric_clone` records which side was actually parsed.
+
+## Zero-host chimeras
+
+A leading `.//` (or `//`) prefix marks a **zero-host chimera**: a donor-only
+population with no host metaphases. Under `"default"` or `"donor"` the donor
+clone is parsed as usual; under `"host"` there is no host clone to parse, so
+the row is `NA` -- but it's a *policy*-induced `NA`, not a data-quality
+problem, so the row still counts as fixable, not unfixable:
+
+```{r zero-host}
+ck <- check_karyo(".//46,XX,+8[10]")
+ck[, c("karyotype", "fixable", "unfixable", "zero_host_chimera")]
+
+parse_karyo(".//46,XX,+8[10]", on_issues = "warn", on_chimeric = "host")[,
+  c("preprocessed_karyotype", "chimeric_clone")
+]
+parse_karyo(".//46,XX,+8[10]", on_issues = "warn", on_chimeric = "default")[,
+  c("preprocessed_karyotype", "chimeric_clone", "tris8")
+]
+```
+
+## Multiple separators are always unfixable
+
+A row with two or more `//` separators (`multiple_chimeric_separator`) has no
+well-defined host/donor split, so it's always unfixable and returns `NA`
+regardless of `on_chimeric` or `on_issues`:
+
+```{r multiple-separator}
+check_karyo("46,XX//47//48")[, c("karyotype", "fixable", "unfixable")]
+parse_karyo("46,XX//47//48", on_issues = "preprocess", verbose = FALSE)[,
+  c("original_karyotype", "preprocessed_karyotype", "unfixable_error")
+]
+```
+
+## `on_issues` is orthogonal to chimeric handling
+
+Chimeric rows are always clone-selected and parsed, in every `on_issues`
+mode -- a chimeric row only becomes `NA` when its selected clone is itself
+unparseable (or the row has multiple separators). A non-chimeric issue
+elsewhere in the batch still triggers `on_issues = "stop"`'s error; chimeric
+rows never trigger it themselves:
+
+```{r stop-with-chimera, error = TRUE}
+parse_karyo(c("46,XX[15]//47,XY,+8[5]", ".46,XX,del(5)(q13)[10]"))
+```
+
+```{r stop-chimera-only}
+parse_karyo("46,XX[15]//47,XY,+8[5]", verbose = FALSE)[,
+  c("preprocessed_karyotype", "chimeric_clone")
+]
+```
+
+The second call succeeds under the default `on_issues = "stop"` because the
+only issue present is the chimeric separator itself.
+
+## Clone selection and `karyo_preprocessed`
+
+`preprocess_karyo()` bakes its `on_chimeric` choice into the `preprocessed`
+column. When that `karyo_preprocessed` tibble is passed to `parse_karyo()`,
+the same choice is inherited automatically -- passing an explicit,
+conflicting `on_chimeric` at parse time raises an error, since the donor/host
+split can't be un-done after the fact:
+
+```{r preprocessed-inherit}
+pp <- preprocess_karyo("46,XX[15]//47,XY,+8[5]", on_chimeric = "donor")
+parse_karyo(pp)[, c("preprocessed_karyotype", "chimeric_clone", "tris8")]
+```
+
+```{r preprocessed-conflict, error = TRUE}
+parse_karyo(pp, on_chimeric = "host")
+```
+
+Re-run `preprocess_karyo(..., on_chimeric = "host")`, or pass the raw
+karyotypes straight to `parse_karyo(..., on_chimeric = "host")` instead.

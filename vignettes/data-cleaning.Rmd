@@ -1,0 +1,169 @@
+---
+title: "Cleaning Dirty Karyotype Strings"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Cleaning Dirty Karyotype Strings}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(karyoparser)
+```
+
+Real-world karyotype strings are messy: stray whitespace, HTML entities,
+missing commas, FISH annotations tacked onto the end, and outright
+out-of-scope constructs like mosaicism. This vignette covers `check_karyo()`,
+`preprocess_karyo()`, and the `on_issues` argument to `parse_karyo()` in
+detail.
+
+## Fixable vs. unfixable
+
+Every issue `check_karyo()` finds is either **fixable** (a formatting
+artifact) or **unfixable** (a structural problem). `preprocess_karyo()` only
+touches the fixable kind -- unfixable rows always come out `NA`, no matter
+which `on_issues` mode you use.
+
+```{r issue-catalog}
+ck <- check_karyo(example_karyotypes)
+names(ck)
+```
+
+Columns after `karyotype`/`fixable`/`unfixable` are one 0/1 flag per issue
+type -- unfixable types first (alphabetical), then fixable types
+(alphabetical):
+
+- **Fixable**: `unicode_notation`, `embedded_newline`, `html_entities`,
+  `leading_dot`, `count_sex_separator` (e.g. `46XY` or `45.XY` missing the
+  comma before the sex complement), `fish_notation`, `trailing_narrative`,
+  `midstring_linewrap`, `missing_sex_comma` (e.g. `46,XX der(...)` missing the
+  comma after the sex complement), `mar_space`, `zero_host_chimera`,
+  `chimeric_separator`.
+- **Unfixable**: `empty`, `no_chromosome_count`, `multiple_chimeric_separator`,
+  `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
+  `no_sex_complement`, `constitutional_sex_complement`, `mosaic_karyotype`,
+  `non_clonal_sca`, `invalid_idem`, `unparseable_bracket`.
+
+## Out-of-scope constructs take precedence
+
+Mosaicism (`mos`), non-clonal single-cell abnormalities (`ncSCA`), and
+constitutional abnormalities (a sex complement with a `c` suffix, e.g.
+`47,XXYc`) are deliberately out of scope and flagged unfixable -- even though
+the string may otherwise look structurally complete. These take precedence
+over `no_chromosome_count`/`no_sex_complement`, so a present count or
+complement isn't mislabeled as missing:
+
+```{r precedence}
+ck <- check_karyo(c(
+  "mos 47,XXY[10]/46,XY[5]",
+  "ncSCA[4]/46,XY[11]",
+  "47,XXYc[20]"
+))
+ck[, c(
+  "karyotype",
+  "mosaic_karyotype",
+  "non_clonal_sca",
+  "constitutional_sex_complement",
+  "no_chromosome_count",
+  "no_sex_complement"
+)]
+```
+
+Each row has a chromosome count and sex complement present, but
+`no_chromosome_count`/`no_sex_complement` stay `0` -- the out-of-scope flag
+fires instead.
+
+## `preprocess_karyo()`'s cleaning pipeline
+
+`preprocess_karyo()` is the only function that rewrites a string. It applies
+fixes in a fixed order, then a final `normalize_iscn()` pass:
+
+1. Trim leading/trailing whitespace
+2. Replace unicode spaces (NBSP), dashes (em/en-dash), fullwidth characters
+3. Collapse embedded newlines/tabs to spaces
+4. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
+5. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
+6. Strip FISH/`nuc ish` annotation (suffix or mid-clone before metaphase count)
+7. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
+8. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
+9. Insert missing comma after sex chromosome complement
+10. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
+11. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+    idem/sl/cp normalization
+
+```{r preprocess}
+messy <- c(
+  ".46,XX,del(5)(q13)[10]",
+  "46,XX,t(9;22)(q34;q11)[15] &lt;AML&gt;",
+  "46,XX[cp 20]"
+)
+preprocess_karyo(messy, verbose = TRUE)
+```
+
+`preprocess_karyo()` accepts a `karyo_check` object directly (as returned by
+`check_karyo()`), reusing its cached assessment instead of re-scanning:
+
+```{r reuse-check}
+ck <- check_karyo(example_karyotypes)
+pp <- preprocess_karyo(ck)
+pp
+```
+
+## `on_issues`: how `parse_karyo()` handles issues
+
+`parse_karyo()`'s `on_issues` argument controls what happens to dirty and
+structural rows. It has no effect on chimeric handling -- see
+`vignette("chimeric-karyotypes")` -- chimeric rows are always clone-selected
+and parsed regardless of `on_issues`; only a non-chimeric issue on the *same*
+row prevents that.
+
+### `"stop"` (default)
+
+Raises an error immediately if any non-chimeric issue is found, listing
+fixable/unfixable issue types and counts:
+
+```{r stop-mode, error = TRUE}
+parse_karyo(c("46,XX", ".46,XX,del(5)(q13)[10]", "mos 47,XXY[10]"))
+```
+
+A non-chimeric issue anywhere in the batch triggers this error even if other
+rows in the same batch are chimeric -- chimeric rows themselves never trigger
+it.
+
+### `"preprocess"`
+
+Applies `preprocess_karyo()` to dirty rows; rows still broken afterwards
+(the unfixable kind) come back `NA`:
+
+```{r preprocess-mode}
+parse_karyo(
+  c("46,XX", ".46,XX,del(5)(q13)[10]", "mos 47,XXY[10]"),
+  on_issues = "preprocess",
+  verbose = TRUE
+)
+```
+
+### `"warn"`
+
+Returns `NA` for all dirty/structural issue rows and emits a warning -- no
+fixing is attempted:
+
+```{r warn-mode, warning = TRUE}
+parse_karyo(
+  c("46,XX", ".46,XX,del(5)(q13)[10]", "mos 47,XXY[10]"),
+  on_issues = "warn"
+)
+```
+
+## Next steps
+
+- `vignette("chimeric-karyotypes")` -- clone selection for `//`-separated
+  chimeric karyotypes.
+- `vignette("custom-rules")` -- writing your own rule tables.

@@ -7,4 +7,4 @@
 
 ## After 1.0
 
-- **pkgdown site**: `usethis::use_pkgdown()` + GitHub Pages. Write vignettes. Audit `.Rbuildignore`/`.gitignore` before building -- `pkgdown::build_site()` can leak ignored files into `docs/`.
+- **pkgdown site: GitHub Pages deployment**: `_pkgdown.yml` and local `pkgdown::build_site()` are already set up (vignettes written, README slimmed with links to them). Deployment is blocked on the repo being private -- once it's public (or `gh`/Pages access for private repos is sorted), run `usethis::use_pkgdown_github_pages()` to add the deploy workflow and enable Pages.

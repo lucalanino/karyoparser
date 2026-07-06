@@ -1,0 +1,164 @@
+---
+title: "Writing Custom Rule Tables"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Writing Custom Rule Tables}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(karyoparser)
+```
+
+`myeloid_rules` is `parse_karyo()`'s default rule set, but it's just a
+`karyo_rules` table -- a two-column schema you can build yourself with
+`validate_rules()` for a different disease area, panel, or one-off lesion.
+
+## The `karyo_rules` schema
+
+A rules table needs exactly two columns:
+
+- `flag_name`: a unique label per rule. Can use ISCN-style punctuation for
+  readability (e.g. `"t(9;22)(q34;q11)"`) -- the output column is a sanitized
+  version, with runs of non-alphanumeric characters replaced by `_`.
+- `regex`: the pattern matched against each token. Rules fire independently
+  -- there's no priority ranking between them, so if two patterns can match
+  the same flag, combine them into one `regex` with `|` rather than using two
+  rows.
+
+```{r validate}
+my_rules <- validate_rules(data.frame(
+  flag_name = "t(X;18)(p11;q11)",
+  regex = "t\\(X;18\\)\\(p11;q11\\)|t\\(18;X\\)\\(q11;p11\\)"
+))
+my_rules
+
+result <- parse_karyo(
+  "46,XX,t(X;18)(p11;q11)",
+  rules = my_rules,
+  on_issues = "warn",
+  verbose = FALSE
+)
+result[, c("t_X_18_p11_q11", "general_translocation")]
+```
+
+The output column (`t_X_18_p11_q11`) is free of characters (`(`, `)`, `;`)
+that would otherwise force backtick-quoting (`` r$`t(X;18)(p11;q11)` ``) in
+interactive use.
+
+## Uniqueness is checked two ways
+
+`validate_rules()` rejects duplicate `flag_name` values -- each one maps to
+exactly one output column:
+
+```{r dup-flag-name, error = TRUE}
+validate_rules(data.frame(
+  flag_name = c("del(5q)", "del(5q)"),
+  regex = c("del\\(5q", "del\\(5\\)\\(q")
+))
+```
+
+It also rejects distinct `flag_name` values that collide once *sanitized*
+into the same column name, even though the raw names differ:
+
+```{r sanitize-collision, error = TRUE}
+validate_rules(data.frame(
+  flag_name = c("t(9;22)", "t(9,22)"),
+  regex = c("t\\(9;22\\)", "t\\(9;22\\)")
+))
+```
+
+## Combining rule tables
+
+`parse_karyo()`'s `rules` argument also accepts a `list()` of `karyo_rules`
+tables, combining their flags:
+
+```{r combine}
+lesion_a <- validate_rules(data.frame(
+  flag_name = "flagA",
+  regex = "t\\(9;22\\)\\(q34;q11\\)"
+))
+lesion_b <- validate_rules(data.frame(
+  flag_name = "flagB",
+  regex = "del\\(5\\)\\(q13q33\\)"
+))
+
+result <- parse_karyo(
+  c("46,XX,t(9;22)(q34;q11)", "46,XX,del(5)(q13q33)"),
+  rules = list(myeloid_rules, lesion_a, lesion_b),
+  on_issues = "warn",
+  verbose = FALSE
+)
+result[, c("t_9_22_q34_q11", "flagA", "flagB")]
+```
+
+`flag_name` must stay unique *across* the combined tables too -- there's no
+cross-table priority to resolve a clash, so combining two tables that both
+define, say, `"shared_flag"` errors instead of silently keeping one:
+
+```{r combine-clash, error = TRUE}
+set_a <- validate_rules(data.frame(
+  flag_name = "shared_flag",
+  regex = "t\\(9;22\\)\\(q34;q11\\)"
+))
+set_b <- validate_rules(data.frame(
+  flag_name = "shared_flag",
+  regex = "del\\(5\\)\\(q13q33\\)"
+))
+parse_karyo(
+  "46,XX,t(9;22)(q34;q11)",
+  rules = list(set_a, set_b),
+  on_issues = "warn",
+  verbose = FALSE
+)
+```
+
+## Rules vs. general flags
+
+General structural categories -- translocations, deletions, inversions,
+additions, dicentrics, isodicentrics, pseudodicentrics, isochromosomes,
+rings, insertions, duplications, triplications, markers, derivatives -- are
+already detected universally by the parser as `general_*` columns,
+independently of whatever `rules` table you pass. You don't need a rule for
+"any translocation" -- write rules only for the *specific* lesions your
+analysis cares about.
+
+## Restricting output with `columns`
+
+The full output is wide -- 167 columns for the default `myeloid_rules`.
+Pass `columns` to `parse_karyo()` to keep only the groups you need; metadata
+and status columns (`original_karyotype`, `fixable_error`,
+`chimeric_karyotype`, ...) are always included regardless. Valid values:
+`"classification"`, `"rule"`, `"general"`, `"aneuploidy"`, `"summary"`,
+`"der_loss"` (see `vignette("getting-started")` for what each group
+contains).
+
+```{r columns}
+parse_karyo(
+  c("46,XX", "47,XY,+21,t(9;22)(q34;q11)"),
+  on_issues = "warn",
+  verbose = FALSE,
+  columns = c("classification", "general")
+)
+```
+
+`columns = "rule"` reflects whichever rules table you passed -- including a
+custom one:
+
+```{r columns-custom-rules}
+parse_karyo(
+  "46,XX,t(X;18)(p11;q11)",
+  rules = my_rules,
+  on_issues = "warn",
+  verbose = FALSE,
+  columns = "rule"
+)
+```
