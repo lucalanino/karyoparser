@@ -14,6 +14,7 @@ Parses ISCN (International System for Human Cytogenomic Nomenclature) karyotype 
 Useful links:
 \itemize{
   \item \url{https://github.com/lucalanino/karyoparser}
+  \item \url{https://lucalanino.github.io/karyoparser/}
   \item Report bugs at \url{https://github.com/lucalanino/karyoparser/issues}
 }
 
