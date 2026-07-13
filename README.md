@@ -54,58 +54,29 @@ result[, c("original_karyotype", "chromosome_count", "tris21", "t_9_22_q34_q11",
 | `myeloid_rules` | Default rule set for myeloid neoplasms (data object) |
 | `example_karyotypes` | Synthetic karyotypes for trying out the package (data object) |
 
-`check_karyo()`, `preprocess_karyo()`, and `parse_karyo()` each do one
-job, and none of them need the others – call whichever one you actually
-need. The first time you’re working with a new dataset, though, run all
-three in order – diagnose, clean, extract – so you actually see what’s
-wrong with the data before it quietly turns into missing rows.
-`parse_karyo()`’s `on_issues = "preprocess"` can invoke the same
-check/fix logic internally, so a single call is often enough without
-chaining all three explicitly.
+When working with a new dataset, the recommended pipeline is check,
+preprocess, parse: run `check_karyo()` to see what’s wrong,
+`preprocess_karyo()` to clean it up, and `parse_karyo()` to extract
+features. This way you catch issues before they show up as missing rows.
+Passing `on_issues = "preprocess"` to `parse_karyo()` runs the same
+check/fix logic internally.
 
-For the full walkthrough – chaining pipeline steps, data frame input,
-the `example_karyotypes` dataset, and the complete output column
-reference – see `vignette("getting-started", package = "karyoparser")`.
+See `vignette("getting-started", package = "karyoparser")` for the full
+walkthrough: chaining these steps, data frame input, the
+`example_karyotypes` dataset, and the complete output column reference.
 
 ## What Is Not Handled
 
-- **Sub-band breakpoints**: bands are stripped before matching, so
-  precise breakpoints aren’t stored.
-- **Copy number \> 1**: gain/loss is binary – `+8,+8` still just gives
+- **Sub-band breakpoints**: bands are stripped before matching.
+- **Copy number \> 1**: gain/loss is binary; `+8,+8` still just gives
   `tris8 = 1`.
-- **Partial gain, and offsetting partial loss**: an unbalanced
-  `der(a)t(a;b)` records the implied partial loss
-  (`unbal_partial_loss_*`), but never the matching gain – there’s no
-  `unbal_partial_gain_*`. The loss comes straight from the der’s own
-  breakpoints, not from reconciling the whole karyotype, so a
-  co-occurring gain that would offset it (e.g. `+9` alongside
-  `der(9)t(9;22)(q34;q11)`) doesn’t suppress the loss flag –
-  `unbal_partial_loss_9q` still fires even though distal 9q is really at
-  two copies.
-- **Sex chromosome syndromes**: we track plain monosomy/trisomy, not
-  syndromes – no dedicated Turner or Klinefelter flag.
-- **`idem` across clones**: `idem` gets expanded for aberration
-  counting, but flag and balance checks stay clone-local. So a
-  reciprocal der pair split across an `idem` boundary (one der in the
-  stemline, its partner in an `idem` subclone) reads as
-  `unbalanced_translocation` only – we miss the `balanced_translocation`
-  the pair actually implies.
-- **Three-way translocations**: a complete `t(a;b;c)` only trips the
-  generic `general_translocation` flag and is assumed balanced – no
-  specific-breakpoint rule fires for it. A lone `der()` from a three-way
-  still gets classified balanced/unbalanced, but we don’t derive partial
-  loss from it; that’s limited to plain two-partner `der(a)t(a;b)`.
-- **Non-myeloid panels**: the bundled rules cover AML/MDS/MPN/CML.
-  Lymphoid and solid-tumor lesions aren’t in scope.
-- **Mosaicism (`mos`)**: flagged `mosaic_karyotype` and left unparsed.
-- **Non-clonal single-cell abnormalities (`ncSCA`)**: flagged
-  `non_clonal_sca` and left unparsed.
-- **Constitutional abnormalities (`c`)**: a constitutional suffix like
-  `47,XXYc` gets flagged `constitutional_sex_complement` instead of
-  being parsed as an acquired change.
-- **Array CGH / SNP arrays**: `seq[GRCh38]`-style notation isn’t parsed.
-- **FISH-only results**: standalone FISH results outside an ISCN
-  karyotype string aren’t processed.
+- **Partial gain from unbalanced der’s**: only the partial loss is
+  flagged (`unbal_partial_loss_*`).
+- **Three-way translocations**: only trip the generic
+  `general_translocation` flag; partial-loss derivation is limited to
+  two-partner `der(a)t(a;b)`.
+- **Non-ISCN inputs**: array CGH/SNP `seq[GRCh38]` notation and
+  standalone FISH results aren’t parsed.
 
 ## Learn More
 
