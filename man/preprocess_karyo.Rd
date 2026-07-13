@@ -70,6 +70,8 @@ Rules applied in order:
 \item Collapse embedded newlines/tabs to spaces
 \item Decode HTML entities (\verb{&lt;} -> \code{<}, \verb{&gt;} -> \code{>}, \verb{&amp;} -> \code{&})
 \item Strip leading dot(s) before a digit (e.g. \verb{.46,XX} -> \verb{46,XX})
+\item Insert missing/dotted separator between chromosome count and sex
+complement (e.g. \verb{46XY} or \verb{45.XY} -> \verb{46,XY}/\verb{45,XY})
 \item Strip FISH/nuc ish annotation (suffix or mid-clone before metaphase count)
 \item Strip trailing narrative: \verb{] .text} -> \verb{]}; \verb{) Capital text} -> \verb{)}
 \item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} -> \verb{,der(...)})

@@ -11,12 +11,14 @@
 #' 3. Collapse embedded newlines/tabs to spaces
 #' 4. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
 #' 5. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
-#' 6. Strip FISH/nuc ish annotation (suffix or mid-clone before metaphase count)
-#' 7. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
-#' 8. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
-#' 9. Insert missing comma after sex chromosome complement
-#' 10. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
-#' 11. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+#' 6. Insert missing/dotted separator between chromosome count and sex
+#'    complement (e.g. `46XY` or `45.XY` -> `46,XY`/`45,XY`)
+#' 7. Strip FISH/nuc ish annotation (suffix or mid-clone before metaphase count)
+#' 8. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
+#' 9. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
+#' 10. Insert missing comma after sex chromosome complement
+#' 11. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
+#' 12. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
 #'     idem/sl/cp normalization
 #'
 #' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are donor-only

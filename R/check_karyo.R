@@ -10,8 +10,8 @@
 #' Fixable issues (resolvable by `parse_karyo()` under
 #' `on_issues = "preprocess"`):
 #' dirty markers (`unicode_notation`, `embedded_newline`, `html_entities`,
-#' `leading_dot`, `fish_notation`, `trailing_narrative`, `midstring_linewrap`,
-#' `missing_sex_comma`, `mar_space`), `chimeric_separator`, and
+#' `leading_dot`, `count_sex_separator`, `fish_notation`, `trailing_narrative`,
+#' `midstring_linewrap`, `missing_sex_comma`, `mar_space`), `chimeric_separator`, and
 #' `zero_host_chimera` (the donor clone is parsed; see `on_chimeric` in
 #' `parse_karyo()`).
 #'

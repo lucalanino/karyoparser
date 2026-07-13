@@ -40,16 +40,16 @@ Columns after `karyotype`/`fixable`/`unfixable` are one 0/1 flag per issue
 type -- unfixable types first (alphabetical), then fixable types
 (alphabetical):
 
-- **Fixable**: `unicode_notation`, `embedded_newline`, `html_entities`,
-  `leading_dot`, `count_sex_separator` (e.g. `46XY` or `45.XY` missing the
-  comma before the sex complement), `fish_notation`, `trailing_narrative`,
+- **Fixable**: `chimeric_separator`, `count_sex_separator` (e.g. `46XY` or
+  `45.XY` missing the comma before the sex complement), `embedded_newline`,
+  `fish_notation`, `html_entities`, `leading_dot`, `mar_space`,
   `midstring_linewrap`, `missing_sex_comma` (e.g. `46,XX der(...)` missing the
-  comma after the sex complement), `mar_space`, `zero_host_chimera`,
-  `chimeric_separator`.
-- **Unfixable**: `empty`, `no_chromosome_count`, `multiple_chimeric_separator`,
-  `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
-  `no_sex_complement`, `constitutional_sex_complement`, `mosaic_karyotype`,
-  `non_clonal_sca`, `invalid_idem`, `unparseable_bracket`.
+  comma after the sex complement), `trailing_narrative`, `unicode_notation`,
+  `zero_host_chimera`.
+- **Unfixable**: `constitutional_sex_complement`, `empty`, `invalid_idem`,
+  `mosaic_karyotype`, `multiple_chimeric_separator`, `no_chromosome_count`,
+  `no_sex_complement`, `non_clonal_sca`, `unbalanced_brackets`,
+  `unbalanced_parentheses`, `unparseable_bracket`, `updated_iscn`.
 
 ## Out-of-scope constructs take precedence
 
