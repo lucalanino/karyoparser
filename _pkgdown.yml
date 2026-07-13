@@ -2,3 +2,12 @@ url: https://lucalanino.github.io/karyoparser/
 template:
   bootstrap: 5
 
+articles:
+- title: Articles
+  navbar: ~
+  contents:
+  - getting-started
+  - data-cleaning
+  - chimeric-karyotypes
+  - custom-rules
+
