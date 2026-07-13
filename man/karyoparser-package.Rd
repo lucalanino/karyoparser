@@ -10,12 +10,20 @@
 
 Parses ISCN (International System for Human Cytogenomic Nomenclature) karyotype strings into structured features for analysis.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/lucalanino/karyoparser}
+  \item Report bugs at \url{https://github.com/lucalanino/karyoparser/issues}
+}
+
+}
 \author{
-\strong{Maintainer}: Luca Lanino \email{luca@lanino.me}
+\strong{Maintainer}: Luca Lanino \email{lucalanino@gmail.com} (\href{https://orcid.org/0000-0003-2404-8829}{ORCID})
 
 Authors:
 \itemize{
-  \item Luca Lanino \email{luca@lanino.me}
+  \item Luca Lanino \email{lucalanino@gmail.com} (\href{https://orcid.org/0000-0003-2404-8829}{ORCID})
 }
 
 }

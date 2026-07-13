@@ -2,7 +2,9 @@ Package: karyoparser
 Title: Parse ISCN Karyotype Strings
 Version: 0.24.0
 Authors@R:
-    person("Luca", "Lanino", role = c("aut", "cre"), email = "luca@lanino.me")
+    person("Luca", "Lanino", role = c("aut", "cre"),
+           email = "lucalanino@gmail.com",
+           comment = c(ORCID = "0000-0003-2404-8829"))
 Description: Parses ISCN (International System for Human Cytogenomic
     Nomenclature) karyotype strings into structured features for 
     analysis.
