@@ -132,7 +132,8 @@ example_karyotypes <- tibble::tribble(
   "EX087"    , "46,XX der(7)t(7;12)(q36;q24)[10]"                         ,
   "EX088"    , "46,XX,del(5)(q13),del(7)(q22)[10]/46,idem,+8[5]"          ,
 
-  # Out-of-scope / unfixable rows -- flagged by check_karyo(), left unparsed
+  # Out-of-scope rows -- flagged by check_karyo(); mos/constitutional/triple-//
+  # are unfixable, ncSCA is fixable (token stripped, remaining clone parsed)
   "EX089"    , "46,XX//47//48"                                            ,
   "EX090"    , "mos 47,XXY[10]/46,XY[5]"                                  ,
   "EX091"    , "ncSCA[4]/46,XY[11]"                                       ,

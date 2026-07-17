@@ -134,6 +134,18 @@ test_that("preprocess_karyo: two or more // are unfixable", {
   expect_equal(result$status, "unfixable")
 })
 
+test_that("preprocess_karyo: ncSCA token stripped (leading clone)", {
+  result <- suppressMessages(preprocess_karyo("ncSCA[4]/46,XY[11]"))
+  expect_equal(result$preprocessed, "46,XY[11]")
+  expect_equal(result$status, "fixed")
+})
+
+test_that("preprocess_karyo: ncSCA token stripped (parenthesized, chimeric host clone)", {
+  result <- suppressMessages(preprocess_karyo("46,XX(ncSCA)[1]//46,XY[19]"))
+  expect_equal(result$preprocessed, "46,XX[1]")
+  expect_equal(result$status, "fixed")
+})
+
 test_that("preprocess_karyo: strips leading dot before digit", {
   result <- suppressMessages(preprocess_karyo(c(".46,XX", "..47,XY,+21")))
   expect_equal(result$preprocessed, c("46,XX", "47,XY,+21"))

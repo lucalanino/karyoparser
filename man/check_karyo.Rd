@@ -54,21 +54,25 @@ Fixable issues (resolvable by \code{parse_karyo()} under
 \code{on_issues = "preprocess"}):
 dirty markers (\code{unicode_notation}, \code{embedded_newline}, \code{html_entities},
 \code{leading_dot}, \code{count_sex_separator}, \code{fish_notation}, \code{trailing_narrative},
-\code{midstring_linewrap}, \code{missing_sex_comma}, \code{mar_space}), \code{chimeric_separator}, and
-\code{zero_host_chimera} (the donor clone is parsed; see \code{on_chimeric} in
-\code{parse_karyo()}).
+\code{midstring_linewrap}, \code{missing_sex_comma}, \code{mar_space}, \code{non_clonal_sca}),
+\code{chimeric_separator}, and \code{zero_host_chimera} (the donor clone is parsed;
+see \code{on_chimeric} in \code{parse_karyo()}).
 
 Unfixable issues (always returned as NA by \code{parse_karyo()}):
 \code{multiple_chimeric_separator}, \code{empty}, \code{no_chromosome_count},
 \code{updated_iscn}, \code{unbalanced_parentheses}, \code{unbalanced_brackets},
 \code{no_sex_complement}, \code{constitutional_sex_complement}, \code{mosaic_karyotype},
-\code{non_clonal_sca}, \code{invalid_idem}, \code{unparseable_bracket}.
+\code{invalid_idem}, \code{unparseable_bracket}.
 
 Some constructs are deliberately out of scope and flagged unfixable rather
 than parsed: constitutional abnormalities (a sex complement with a \code{c}
-suffix, e.g. \verb{47,XXYc}, flagged \code{constitutional_sex_complement}), mosaic
-karyotypes (a leading \code{mos} prefix, flagged \code{mosaic_karyotype}), and
-non-clonal single-cell abnormalities (an \code{ncSCA} token, flagged
-\code{non_clonal_sca}). These take precedence over \code{no_chromosome_count} and
-\code{no_sex_complement} so a present count or complement is not mislabelled.
+suffix, e.g. \verb{47,XXYc}, flagged \code{constitutional_sex_complement}) and mosaic
+karyotypes (a leading \code{mos} prefix, flagged \code{mosaic_karyotype}). These take
+precedence over \code{no_chromosome_count} and \code{no_sex_complement} so a present
+count or complement is not mislabelled.
+
+Non-clonal single-cell abnormalities (an \code{ncSCA} token, standalone or
+parenthesized, flagged \code{non_clonal_sca}) carry no structural detail of
+their own, so the token is silently stripped and the remaining clone(s)
+parsed as usual.
 }

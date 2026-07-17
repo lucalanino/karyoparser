@@ -77,6 +77,8 @@ complement (e.g. \verb{46XY} or \verb{45.XY} -> \verb{46,XY}/\verb{45,XY})
 \item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} -> \verb{,der(...)})
 \item Insert missing comma after sex chromosome complement
 \item Remove space between count and \code{mar} token (\verb{+1~4 mar} -> \verb{+1~4mar})
+\item Strip non-clonal single-cell abnormality (\code{ncSCA}) tokens, standalone or
+parenthesized
 \item \code{normalize_iscn()}: whitespace collapsing, delimiter tightening,
 idem/sl/cp normalization
 }

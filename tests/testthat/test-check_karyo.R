@@ -153,16 +153,18 @@ test_that("mosaic_karyotype flagged for 'mos' prefix, not no_chromosome_count", 
   expect_equal(result$unfixable, 1L)
 })
 
-test_that("non_clonal_sca flagged for ncSCA token (leading or mid-clone)", {
+test_that("non_clonal_sca flagged for ncSCA token (leading or mid-clone), fixable", {
   lead <- suppressMessages(check_karyo("ncSCA[4]/46,XY[11]"))
   expect_equal(lead$non_clonal_sca, 1L)
   expect_equal(lead$no_chromosome_count, 0L)
-  expect_equal(lead$unfixable, 1L)
+  expect_equal(lead$fixable, 1L)
+  expect_equal(lead$unfixable, 0L)
 
   mid <- suppressMessages(check_karyo("46,XX(ncSCA)[1]//46,XY[19]"))
   expect_equal(mid$non_clonal_sca, 1L)
   expect_equal(mid$no_sex_complement, 0L)
-  expect_equal(mid$unfixable, 1L)
+  expect_equal(mid$fixable, 1L)
+  expect_equal(mid$unfixable, 0L)
 })
 
 test_that("no_chromosome_count still fires for genuine non-count strings", {

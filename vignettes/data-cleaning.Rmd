@@ -44,32 +44,30 @@ type -- unfixable types first (alphabetical), then fixable types
   `45.XY` missing the comma before the sex complement), `embedded_newline`,
   `fish_notation`, `html_entities`, `leading_dot`, `mar_space`,
   `midstring_linewrap`, `missing_sex_comma` (e.g. `46,XX der(...)` missing the
-  comma after the sex complement), `trailing_narrative`, `unicode_notation`,
+  comma after the sex complement), `non_clonal_sca` (an `ncSCA` token,
+  standalone or parenthesized), `trailing_narrative`, `unicode_notation`,
   `zero_host_chimera`.
 - **Unfixable**: `constitutional_sex_complement`, `empty`, `invalid_idem`,
   `mosaic_karyotype`, `multiple_chimeric_separator`, `no_chromosome_count`,
-  `no_sex_complement`, `non_clonal_sca`, `unbalanced_brackets`,
-  `unbalanced_parentheses`, `unparseable_bracket`, `updated_iscn`.
+  `no_sex_complement`, `unbalanced_brackets`, `unbalanced_parentheses`,
+  `unparseable_bracket`, `updated_iscn`.
 
 ## Out-of-scope constructs take precedence
 
-Mosaicism (`mos`), non-clonal single-cell abnormalities (`ncSCA`), and
-constitutional abnormalities (a sex complement with a `c` suffix, e.g.
-`47,XXYc`) are deliberately out of scope and flagged unfixable -- even though
-the string may otherwise look structurally complete. These take precedence
-over `no_chromosome_count`/`no_sex_complement`, so a present count or
-complement isn't mislabeled as missing:
+Mosaicism (`mos`) and constitutional abnormalities (a sex complement with a
+`c` suffix, e.g. `47,XXYc`) are deliberately out of scope and flagged
+unfixable -- even though the string may otherwise look structurally complete.
+These take precedence over `no_chromosome_count`/`no_sex_complement`, so a
+present count or complement isn't mislabeled as missing:
 
 ```{r precedence}
 ck <- check_karyo(c(
   "mos 47,XXY[10]/46,XY[5]",
-  "ncSCA[4]/46,XY[11]",
   "47,XXYc[20]"
 ))
 ck[, c(
   "karyotype",
   "mosaic_karyotype",
-  "non_clonal_sca",
   "constitutional_sex_complement",
   "no_chromosome_count",
   "no_sex_complement"
@@ -79,6 +77,16 @@ ck[, c(
 Each row has a chromosome count and sex complement present, but
 `no_chromosome_count`/`no_sex_complement` stay `0` -- the out-of-scope flag
 fires instead.
+
+## `ncSCA` tokens are silently stripped
+
+Non-clonal single-cell abnormalities (an `ncSCA` token, standalone or
+parenthesized) carry no structural detail of their own, so `preprocess_karyo()`
+strips the token and parses whatever clone remains:
+
+```{r ncsca}
+preprocess_karyo(c("ncSCA[4]/46,XY[11]", "46,XX(ncSCA)[1]//46,XY[19]"))
+```
 
 ## `preprocess_karyo()`'s cleaning pipeline
 

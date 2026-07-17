@@ -186,6 +186,15 @@ empty_issues_tibble <- function() {
       list(pattern = "^[.]*//", replacement = "")
     ),
     detail = "String starts with './/' or '//': donor-only chimera with no host metaphases"
+  ),
+  non_clonal_sca = list(
+    detect = "(?i)\\bncSCA\\b",
+    use_trimmed = FALSE,
+    fix = list(
+      list(pattern = "(?i)\\(ncSCA\\)", replacement = ""),
+      list(pattern = "(?i)ncSCA(?:\\[[^\\]]*\\])?", replacement = "")
+    ),
+    detail = "Non-clonal single-cell abnormality ('ncSCA' token); stripped, remaining clone parsed"
   )
 )
 
@@ -207,7 +216,6 @@ empty_issues_tibble <- function() {
   "no_sex_complement",
   "constitutional_sex_complement",
   "mosaic_karyotype",
-  "non_clonal_sca",
   "invalid_idem",
   "unparseable_bracket"
 )
@@ -293,16 +301,6 @@ validate_karyotypes <- function(karyotypes) {
         k,
         "mosaic_karyotype",
         "Mosaic 'mos' prefix; mosaic karyotypes are out of scope"
-      )
-      next
-    }
-
-    if (stringr::str_detect(k, "(?i)ncSCA")) {
-      add_issue(
-        i,
-        k,
-        "non_clonal_sca",
-        "Non-clonal single-cell abnormalities (ncSCA) are out of scope"
       )
       next
     }

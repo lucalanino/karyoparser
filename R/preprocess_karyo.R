@@ -18,7 +18,9 @@
 #' 9. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
 #' 10. Insert missing comma after sex chromosome complement
 #' 11. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
-#' 12. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+#' 12. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
+#'     parenthesized
+#' 13. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
 #'     idem/sl/cp normalization
 #'
 #' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are donor-only

@@ -782,7 +782,8 @@ test_that(".dirty_patterns contains all expected keys", {
       "midstring_linewrap",
       "missing_sex_comma",
       "mar_space",
-      "zero_host_chimera"
+      "zero_host_chimera",
+      "non_clonal_sca"
     )
   )
 })
@@ -1162,6 +1163,20 @@ test_that("parse_karyo: zero_host_chimera with other dirty patterns is parsed", 
 
 test_that("parse_karyo: zero_host + trailing narrative is fully fixable", {
   r <- suppressMessages(suppressWarnings(pk(".//46,XX[10] .Female karyotype")))
+  expect_equal(r$fixable_error, 1L)
+  expect_equal(r$unfixable_error, 0L)
+})
+
+test_that("parse_karyo: ncSCA token stripped and remaining clone parsed under 'preprocess'", {
+  r <- suppressMessages(
+    parse_karyo(
+      "ncSCA[4]/46,XY[11]",
+      on_issues = "preprocess",
+      verbose = FALSE
+    )
+  )
+  expect_false(is.na(r$chromosome_count))
+  expect_equal(r$chromosome_count, 46L)
   expect_equal(r$fixable_error, 1L)
   expect_equal(r$unfixable_error, 0L)
 })

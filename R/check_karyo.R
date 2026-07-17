@@ -11,23 +11,27 @@
 #' `on_issues = "preprocess"`):
 #' dirty markers (`unicode_notation`, `embedded_newline`, `html_entities`,
 #' `leading_dot`, `count_sex_separator`, `fish_notation`, `trailing_narrative`,
-#' `midstring_linewrap`, `missing_sex_comma`, `mar_space`), `chimeric_separator`, and
-#' `zero_host_chimera` (the donor clone is parsed; see `on_chimeric` in
-#' `parse_karyo()`).
+#' `midstring_linewrap`, `missing_sex_comma`, `mar_space`, `non_clonal_sca`),
+#' `chimeric_separator`, and `zero_host_chimera` (the donor clone is parsed;
+#' see `on_chimeric` in `parse_karyo()`).
 #'
 #' Unfixable issues (always returned as NA by `parse_karyo()`):
 #' `multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
 #' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
 #' `no_sex_complement`, `constitutional_sex_complement`, `mosaic_karyotype`,
-#' `non_clonal_sca`, `invalid_idem`, `unparseable_bracket`.
+#' `invalid_idem`, `unparseable_bracket`.
 #'
 #' Some constructs are deliberately out of scope and flagged unfixable rather
 #' than parsed: constitutional abnormalities (a sex complement with a `c`
-#' suffix, e.g. `47,XXYc`, flagged `constitutional_sex_complement`), mosaic
-#' karyotypes (a leading `mos` prefix, flagged `mosaic_karyotype`), and
-#' non-clonal single-cell abnormalities (an `ncSCA` token, flagged
-#' `non_clonal_sca`). These take precedence over `no_chromosome_count` and
-#' `no_sex_complement` so a present count or complement is not mislabelled.
+#' suffix, e.g. `47,XXYc`, flagged `constitutional_sex_complement`) and mosaic
+#' karyotypes (a leading `mos` prefix, flagged `mosaic_karyotype`). These take
+#' precedence over `no_chromosome_count` and `no_sex_complement` so a present
+#' count or complement is not mislabelled.
+#'
+#' Non-clonal single-cell abnormalities (an `ncSCA` token, standalone or
+#' parenthesized, flagged `non_clonal_sca`) carry no structural detail of
+#' their own, so the token is silently stripped and the remaining clone(s)
+#' parsed as usual.
 #'
 #' @param karyotypes Character vector of karyotype strings, or a data frame
 #'   containing a karyotype column. If a data frame, the karyotype column is
