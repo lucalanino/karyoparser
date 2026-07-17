@@ -43,7 +43,8 @@ result <- parse_karyo(
   c("46,XX", "47,XY,+21[10]/46,XY[5]", "46,XX,t(9;22)(q34;q11)[20]")
 )
 
-result[, c("original_karyotype", "chromosome_count", "tris21", "t_9_22_q34_q11", "normal_karyotype")]
+result |>
+  dplyr::select(original_karyotype, chromosome_count, tris21, t_9_22_q34_q11, normal_karyotype)
 ```
 
 ## How It Works
@@ -64,7 +65,7 @@ features. This way you catch issues before they show up as missing rows.
 Passing `on_issues = "preprocess"` to `parse_karyo()` runs the same 
 check/fix logic internally.
 
-See `vignette("getting-started", package = "karyoparser")` for the full
+See `vignette("karyoparser", package = "karyoparser")` for the full
 walkthrough: chaining these steps, data frame input, the
 `example_karyotypes` dataset, and the complete output column reference.
 
@@ -78,7 +79,7 @@ walkthrough: chaining these steps, data frame input, the
 
 ## Learn More
 
-- `vignette("getting-started", package = "karyoparser")` -- the full
+- `vignette("karyoparser", package = "karyoparser")` -- the full
   pipeline walkthrough, chaining, data frame input, and the complete output
   column reference.
 - `vignette("data-cleaning", package = "karyoparser")` -- the `on_issues`

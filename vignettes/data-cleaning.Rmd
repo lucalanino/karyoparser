@@ -1,8 +1,8 @@
 ---
-title: "Cleaning Dirty Karyotype Strings"
+title: "Cleaning dirty karyotype strings"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Cleaning Dirty Karyotype Strings}
+  %\VignetteIndexEntry{Cleaning dirty karyotype strings}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -65,13 +65,14 @@ ck <- check_karyo(c(
   "mos 47,XXY[10]/46,XY[5]",
   "47,XXYc[20]"
 ))
-ck[, c(
-  "karyotype",
-  "mosaic_karyotype",
-  "constitutional_sex_complement",
-  "no_chromosome_count",
-  "no_sex_complement"
-)]
+ck |>
+  dplyr::select(
+    karyotype,
+    mosaic_karyotype,
+    constitutional_sex_complement,
+    no_chromosome_count,
+    no_sex_complement
+  )
 ```
 
 Each row has a chromosome count and sex complement present, but

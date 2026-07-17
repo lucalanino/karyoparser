@@ -61,7 +61,7 @@ features. This way you catch issues before they show up as missing rows.
 Passing `on_issues = "preprocess"` to `parse_karyo()` runs the same
 check/fix logic internally.
 
-See `vignette("getting-started", package = "karyoparser")` for the full
+See `vignette("karyoparser", package = "karyoparser")` for the full
 walkthrough: chaining these steps, data frame input, the
 `example_karyotypes` dataset, and the complete output column reference.
 
@@ -80,9 +80,9 @@ walkthrough: chaining these steps, data frame input, the
 
 ## Learn More
 
-- `vignette("getting-started", package = "karyoparser")` – the full
-  pipeline walkthrough, chaining, data frame input, and the complete
-  output column reference.
+- `vignette("karyoparser", package = "karyoparser")` – the full pipeline
+  walkthrough, chaining, data frame input, and the complete output
+  column reference.
 - `vignette("data-cleaning", package = "karyoparser")` – the `on_issues`
   modes, the fixable/unfixable issue catalog, and `preprocess_karyo()`’s
   cleaning pipeline.

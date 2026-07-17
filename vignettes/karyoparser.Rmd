@@ -1,8 +1,8 @@
 ---
-title: "Getting Started with karyoparser"
+title: "Getting started with karyoparser"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Getting Started with karyoparser}
+  %\VignetteIndexEntry{Getting started with karyoparser}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -77,10 +77,10 @@ complex and monosomal karyotypes, chimeric/multi-clone cases, and a batch of
 messy or out-of-scope strings.
 
 ```{r example-data}
-example_karyotypes
+dplyr::glimpse(example_karyotypes)
 
 ck <- check_karyo(example_karyotypes)
-table(fixable = ck$fixable, unfixable = ck$unfixable)
+dplyr::count(ck, fixable, unfixable)
 ```
 
 Fixable rows are formatting artifacts (stray whitespace, HTML entities, a
@@ -92,7 +92,8 @@ breakdown of issue types and how `on_issues` handles each.
 ```{r pipeline}
 pp <- preprocess_karyo(example_karyotypes)
 result <- parse_karyo(pp, on_issues = "preprocess")
-result[, c("sample_id", "chromosome_count", "general_translocation", "complex_karyotype")]
+result |>
+  dplyr::select(sample_id, chromosome_count, general_translocation, complex_karyotype)
 ```
 
 `parse_karyo(example_karyotypes, on_issues = "preprocess")` does the same
@@ -106,13 +107,14 @@ karyotype column (common names like `karyotype`, `iscn`, `karyo`, ...) and an
 optional id column (`sample_id`, `patient_id`, `id`, `mrn`, ...).
 
 ```{r df-input}
-df <- data.frame(
+df <- tibble::tibble(
   sample_id = c("S1", "S2", "S3"),
   iscn = c("46,XX", "47,XY,+21[10]/46,XY[5]", "46,XX,t(9;22)(q34;q11)[20]")
 )
 
 result <- parse_karyo(df, verbose = FALSE)
-result[, c("sample_id", "original_karyotype", "chromosome_count", "tris21")]
+result |>
+  dplyr::select(sample_id, original_karyotype, chromosome_count, tris21)
 ```
 
 ## Output reference
@@ -174,26 +176,6 @@ Since flags don't compete, a token can trip **all** its matches at once.
 ```{r rules}
 myeloid_rules
 ```
-
-### The CBF-AML exception to `monosomal_karyotype`
-
-`monosomal_karyotype` fires when a row has >= 2 autosomal monosomies, or >= 1
-monosomy plus >= 1 structural aberration -- except for core-binding-factor
-AML. Rows carrying `t(8;21)(q22;q22)`, `inv(16)(p13q22)`, or
-`t(16;16)(p13;q22)` are never classified monosomal, regardless of any
-co-firing monosomy or structural flag, per clinical guidelines:
-
-```{r cbf-override}
-result <- parse_karyo(
-  "45,XX,-7,t(8;21)(q22;q22)",
-  on_issues = "warn",
-  verbose = FALSE
-)
-result[, c("t_8_21_q22_q22", "mono7", "general_translocation", "monosomal_karyotype")]
-```
-
-Without the override, `-7` plus the translocation's structural flag would
-otherwise satisfy the monosomal criteria.
 
 ## Next steps
 

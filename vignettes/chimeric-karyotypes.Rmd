@@ -1,8 +1,8 @@
 ---
-title: "Chimeric Karyotypes"
+title: "Chimeric karyotypes"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Chimeric Karyotypes}
+  %\VignetteIndexEntry{Chimeric karyotypes}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -36,13 +36,15 @@ parse_karyo(
   "47,XY,+8[15]//46,XX[5]",
   on_issues = "warn",
   on_chimeric = "host"
-)[, c("preprocessed_karyotype", "chimeric_clone", "tris8")]
+) |>
+  dplyr::select(preprocessed_karyotype, chimeric_clone, tris8)
 
 parse_karyo(
   "46,XX[15]//47,XY,+8[5]",
   on_issues = "warn",
   on_chimeric = "donor"
-)[, c("preprocessed_karyotype", "chimeric_clone", "tris8")]
+) |>
+  dplyr::select(preprocessed_karyotype, chimeric_clone, tris8)
 ```
 
 `chimeric_karyotype` is `1` for both rows (any `//` separator), and
@@ -58,14 +60,13 @@ problem, so the row still counts as fixable, not unfixable:
 
 ```{r zero-host}
 ck <- check_karyo(".//46,XX,+8[10]")
-ck[, c("karyotype", "fixable", "unfixable", "zero_host_chimera")]
+ck |>
+  dplyr::select(karyotype, fixable, unfixable, zero_host_chimera)
 
-parse_karyo(".//46,XX,+8[10]", on_issues = "warn", on_chimeric = "host")[,
-  c("preprocessed_karyotype", "chimeric_clone")
-]
-parse_karyo(".//46,XX,+8[10]", on_issues = "warn", on_chimeric = "default")[,
-  c("preprocessed_karyotype", "chimeric_clone", "tris8")
-]
+parse_karyo(".//46,XX,+8[10]", on_issues = "warn", on_chimeric = "host") |>
+  dplyr::select(preprocessed_karyotype, chimeric_clone)
+parse_karyo(".//46,XX,+8[10]", on_issues = "warn", on_chimeric = "default") |>
+  dplyr::select(preprocessed_karyotype, chimeric_clone, tris8)
 ```
 
 ## Multiple separators are always unfixable
@@ -75,10 +76,10 @@ well-defined host/donor split, so it's always unfixable and returns `NA`
 regardless of `on_chimeric` or `on_issues`:
 
 ```{r multiple-separator}
-check_karyo("46,XX//47//48")[, c("karyotype", "fixable", "unfixable")]
-parse_karyo("46,XX//47//48", on_issues = "preprocess", verbose = FALSE)[,
-  c("original_karyotype", "preprocessed_karyotype", "unfixable_error")
-]
+check_karyo("46,XX//47//48") |>
+  dplyr::select(karyotype, fixable, unfixable)
+parse_karyo("46,XX//47//48", on_issues = "preprocess", verbose = FALSE) |>
+  dplyr::select(original_karyotype, preprocessed_karyotype, unfixable_error)
 ```
 
 ## `on_issues` is orthogonal to chimeric handling
@@ -94,9 +95,8 @@ parse_karyo(c("46,XX[15]//47,XY,+8[5]", ".46,XX,del(5)(q13)[10]"))
 ```
 
 ```{r stop-chimera-only}
-parse_karyo("46,XX[15]//47,XY,+8[5]", verbose = FALSE)[,
-  c("preprocessed_karyotype", "chimeric_clone")
-]
+parse_karyo("46,XX[15]//47,XY,+8[5]", verbose = FALSE) |>
+  dplyr::select(preprocessed_karyotype, chimeric_clone)
 ```
 
 The second call succeeds under the default `on_issues = "stop"` because the
@@ -112,7 +112,8 @@ split can't be un-done after the fact:
 
 ```{r preprocessed-inherit}
 pp <- preprocess_karyo("46,XX[15]//47,XY,+8[5]", on_chimeric = "donor")
-parse_karyo(pp)[, c("preprocessed_karyotype", "chimeric_clone", "tris8")]
+parse_karyo(pp) |>
+  dplyr::select(preprocessed_karyotype, chimeric_clone, tris8)
 ```
 
 ```{r preprocessed-conflict, error = TRUE}

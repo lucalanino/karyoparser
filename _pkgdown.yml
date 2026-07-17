@@ -6,7 +6,6 @@ articles:
 - title: Articles
   navbar: ~
   contents:
-  - getting-started
   - data-cleaning
   - chimeric-karyotypes
   - custom-rules
