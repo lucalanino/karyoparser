@@ -930,6 +930,26 @@ test_that("missing_sex_comma: glued case does not fire on donor clone boundary a
   expect_equal(result$missing_sex_comma, 0L)
 })
 
+test_that("missing_sex_comma: letter-glued case (no separator, no +/-) is detected but not auto-fixed", {
+  for (k in c("46,XYdel(5q)", "48,XXYYdel(5q)[10]", "47,XY(inv)(9)[10]")) {
+    result <- suppressMessages(check_karyo(k))
+    expect_equal(result$missing_sex_comma, 1L, info = k)
+    expect_equal(result$fixable, 0L, info = k)
+    expect_equal(result$unfixable, 1L, info = k)
+    fixed <- suppressMessages(preprocess_karyo(k))
+    expect_equal(fixed$preprocessed, NA_character_, info = k)
+    expect_equal(fixed$status, "unfixable", info = k)
+  }
+})
+
+test_that("missing_sex_comma: letter-glued case does not collide with constitutional sex complement 'c' suffix", {
+  for (k in c("47,XXYc[20]", "47,XXYc?[20]")) {
+    result <- suppressMessages(check_karyo(k))
+    expect_equal(result$missing_sex_comma, 0L, info = k)
+    expect_equal(result$constitutional_sex_complement, 1L, info = k)
+  }
+})
+
 test_that("count_sex_separator: missing comma between count and sex is repaired", {
   result <- suppressMessages(check_karyo(
     "46XY,der(7)t(7;11)(q11.2;q13)[2]/46,XY[9]"

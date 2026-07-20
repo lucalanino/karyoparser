@@ -43,8 +43,10 @@ type -- unfixable types first (alphabetical), then fixable types
 - **Fixable**: `chimeric_separator`, `count_sex_separator` (e.g. `46XY` or
   `45.XY` missing the comma before the sex complement), `embedded_newline`,
   `fish_notation`, `html_entities`, `leading_dot`, `mar_space`,
-  `midstring_linewrap`, `missing_sex_comma` (e.g. `46,XX der(...)` missing the
-  comma after the sex complement), `non_ascii_homoglyph` (a Greek Chi/Upsilon
+  `midstring_linewrap`, `missing_sex_comma` (e.g. `46,XX der(...)` or
+  `46,XY+8` missing the comma after the sex complement -- a letter-glued form
+  like `46,XYdel(5q)` is detected but not auto-fixed, so it still comes back
+  `NA`), `non_ascii_homoglyph` (a Greek Chi/Upsilon
   standing in for Latin `X`/`Y` in the sex complement), `non_clonal_sca` (an
   `ncSCA` token, standalone or parenthesized), `trailing_narrative`,
   `unicode_notation`, `zero_host_chimera`.
@@ -64,7 +66,7 @@ constructs the package deliberately doesn't handle.
 |---|---|---|
 | `empty` | Input was `NA` or `""` | Confirm the source column doesn't have missing/blank karyotype values before parsing, or filter them out upstream. |
 | `no_chromosome_count` | String doesn't start with a digit | Check whether a leading chromosome count was stripped upstream (e.g. spreadsheet auto-formatting), or whether the string is karyotype notation at all. |
-| `no_sex_complement` | First clone has no sex chromosome complement (`XX`/`XY`/etc.) | Check whether the string was truncated before the complement, or uses non-standard complement notation. |
+| `no_sex_complement` | First clone has no sex chromosome complement (`XX`/`XY`/etc.) | Check whether the string was truncated before the complement, uses non-standard complement notation, or (if `missing_sex_comma` is also flagged) has the complement glued directly to the first aberration with no comma, e.g. `46,XYdel(5q)`. |
 | `single_token` | Bare comma-less string, e.g. `"8"` | Ambiguous between a chromosome count and an abnormality whose leading `+`/`-` sign was stripped -- a common artifact of opening ISCN strings in Excel. Check the original cell format/source. |
 | `invalid_idem` | `idem` appears in the first clone | `idem` means "same as the previous clone", but there is no previous clone here. Check whether an earlier clone was dropped from the string. |
 | `unbalanced_parentheses` / `unbalanced_brackets` | Mismatched `(`/`)` or `[`/`]` counts | Usually a truncation or copy-paste error. Inspect the original source record. |

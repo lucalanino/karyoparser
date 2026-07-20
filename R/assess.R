@@ -176,7 +176,16 @@ empty_issues_tibble <- function() {
       # No separator at all, e.g. '46,XX+8' or '46,XY-7' -- covers every
       # clone in the string (not just the first), since the pattern only
       # anchors on a preceding comma, not string start.
-      paste0(",(", .sex_alt, ")(?=[+-])")
+      paste0(",(", .sex_alt, ")(?=[+-])"),
+      # Glued directly to a letter/paren-led aberration token with no
+      # separator at all, e.g. '46,XYdel(5q)'. Detect-only: unlike the two
+      # cases above, there's no fix for this below (see TODO.md) -- '[a-z(]'
+      # right after a sex complement is too broad a trigger surface to safely
+      # auto-insert a comma without real-corpus validation. The negative
+      # lookahead excludes the constitutional-sex-complement 'c' suffix (e.g.
+      # '47,XXYc[20]', optionally '?'-suffixed) so this doesn't collide with
+      # `constitutional_sex_complement`.
+      paste0(",(", .sex_alt, ")(?!c\\??(?:[,/\\[]|$))(?=[a-z(])")
     ),
     use_trimmed = FALSE,
     fix = list(
@@ -189,7 +198,7 @@ empty_issues_tibble <- function() {
         replacement = "\\1,"
       )
     ),
-    detail = "Missing comma between sex chromosome complement and first aberration (e.g. '46,XX der(...)' or '46,XY+8' should be '46,XX,der(...)' / '46,XY,+8')"
+    detail = "Missing comma between sex chromosome complement and first aberration (e.g. '46,XX der(...)' or '46,XY+8' should be '46,XX,der(...)' / '46,XY,+8'; a letter-glued form like '46,XYdel(5q)' is detected but not auto-fixed)"
   ),
   mar_space = list(
     detect = "[+~0-9-] mar\\b",
