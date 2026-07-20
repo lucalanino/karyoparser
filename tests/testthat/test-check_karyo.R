@@ -68,6 +68,24 @@ test_that("check_karyo: html entities detected as fixable", {
   expect_equal(result$fixable, 1L)
 })
 
+test_that("check_karyo: Greek homoglyph sex complement detected as fixable, not no_sex_complement", {
+  result <- suppressMessages(check_karyo(
+    "45,\u03A7\u03A7,-7[22]/47,\u03A7\u03A7,+8[3]"
+  ))
+  expect_equal(result$non_ascii_homoglyph, 1L)
+  expect_equal(result$no_sex_complement, 0L)
+  expect_equal(result$fixable, 1L)
+  expect_equal(result$unfixable, 0L)
+})
+
+test_that("check_karyo: stray non-ASCII character with no known fix is unfixable", {
+  result <- suppressMessages(check_karyo(
+    "46,XX,der(1)t(1;7)(p11;p11)\u00B5"
+  ))
+  expect_equal(result$stray_non_ascii, 1L)
+  expect_equal(result$unfixable, 1L)
+})
+
 test_that("check_karyo: one row per input; clean/dirty rows correctly flagged", {
   x <- c("46,XX", ".47,XY,+21", "46,XX[5] .note", "46,XY")
   result <- suppressMessages(check_karyo(x))

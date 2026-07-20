@@ -66,7 +66,10 @@ normalization occurs -- \code{parse_karyo()} does none.
 Rules applied in order:
 \enumerate{
 \item Trim leading/trailing whitespace
-\item Replace unicode spaces (NBSP), dashes (em/en-dash), fullwidth characters
+\item Replace unicode spaces (NBSP), zero-width spaces, dashes (em/en-dash),
+fullwidth characters
+\item Normalize Greek letter homoglyphs (Chi/Upsilon) to Latin \code{X}/\code{Y} in the
+sex chromosome complement
 \item Collapse embedded newlines/tabs to spaces
 \item Decode HTML entities (\verb{&lt;} -> \code{<}, \verb{&gt;} -> \code{>}, \verb{&amp;} -> \code{&})
 \item Strip leading dot(s) before a digit (e.g. \verb{.46,XX} -> \verb{46,XX})
@@ -85,5 +88,7 @@ idem/sl/cp normalization
 
 Note: \code{zero_host_chimera} strings (\verb{.//} or \verb{//} prefix) are donor-only
 chimeras with no host metaphases. The leading \verb{.//} prefix is stripped,
-leaving the donor clone(s), which are then parsed (under \code{on_chimeric = "host"} these rows are instead returned NA).
+leaving the donor clone(s), which are then parsed (under \code{on_chimeric = "host"} these rows are instead returned NA). A remaining non-ASCII
+character with no known automatic fix (\code{stray_non_ascii}) is detected but
+not modified; such rows are returned as \code{NA} (unfixable).
 }

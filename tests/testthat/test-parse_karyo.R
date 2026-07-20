@@ -773,6 +773,7 @@ test_that(".dirty_patterns contains all expected keys", {
     names(karyoparser:::.dirty_patterns),
     c(
       "unicode_notation",
+      "non_ascii_homoglyph",
       "embedded_newline",
       "html_entities",
       "leading_dot",
@@ -783,7 +784,8 @@ test_that(".dirty_patterns contains all expected keys", {
       "missing_sex_comma",
       "mar_space",
       "zero_host_chimera",
-      "non_clonal_sca"
+      "non_clonal_sca",
+      "stray_non_ascii"
     )
   )
 })

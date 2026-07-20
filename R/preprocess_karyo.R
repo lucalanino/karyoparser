@@ -7,26 +7,31 @@
 #'
 #' Rules applied in order:
 #' 1. Trim leading/trailing whitespace
-#' 2. Replace unicode spaces (NBSP), dashes (em/en-dash), fullwidth characters
-#' 3. Collapse embedded newlines/tabs to spaces
-#' 4. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
-#' 5. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
-#' 6. Insert missing/dotted separator between chromosome count and sex
+#' 2. Replace unicode spaces (NBSP), zero-width spaces, dashes (em/en-dash),
+#'    fullwidth characters
+#' 3. Normalize Greek letter homoglyphs (Chi/Upsilon) to Latin `X`/`Y` in the
+#'    sex chromosome complement
+#' 4. Collapse embedded newlines/tabs to spaces
+#' 5. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
+#' 6. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
+#' 7. Insert missing/dotted separator between chromosome count and sex
 #'    complement (e.g. `46XY` or `45.XY` -> `46,XY`/`45,XY`)
-#' 7. Strip FISH/nuc ish annotation (suffix or mid-clone before metaphase count)
-#' 8. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
-#' 9. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
-#' 10. Insert missing comma after sex chromosome complement
-#' 11. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
-#' 12. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
+#' 8. Strip FISH/nuc ish annotation (suffix or mid-clone before metaphase count)
+#' 9. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
+#' 10. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
+#' 11. Insert missing comma after sex chromosome complement
+#' 12. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
+#' 13. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
 #'     parenthesized
-#' 13. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+#' 14. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
 #'     idem/sl/cp normalization
 #'
 #' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are donor-only
 #' chimeras with no host metaphases. The leading `.//` prefix is stripped,
 #' leaving the donor clone(s), which are then parsed (under `on_chimeric =
-#' "host"` these rows are instead returned NA).
+#' "host"` these rows are instead returned NA). A remaining non-ASCII
+#' character with no known automatic fix (`stray_non_ascii`) is detected but
+#' not modified; such rows are returned as `NA` (unfixable).
 #'
 #' @param karyotypes Character vector of raw karyotype strings, the
 #'   `karyo_check` tibble returned by `check_karyo()`, or a data frame

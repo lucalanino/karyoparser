@@ -52,17 +52,19 @@ with one row per input string: each possible issue type is a column
 \details{
 Fixable issues (resolvable by \code{parse_karyo()} under
 \code{on_issues = "preprocess"}):
-dirty markers (\code{unicode_notation}, \code{embedded_newline}, \code{html_entities},
-\code{leading_dot}, \code{count_sex_separator}, \code{fish_notation}, \code{trailing_narrative},
-\code{midstring_linewrap}, \code{missing_sex_comma}, \code{mar_space}, \code{non_clonal_sca}),
-\code{chimeric_separator}, and \code{zero_host_chimera} (the donor clone is parsed;
-see \code{on_chimeric} in \code{parse_karyo()}).
+dirty markers (\code{unicode_notation}, \code{non_ascii_homoglyph},
+\code{embedded_newline}, \code{html_entities}, \code{leading_dot}, \code{count_sex_separator},
+\code{fish_notation}, \code{trailing_narrative}, \code{midstring_linewrap},
+\code{missing_sex_comma}, \code{mar_space}, \code{non_clonal_sca}), \code{chimeric_separator},
+and \code{zero_host_chimera} (the donor clone is parsed; see \code{on_chimeric} in
+\code{parse_karyo()}).
 
 Unfixable issues (always returned as NA by \code{parse_karyo()}):
 \code{multiple_chimeric_separator}, \code{empty}, \code{no_chromosome_count},
 \code{updated_iscn}, \code{unbalanced_parentheses}, \code{unbalanced_brackets},
 \code{no_sex_complement}, \code{single_token}, \code{constitutional_sex_complement},
-\code{mosaic_karyotype}, \code{invalid_idem}, \code{unparseable_bracket}.
+\code{mosaic_karyotype}, \code{invalid_idem}, \code{unparseable_bracket},
+\code{stray_non_ascii} (a non-ASCII character with no known automatic fix).
 
 \code{single_token} catches a bare comma-less string (e.g. \code{"8"}): it's
 ambiguous whether that was meant as a chromosome count or as an

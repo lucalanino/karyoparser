@@ -23,17 +23,27 @@ empty_issues_tibble <- function() {
 # detect/fix/detail entries; empty fix list means detected-only (unfixable).
 .dirty_patterns <- list(
   unicode_notation = list(
-    detect = "[\u00A0\u2007\u202F\u2212\u2012\u2013\u2014\uFE63\uFF0D\uFF0B]",
+    detect = "[\u00A0\u2007\u202F\u200B\u2212\u2012\u2013\u2014\uFE63\uFF0D\uFF0B]",
     use_trimmed = FALSE,
     fix = list(
       list(pattern = "[\u00A0\u2007\u202F]", replacement = " "),
+      list(pattern = "\u200B", replacement = ""),
       list(
         pattern = "[\u2212\u2012\u2013\u2014\uFE63\uFF0D]",
         replacement = "-"
       ),
       list(pattern = "\uFF0B", replacement = "+")
     ),
-    detail = "Contains unicode spaces (NBSP), dashes (em/en-dash), or fullwidth characters"
+    detail = "Contains unicode spaces (NBSP), zero-width spaces, dashes (em/en-dash), or fullwidth characters"
+  ),
+  non_ascii_homoglyph = list(
+    detect = "[\u03A7\u03A5]",
+    use_trimmed = FALSE,
+    fix = list(
+      list(pattern = "\u03A7", replacement = "X"),
+      list(pattern = "\u03A5", replacement = "Y")
+    ),
+    detail = "Greek letter homoglyph (Chi/Upsilon) standing in for Latin X/Y in sex chromosome complement"
   ),
   embedded_newline = list(
     detect = "[\n\r\t]",
@@ -195,6 +205,15 @@ empty_issues_tibble <- function() {
       list(pattern = "(?i)ncSCA(?:\\[[^\\]]*\\])?", replacement = "")
     ),
     detail = "Non-clonal single-cell abnormality ('ncSCA' token); stripped, remaining clone parsed"
+  ),
+  # Last so it only ever sees what survives every earlier fix (including
+  # trailing_narrative's stripping) -- catches leftover non-ASCII with no
+  # known automatic fix, without false-firing on discarded narrative text.
+  stray_non_ascii = list(
+    detect = "[^\x01-\x7F]",
+    use_trimmed = FALSE,
+    fix = list(),
+    detail = "Contains non-ASCII character(s) not recognized by any automatic fix; manual review needed"
   )
 )
 
@@ -221,47 +240,59 @@ empty_issues_tibble <- function() {
   "unparseable_bracket"
 )
 
-flag_unpreprocessed <- function(x) {
-  issue_list <- vector("list", length(x) * length(.dirty_patterns))
-  n_issues <- 0L
+# Single ordered walk over .dirty_patterns, replacing what used to be two
+# independent passes (one for detection, one for fixing) over the raw string.
+# Threads a "state" vector through the patterns in list order: each pattern's
+# detect runs against the state as left by every earlier pattern's fix (not
+# the raw original), then that pattern's own fix is applied before moving to
+# the next one. This mirrors the dependency the fixes already have on each
+# other (e.g. fish_notation must claim a trailing FISH clause before
+# trailing_narrative's blunter truncation rule would misclassify it as
+# narrative) so detection and fixing finally agree on what each row's issues
+# are.
+.run_dirty_patterns <- function(x) {
+  orig_display <- truncate_str(as.character(x))
+  na_mask <- is.na(x)
 
-  for (i in seq_along(x)) {
-    s <- x[i]
-    if (is.na(s)) {
-      next
+  state <- stringr::str_trim(x)
+  issue_list <- vector("list", length(.dirty_patterns))
+
+  for (i in seq_along(.dirty_patterns)) {
+    nm <- names(.dirty_patterns)[i]
+    dp <- .dirty_patterns[[i]]
+
+    target <- if (isTRUE(dp$use_trimmed)) stringr::str_trim(state) else state
+    detected <- Reduce(
+      `|`,
+      lapply(dp$detect, function(re) {
+        hit <- stringr::str_detect(target, re)
+        hit[is.na(hit)] <- FALSE
+        hit
+      })
+    )
+    detected[na_mask] <- FALSE
+
+    hit_rows <- which(detected)
+    if (length(hit_rows) > 0) {
+      issue_list[[i]] <- tibble::tibble(
+        row_index = hit_rows,
+        karyotype = orig_display[hit_rows],
+        issue_type = nm,
+        issue_detail = dp$detail
+      )
     }
-    s_trim <- trimws(s)
 
-    for (nm in names(.dirty_patterns)) {
-      dp <- .dirty_patterns[[nm]]
-      target <- if (isTRUE(dp$use_trimmed)) s_trim else s
-      if (any(stringr::str_detect(target, dp$detect))) {
-        n_issues <- n_issues + 1L
-        issue_list[[n_issues]] <- tibble::tibble(
-          row_index = i,
-          karyotype = truncate_str(s),
-          issue_type = nm,
-          issue_detail = dp$detail
-        )
-      }
-    }
-  }
-
-  if (n_issues == 0L) {
-    return(empty_issues_tibble())
-  }
-  dplyr::bind_rows(issue_list[seq_len(n_issues)])
-}
-
-.apply_dirty_fixes <- function(x) {
-  x <- stringr::str_trim(x)
-  for (nm in names(.dirty_patterns)) {
-    dp <- .dirty_patterns[[nm]]
     for (fx in dp$fix) {
-      x <- stringr::str_replace_all(x, fx$pattern, fx$replacement)
+      state <- stringr::str_replace_all(state, fx$pattern, fx$replacement)
     }
   }
-  stringr::str_trim(x)
+
+  issues <- dplyr::bind_rows(Filter(Negate(is.null), issue_list))
+  if (nrow(issues) == 0L) {
+    issues <- empty_issues_tibble()
+  }
+
+  list(issues = issues, fixed = stringr::str_trim(state))
 }
 
 validate_karyotypes <- function(karyotypes) {
@@ -440,7 +471,8 @@ validate_karyotypes <- function(karyotypes) {
     c("chimeric_separator", "zero_host_chimera")
   )
 
-  dirty_issues <- flag_unpreprocessed(x)
+  dp_walk <- .run_dirty_patterns(x)
+  dirty_issues <- dp_walk$issues
   dirty_row_indices <- unique(
     dirty_issues$row_index[dirty_issues$issue_type %in% DIRTY_TYPES]
   )
@@ -449,7 +481,7 @@ validate_karyotypes <- function(karyotypes) {
   )
 
   # zero_host_chimera's fix already strips the leading './/', reducing it to a donor.
-  partially_fixed <- .apply_dirty_fixes(x)
+  partially_fixed <- dp_walk$fixed
   norm_partial <- normalize_iscn(partially_fixed)
 
   has_count <- !is.na(norm_partial) & stringr::str_detect(norm_partial, "^\\d")

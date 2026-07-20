@@ -53,6 +53,30 @@ test_that("fullwidth plus: detected as unicode_notation, fixed by preprocess_kar
   expect_equal(r$tris8, 1L)
 })
 
+test_that("zero-width spaces: stripped by preprocess_karyo", {
+  result <- suppressMessages(preprocess_karyo(
+    "46,XX,t(3;21)(q26;q22)\u200B"
+  ))
+  expect_equal(result$preprocessed, "46,XX,t(3;21)(q26;q22)")
+  expect_equal(result$status, "fixed")
+})
+
+test_that("Greek homoglyph sex complement: normalized to Latin X/Y by preprocess_karyo", {
+  result <- suppressMessages(preprocess_karyo(
+    "45,\u03A7\u03A7,-7[22]/47,\u03A7\u03A7,+8[3]"
+  ))
+  expect_equal(result$preprocessed, "45,XX,-7[22]/47,XX,+8[3]")
+  expect_equal(result$status, "fixed")
+})
+
+test_that("stray non-ASCII character: no known fix, preprocess_karyo returns NA", {
+  result <- suppressMessages(preprocess_karyo(
+    "46,XX,der(1)t(1;7)(p11;p11)\u00B5"
+  ))
+  expect_true(is.na(result$preprocessed))
+  expect_equal(result$status, "unfixable")
+})
+
 test_that("cp bracket spacing normalization via parse_karyo", {
   r <- pk("46,XX[cp 20]")
   expect_true(!is.na(r$total_metaphases))
@@ -90,6 +114,15 @@ test_that("preprocess_karyo: strips trailing narrative after bracket with no spa
     suppressMessages(preprocess_karyo("47,XY,+21[10].Some text"))$preprocessed,
     "47,XY,+21[10]"
   )
+})
+
+test_that("preprocess_karyo: non-Latin trailing narrative is silently stripped but not reported (known gap)", {
+  x <- "46,XY[20] \u30C6\u30B9\u30C8"
+  chk <- suppressMessages(check_karyo(x))
+  expect_equal(chk$trailing_narrative, 0L)
+  expect_equal(chk$fixable, 0L)
+  expect_equal(chk$unfixable, 0L)
+  expect_equal(suppressMessages(preprocess_karyo(x))$preprocessed, "46,XY[20]")
 })
 
 test_that("preprocess_karyo: decodes HTML lt/gt entities", {
@@ -189,6 +222,18 @@ test_that("fish_notation: detected when nuc ish suffix present", {
     "[12]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"
   ))
   expect_equal(result$fish_notation, 1L)
+})
+
+test_that("fish_notation: claims trailing FISH clause before trailing_narrative can", {
+  result <- suppressMessages(check_karyo(
+    "[12]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"
+  ))
+  expect_equal(result$fish_notation, 1L)
+  expect_equal(result$trailing_narrative, 0L)
+
+  result2 <- suppressMessages(check_karyo("46,XX,t(9;22)[15] .ish(BCR-ABL)"))
+  expect_equal(result2$fish_notation, 1L)
+  expect_equal(result2$trailing_narrative, 0L)
 })
 
 test_that("fish_notation: detected when .ish suffix present", {

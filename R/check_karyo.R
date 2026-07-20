@@ -9,17 +9,19 @@
 #'
 #' Fixable issues (resolvable by `parse_karyo()` under
 #' `on_issues = "preprocess"`):
-#' dirty markers (`unicode_notation`, `embedded_newline`, `html_entities`,
-#' `leading_dot`, `count_sex_separator`, `fish_notation`, `trailing_narrative`,
-#' `midstring_linewrap`, `missing_sex_comma`, `mar_space`, `non_clonal_sca`),
-#' `chimeric_separator`, and `zero_host_chimera` (the donor clone is parsed;
-#' see `on_chimeric` in `parse_karyo()`).
+#' dirty markers (`unicode_notation`, `non_ascii_homoglyph`,
+#' `embedded_newline`, `html_entities`, `leading_dot`, `count_sex_separator`,
+#' `fish_notation`, `trailing_narrative`, `midstring_linewrap`,
+#' `missing_sex_comma`, `mar_space`, `non_clonal_sca`), `chimeric_separator`,
+#' and `zero_host_chimera` (the donor clone is parsed; see `on_chimeric` in
+#' `parse_karyo()`).
 #'
 #' Unfixable issues (always returned as NA by `parse_karyo()`):
 #' `multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
 #' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
 #' `no_sex_complement`, `single_token`, `constitutional_sex_complement`,
-#' `mosaic_karyotype`, `invalid_idem`, `unparseable_bracket`.
+#' `mosaic_karyotype`, `invalid_idem`, `unparseable_bracket`,
+#' `stray_non_ascii` (a non-ASCII character with no known automatic fix).
 #'
 #' `single_token` catches a bare comma-less string (e.g. `"8"`): it's
 #' ambiguous whether that was meant as a chromosome count or as an
