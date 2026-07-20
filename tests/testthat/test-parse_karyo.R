@@ -856,6 +856,80 @@ test_that("missing_sex_comma: detected and fixed for XXYY and XXXY", {
   )
 })
 
+test_that("missing_sex_comma: detected when sex complement glued directly to +/- with no separator", {
+  result <- suppressMessages(check_karyo("47,XY+13[19]"))
+  expect_equal(result$missing_sex_comma, 1L)
+  expect_equal(result$no_sex_complement, 0L)
+  expect_equal(result$fixable, 1L)
+  expect_equal(result$unfixable, 0L)
+  expect_equal(
+    suppressMessages(preprocess_karyo("47,XY+13[19]"))$preprocessed,
+    "47,XY,+13[19]"
+  )
+})
+
+test_that("missing_sex_comma: glued case handles '-' sign and single-letter complement", {
+  expect_equal(
+    suppressMessages(preprocess_karyo("45,X-Y[10]"))$preprocessed,
+    "45,X,-Y[10]"
+  )
+})
+
+test_that("missing_sex_comma: glued case respects longest-first match for multi-letter complements", {
+  expect_equal(
+    suppressMessages(preprocess_karyo("48,XXYY+21[10]"))$preprocessed,
+    "48,XXYY,+21[10]"
+  )
+  expect_equal(
+    suppressMessages(preprocess_karyo("48,XXXY-3[10]"))$preprocessed,
+    "48,XXXY,-3[10]"
+  )
+})
+
+test_that("missing_sex_comma: glued case is idempotent on already well-formed karyotypes", {
+  expect_equal(
+    suppressMessages(check_karyo("46,XX,+13[19]"))$missing_sex_comma,
+    0L
+  )
+  expect_equal(
+    suppressMessages(preprocess_karyo("46,XX,+13[19]"))$preprocessed,
+    "46,XX,+13[19]"
+  )
+})
+
+test_that("missing_sex_comma: glued case fixes a subsequent clone, not just the first", {
+  # Regression: before this fix, a glued sex complement in a clone after the
+  # first '/' tripped no structural check at all (validate_karyotypes() only
+  # inspects clone 1) and no dirty-pattern check (missing_sex_comma required
+  # whitespace), so the row looked completely clean while silently dropping
+  # the aberration during tokenization.
+  result <- suppressMessages(check_karyo("46,XY[10]/47,XY+8[5]"))
+  expect_equal(result$missing_sex_comma, 1L)
+  expect_equal(result$fixable, 1L)
+  expect_equal(
+    suppressMessages(preprocess_karyo("46,XY[10]/47,XY+8[5]"))$preprocessed,
+    "46,XY[10]/47,XY,+8[5]"
+  )
+  r <- suppressWarnings(parse_karyo(
+    "46,XY[10]/47,XY+8[5]",
+    on_issues = "warn",
+    verbose = FALSE
+  ))
+  expect_equal(r$fixable_error, 1L)
+  expect_equal(r$unfixable_error, 0L)
+  r_fixed <- parse_karyo(
+    "46,XY[10]/47,XY+8[5]",
+    on_issues = "preprocess",
+    verbose = FALSE
+  )
+  expect_equal(r_fixed$tris8, 1L)
+})
+
+test_that("missing_sex_comma: glued case does not fire on donor clone boundary alone", {
+  result <- suppressMessages(check_karyo("46,XX[15]//46,XY[5]"))
+  expect_equal(result$missing_sex_comma, 0L)
+})
+
 test_that("count_sex_separator: missing comma between count and sex is repaired", {
   result <- suppressMessages(check_karyo(
     "46XY,der(7)t(7;11)(q11.2;q13)[2]/46,XY[9]"
@@ -890,6 +964,42 @@ test_that("count_sex_separator: well-formed clones are not touched", {
       info = k
     )
   }
+})
+
+test_that("count_sex_separator: widened lookahead catches count+sex glued directly to +/-", {
+  result <- suppressMessages(check_karyo("47XY+8"))
+  expect_equal(result$count_sex_separator, 1L)
+  expect_equal(result$missing_sex_comma, 1L)
+  expect_equal(result$single_token, 0L)
+  expect_equal(result$fixable, 1L)
+  expect_equal(result$unfixable, 0L)
+})
+
+test_that("count_sex_separator + missing_sex_comma: chained fix resolves compound gluing", {
+  # Both the count-sex comma and the sex-aberration comma are missing --
+  # count_sex_separator (earlier in .dirty_patterns) inserts the first, then
+  # missing_sex_comma's glued-case rule inserts the second on the same pass.
+  expect_equal(
+    suppressMessages(preprocess_karyo("47XY+8"))$preprocessed,
+    "47,XY,+8"
+  )
+  expect_equal(
+    suppressMessages(preprocess_karyo("45X-Y"))$preprocessed,
+    "45,X,-Y"
+  )
+  r <- parse_karyo("47XY+8", on_issues = "preprocess", verbose = FALSE)
+  expect_equal(r$chromosome_count, 47L)
+  expect_equal(r$tris8, 1L)
+})
+
+test_that("count_sex_separator: widened lookahead does not affect an unrelated dirty pattern (paren cell count)", {
+  # '46XY(19)' has count+sex glued *and* a parenthesized (not bracketed) cell
+  # count -- the latter is out of scope and must stay unfixable, not be
+  # silently mangled by the widened lookahead.
+  result <- suppressMessages(check_karyo("46XY(19),45X-Y(6)"))
+  expect_equal(result$count_sex_separator, 0L)
+  expect_equal(result$missing_sex_comma, 0L)
+  expect_equal(result$unfixable, 1L)
 })
 
 test_that("preprocess_karyo: anchor strips trailing content after last bracket", {

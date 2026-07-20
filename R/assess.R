@@ -73,11 +73,15 @@ empty_issues_tibble <- function() {
   ),
   # Runs after leading_dot; repairs a missing/dotted count-sex separator, e.g.
   # '46XY,...' or '45.XY,...' -> '46,XY,...'.
+  # Lookahead includes +/- (not just ,[/ or end) so a count glued to a sex
+  # complement that's *also* glued to the first aberration (e.g. '46XY+13')
+  # still gets its count-sex comma inserted here; missing_sex_comma (below)
+  # then closes the remaining gap on the same pass.
   count_sex_separator = list(
     detect = paste0(
       "(?:^|/)\\d+(?:~\\d+)?[.]?(?:",
       .sex_alt,
-      ")(?=[,\\[/]|$)"
+      ")(?=[,\\[/+-]|$)"
     ),
     use_trimmed = TRUE,
     fix = list(
@@ -85,7 +89,7 @@ empty_issues_tibble <- function() {
         pattern = paste0(
           "(^|/)(\\d+(?:~\\d+)?)[.]?(",
           .sex_alt,
-          ")(?=[,\\[/]|$)"
+          ")(?=[,\\[/+-]|$)"
         ),
         replacement = "\\1\\2,\\3"
       )
@@ -167,15 +171,25 @@ empty_issues_tibble <- function() {
     detail = "Mid-string line-wrap artifact (e.g. ', .der(...)' or bare ', +8' without dot)"
   ),
   missing_sex_comma = list(
-    detect = paste0(",(", .sex_alt, ")\\s+(?=[a-z(+])"),
+    detect = c(
+      paste0(",(", .sex_alt, ")\\s+(?=[a-z(+])"),
+      # No separator at all, e.g. '46,XX+8' or '46,XY-7' -- covers every
+      # clone in the string (not just the first), since the pattern only
+      # anchors on a preceding comma, not string start.
+      paste0(",(", .sex_alt, ")(?=[+-])")
+    ),
     use_trimmed = FALSE,
     fix = list(
       list(
         pattern = paste0("(,(", .sex_alt, "))\\s+(?=[a-z(+])"),
         replacement = "\\1,"
+      ),
+      list(
+        pattern = paste0("(,(", .sex_alt, "))(?=[+-])"),
+        replacement = "\\1,"
       )
     ),
-    detail = "Missing comma between sex chromosome complement and first aberration (e.g. '46,XX der(...)' should be '46,XX,der(...)')"
+    detail = "Missing comma between sex chromosome complement and first aberration (e.g. '46,XX der(...)' or '46,XY+8' should be '46,XX,der(...)' / '46,XY,+8')"
   ),
   mar_space = list(
     detect = "[+~0-9-] mar\\b",
