@@ -5,22 +5,17 @@ test_that("check_karyo: clean input returns one row per string, all zeros", {
   expect_equal(result$unfixable, c(0L, 0L))
 })
 
-test_that("check_karyo: column schema — fixable/unfixable first, then sorted issue cols", {
+test_that("check_karyo: column schema — fixable/unfixable first, then sorted unfixable issue cols", {
   result <- suppressMessages(check_karyo("46,XX"))
   unfixable_cols <- sort(setdiff(
     karyoparser:::.all_issue_types,
     karyoparser:::.fixable_issue_types
   ))
-  fixable_cols <- sort(intersect(
-    karyoparser:::.fixable_issue_types,
-    karyoparser:::.all_issue_types
-  ))
   expected_cols <- c(
     "karyotype",
     "fixable",
     "unfixable",
-    unfixable_cols,
-    fixable_cols
+    unfixable_cols
   )
   expect_named(result, expected_cols)
 })
@@ -57,28 +52,28 @@ test_that("check_karyo: unbalanced brackets in a later clone survive trailing_na
 
 test_that("check_karyo: dirty markers detected as fixable", {
   result <- suppressMessages(check_karyo(".47,XY,+21"))
-  expect_equal(result$leading_dot, 1L)
+  expect_equal(has_issue(".47,XY,+21", "leading_dot"), 1L)
   expect_equal(result$fixable, 1L)
   expect_equal(result$unfixable, 0L)
 })
 
 test_that("check_karyo: trailing narrative detected as fixable", {
   result <- suppressMessages(check_karyo("46,XX[20] .some text"))
-  expect_equal(result$trailing_narrative, 1L)
+  expect_equal(has_issue("46,XX[20] .some text", "trailing_narrative"), 1L)
   expect_equal(result$fixable, 1L)
 })
 
 test_that("check_karyo: html entities detected as fixable", {
-  result <- suppressMessages(check_karyo("46,XX,t(9;22)(q34;q11) &lt;AML&gt;"))
-  expect_equal(result$html_entities, 1L)
+  k <- "46,XX,t(9;22)(q34;q11) &lt;AML&gt;"
+  result <- suppressMessages(check_karyo(k))
+  expect_equal(has_issue(k, "html_entities"), 1L)
   expect_equal(result$fixable, 1L)
 })
 
 test_that("check_karyo: Greek homoglyph sex complement detected as fixable, not no_sex_complement", {
-  result <- suppressMessages(check_karyo(
-    "45,\u03A7\u03A7,-7[22]/47,\u03A7\u03A7,+8[3]"
-  ))
-  expect_equal(result$non_ascii_homoglyph, 1L)
+  k <- "45,\u03A7\u03A7,-7[22]/47,\u03A7\u03A7,+8[3]"
+  result <- suppressMessages(check_karyo(k))
+  expect_equal(has_issue(k, "non_ascii_homoglyph"), 1L)
   expect_equal(result$no_sex_complement, 0L)
   expect_equal(result$fixable, 1L)
   expect_equal(result$unfixable, 0L)
@@ -100,9 +95,10 @@ test_that("check_karyo: one row per input; clean/dirty rows correctly flagged", 
 })
 
 test_that("check_karyo: multiple issues on same row all flagged", {
-  result <- suppressMessages(check_karyo(".46,XX[10] .note"))
-  expect_equal(result$leading_dot, 1L)
-  expect_equal(result$trailing_narrative, 1L)
+  k <- ".46,XX[10] .note"
+  result <- suppressMessages(check_karyo(k))
+  expect_equal(has_issue(k, "leading_dot"), 1L)
+  expect_equal(has_issue(k, "trailing_narrative"), 1L)
   expect_equal(result$fixable, 1L)
 })
 
@@ -178,14 +174,16 @@ test_that("mosaic_karyotype flagged for 'mos' prefix, not no_chromosome_count", 
 })
 
 test_that("non_clonal_sca flagged for ncSCA token (leading or mid-clone), fixable", {
-  lead <- suppressMessages(check_karyo("ncSCA[4]/46,XY[11]"))
-  expect_equal(lead$non_clonal_sca, 1L)
+  lead_k <- "ncSCA[4]/46,XY[11]"
+  lead <- suppressMessages(check_karyo(lead_k))
+  expect_equal(has_issue(lead_k, "non_clonal_sca"), 1L)
   expect_equal(lead$no_chromosome_count, 0L)
   expect_equal(lead$fixable, 1L)
   expect_equal(lead$unfixable, 0L)
 
-  mid <- suppressMessages(check_karyo("46,XX(ncSCA)[1]//46,XY[19]"))
-  expect_equal(mid$non_clonal_sca, 1L)
+  mid_k <- "46,XX(ncSCA)[1]//46,XY[19]"
+  mid <- suppressMessages(check_karyo(mid_k))
+  expect_equal(has_issue(mid_k, "non_clonal_sca"), 1L)
   expect_equal(mid$no_sex_complement, 0L)
   expect_equal(mid$fixable, 1L)
   expect_equal(mid$unfixable, 0L)
@@ -196,7 +194,7 @@ test_that("no_chromosome_count still fires for genuine non-count strings", {
     r <- suppressMessages(check_karyo(k))
     expect_equal(r$no_chromosome_count, 1L, info = k)
     expect_equal(r$mosaic_karyotype, 0L, info = k)
-    expect_equal(r$non_clonal_sca, 0L, info = k)
+    expect_equal(has_issue(k, "non_clonal_sca"), 0L, info = k)
   }
 })
 

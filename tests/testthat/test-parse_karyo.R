@@ -804,13 +804,17 @@ test_that("preprocess_karyo() output is consistent with .dirty_patterns fix rule
 })
 
 test_that("missing_sex_comma: detected when sex complement followed by space+aberration", {
-  result <- suppressMessages(check_karyo("46,XX der(15;17)(q10;q10)[10]"))
-  expect_equal(result$missing_sex_comma, 1L)
+  expect_equal(
+    has_issue("46,XX der(15;17)(q10;q10)[10]", "missing_sex_comma"),
+    1L
+  )
 })
 
 test_that("missing_sex_comma: not detected for well-formed karyotype", {
-  result <- suppressMessages(check_karyo("46,XX,der(15;17)(q10;q10)[10]"))
-  expect_equal(result$missing_sex_comma, 0L)
+  expect_equal(
+    has_issue("46,XX,der(15;17)(q10;q10)[10]", "missing_sex_comma"),
+    0L
+  )
 })
 
 test_that("missing_sex_comma: preprocess inserts missing comma", {
@@ -831,15 +835,11 @@ test_that("missing_sex_comma: full pipeline via on_issues=fix parses correctly",
 
 test_that("missing_sex_comma: detected and fixed for XXYY and XXXY", {
   expect_equal(
-    suppressMessages(check_karyo(
-      "48,XXYY der(5;17)(q10;q10)[10]"
-    ))$missing_sex_comma,
+    has_issue("48,XXYY der(5;17)(q10;q10)[10]", "missing_sex_comma"),
     1L
   )
   expect_equal(
-    suppressMessages(check_karyo(
-      "48,XXXY der(5;17)(q10;q10)[10]"
-    ))$missing_sex_comma,
+    has_issue("48,XXXY der(5;17)(q10;q10)[10]", "missing_sex_comma"),
     1L
   )
   expect_equal(
@@ -858,7 +858,7 @@ test_that("missing_sex_comma: detected and fixed for XXYY and XXXY", {
 
 test_that("missing_sex_comma: detected when sex complement glued directly to +/- with no separator", {
   result <- suppressMessages(check_karyo("47,XY+13[19]"))
-  expect_equal(result$missing_sex_comma, 1L)
+  expect_equal(has_issue("47,XY+13[19]", "missing_sex_comma"), 1L)
   expect_equal(result$no_sex_complement, 0L)
   expect_equal(result$fixable, 1L)
   expect_equal(result$unfixable, 0L)
@@ -888,7 +888,7 @@ test_that("missing_sex_comma: glued case respects longest-first match for multi-
 
 test_that("missing_sex_comma: glued case is idempotent on already well-formed karyotypes", {
   expect_equal(
-    suppressMessages(check_karyo("46,XX,+13[19]"))$missing_sex_comma,
+    has_issue("46,XX,+13[19]", "missing_sex_comma"),
     0L
   )
   expect_equal(
@@ -904,7 +904,7 @@ test_that("missing_sex_comma: glued case fixes a subsequent clone, not just the 
   # whitespace), so the row looked completely clean while silently dropping
   # the aberration during tokenization.
   result <- suppressMessages(check_karyo("46,XY[10]/47,XY+8[5]"))
-  expect_equal(result$missing_sex_comma, 1L)
+  expect_equal(has_issue("46,XY[10]/47,XY+8[5]", "missing_sex_comma"), 1L)
   expect_equal(result$fixable, 1L)
   expect_equal(
     suppressMessages(preprocess_karyo("46,XY[10]/47,XY+8[5]"))$preprocessed,
@@ -926,14 +926,13 @@ test_that("missing_sex_comma: glued case fixes a subsequent clone, not just the 
 })
 
 test_that("missing_sex_comma: glued case does not fire on donor clone boundary alone", {
-  result <- suppressMessages(check_karyo("46,XX[15]//46,XY[5]"))
-  expect_equal(result$missing_sex_comma, 0L)
+  expect_equal(has_issue("46,XX[15]//46,XY[5]", "missing_sex_comma"), 0L)
 })
 
 test_that("missing_sex_comma: letter-glued case (no separator, no +/-) is detected but not auto-fixed", {
   for (k in c("46,XYdel(5q)", "48,XXYYdel(5q)[10]", "47,XY(inv)(9)[10]")) {
     result <- suppressMessages(check_karyo(k))
-    expect_equal(result$missing_sex_comma, 1L, info = k)
+    expect_equal(has_issue(k, "missing_sex_comma"), 1L, info = k)
     expect_equal(result$fixable, 0L, info = k)
     expect_equal(result$unfixable, 1L, info = k)
     fixed <- suppressMessages(preprocess_karyo(k))
@@ -945,16 +944,15 @@ test_that("missing_sex_comma: letter-glued case (no separator, no +/-) is detect
 test_that("missing_sex_comma: letter-glued case does not collide with constitutional sex complement 'c' suffix", {
   for (k in c("47,XXYc[20]", "47,XXYc?[20]")) {
     result <- suppressMessages(check_karyo(k))
-    expect_equal(result$missing_sex_comma, 0L, info = k)
+    expect_equal(has_issue(k, "missing_sex_comma"), 0L, info = k)
     expect_equal(result$constitutional_sex_complement, 1L, info = k)
   }
 })
 
 test_that("count_sex_separator: missing comma between count and sex is repaired", {
-  result <- suppressMessages(check_karyo(
-    "46XY,der(7)t(7;11)(q11.2;q13)[2]/46,XY[9]"
-  ))
-  expect_equal(result$count_sex_separator, 1L)
+  k <- "46XY,der(7)t(7;11)(q11.2;q13)[2]/46,XY[9]"
+  result <- suppressMessages(check_karyo(k))
+  expect_equal(has_issue(k, "count_sex_separator"), 1L)
   expect_equal(result$fixable, 1L)
   expect_equal(
     suppressMessages(preprocess_karyo(
@@ -965,8 +963,7 @@ test_that("count_sex_separator: missing comma between count and sex is repaired"
 })
 
 test_that("count_sex_separator: dot between count and sex is replaced with comma", {
-  result <- suppressMessages(check_karyo("45.XY,-7[7]/46,XY[8]"))
-  expect_equal(result$count_sex_separator, 1L)
+  expect_equal(has_issue("45.XY,-7[7]/46,XY[8]", "count_sex_separator"), 1L)
   r <- parse_karyo(
     "45.XY,-7[7]/46,XY[8]",
     on_issues = "preprocess",
@@ -979,7 +976,7 @@ test_that("count_sex_separator: dot between count and sex is replaced with comma
 test_that("count_sex_separator: well-formed clones are not touched", {
   for (k in c("46,XX", "47,XY,+21[10]", "46,XX[15]//46,XY[5]")) {
     expect_equal(
-      suppressMessages(check_karyo(k))$count_sex_separator,
+      has_issue(k, "count_sex_separator"),
       0L,
       info = k
     )
@@ -988,8 +985,8 @@ test_that("count_sex_separator: well-formed clones are not touched", {
 
 test_that("count_sex_separator: widened lookahead catches count+sex glued directly to +/-", {
   result <- suppressMessages(check_karyo("47XY+8"))
-  expect_equal(result$count_sex_separator, 1L)
-  expect_equal(result$missing_sex_comma, 1L)
+  expect_equal(has_issue("47XY+8", "count_sex_separator"), 1L)
+  expect_equal(has_issue("47XY+8", "missing_sex_comma"), 1L)
   expect_equal(result$single_token, 0L)
   expect_equal(result$fixable, 1L)
   expect_equal(result$unfixable, 0L)
@@ -1017,8 +1014,8 @@ test_that("count_sex_separator: widened lookahead does not affect an unrelated d
   # count -- the latter is out of scope and must stay unfixable, not be
   # silently mangled by the widened lookahead.
   result <- suppressMessages(check_karyo("46XY(19),45X-Y(6)"))
-  expect_equal(result$count_sex_separator, 0L)
-  expect_equal(result$missing_sex_comma, 0L)
+  expect_equal(has_issue("46XY(19),45X-Y(6)", "count_sex_separator"), 0L)
+  expect_equal(has_issue("46XY(19),45X-Y(6)", "missing_sex_comma"), 0L)
   expect_equal(result$unfixable, 1L)
 })
 
@@ -1121,13 +1118,12 @@ test_that("preprocess_karyo: uppercase after ', .' not collapsed by midstring_li
 
 test_that("check_karyo detects chimeric_separator as fixable", {
   result <- suppressMessages(check_karyo("46,XX[15]//46,XY[5]"))
-  expect_equal(result$chimeric_separator, 1L)
+  expect_equal(has_issue("46,XX[15]//46,XY[5]", "chimeric_separator"), 1L)
   expect_equal(result$fixable, 1L)
 })
 
 test_that("check_karyo: clean karyotype does not trigger chimeric_separator", {
-  result <- suppressMessages(check_karyo("46,XX[20]"))
-  expect_equal(result$chimeric_separator, 0L)
+  expect_equal(has_issue("46,XX[20]", "chimeric_separator"), 0L)
 })
 
 test_that("check_karyo detects updated_iscn as unfixable", {
@@ -1234,7 +1230,7 @@ test_that("on_issues='stop': non-chimeric issue still errors despite chimeric ro
 
 test_that("check_karyo detects zero_host_chimera as fixable", {
   result <- suppressMessages(check_karyo(".//46,XX[10]"))
-  expect_equal(result$zero_host_chimera, 1L)
+  expect_equal(has_issue(".//46,XX[10]", "zero_host_chimera"), 1L)
   expect_equal(result$unfixable, 0L)
   expect_equal(result$fixable, 1L)
 })
@@ -1247,13 +1243,11 @@ test_that("check_karyo detects multiple_chimeric_separator as unfixable", {
 })
 
 test_that("check_karyo: multiple leading dots also detected as zero_host_chimera", {
-  result <- suppressMessages(check_karyo("..//46,XY[5]"))
-  expect_equal(result$zero_host_chimera, 1L)
+  expect_equal(has_issue("..//46,XY[5]", "zero_host_chimera"), 1L)
 })
 
 test_that("check_karyo: normal karyotype does not trigger zero_host_chimera", {
-  result <- suppressMessages(check_karyo("46,XX[20]"))
-  expect_equal(result$zero_host_chimera, 0L)
+  expect_equal(has_issue("46,XX[20]", "zero_host_chimera"), 0L)
 })
 
 test_that("parse_karyo: zero_host_chimera parsed to donor under default", {
@@ -1346,10 +1340,8 @@ test_that("parse_karyo: clean row in same batch unaffected by zero_host_chimera 
 })
 
 test_that("midstring_linewrap: dot variant still detected", {
-  result <- suppressMessages(check_karyo(
-    "46,XY,del(5)(q13), .t(9;22)(q34;q11.2)[10]/46,XY[5]"
-  ))
-  expect_equal(result$midstring_linewrap, 1L)
+  k <- "46,XY,del(5)(q13), .t(9;22)(q34;q11.2)[10]/46,XY[5]"
+  expect_equal(has_issue(k, "midstring_linewrap"), 1L)
 })
 
 test_that("preprocess_karyo: collapses ', .t()' (dot present) mid-string artifact", {
@@ -1372,10 +1364,8 @@ test_that("normalize_iscn: bare ', t()' space (no dot) cleaned via preprocess_ka
 })
 
 test_that("trailing_narrative: detected when narrative follows last paren (no bracket)", {
-  result <- suppressMessages(check_karyo(
-    "46,XX,t(9;22)(q34;q11.2) Abnormal female karyotype"
-  ))
-  expect_equal(result$trailing_narrative, 1L)
+  k <- "46,XX,t(9;22)(q34;q11.2) Abnormal female karyotype"
+  expect_equal(has_issue(k, "trailing_narrative"), 1L)
 })
 
 test_that("preprocess_karyo: strips narrative after last ')' when no bracket present", {
@@ -1398,7 +1388,10 @@ test_that("preprocess_karyo: trailing narrative rule 3 does not fire when bracke
 
 test_that("trailing_narrative: detected when Capital follows bracket without dot", {
   result <- suppressMessages(check_karyo("46,XX[20] Female karyotype"))
-  expect_equal(result$trailing_narrative, 1L)
+  expect_equal(
+    has_issue("46,XX[20] Female karyotype", "trailing_narrative"),
+    1L
+  )
   expect_equal(result$fixable, 1L)
 })
 
@@ -1418,7 +1411,7 @@ test_that("trailing_narrative: stripped after count+sex with no bracket or paren
     "45~46,XY Some narrative"
   )) {
     chk <- suppressMessages(check_karyo(k))
-    expect_equal(chk$trailing_narrative, 1L, info = k)
+    expect_equal(has_issue(k, "trailing_narrative"), 1L, info = k)
     expect_equal(chk$no_sex_complement, 0L, info = k)
     expect_equal(chk$fixable, 1L, info = k)
   }
@@ -1618,10 +1611,9 @@ test_that("parse_karyo on_issues='warn': missing_sex_comma does not false-positi
 })
 
 test_that("check_karyo: missing_sex_comma does not also fire no_sex_complement", {
-  result <- suppressMessages(
-    check_karyo("46,XX der(7)t(7;12)(q36;q24)[10]")
-  )
-  expect_equal(result$missing_sex_comma, 1L)
+  k <- "46,XX der(7)t(7;12)(q36;q24)[10]"
+  result <- suppressMessages(check_karyo(k))
+  expect_equal(has_issue(k, "missing_sex_comma"), 1L)
   expect_equal(result$no_sex_complement, 0L)
 })
 
@@ -1676,7 +1668,7 @@ test_that("check_karyo: accepts data frame, auto-detects karyotype column", {
   expect_s3_class(result, "karyo_check")
   expect_equal(nrow(result), 2L)
   expect_equal(result$karyotype, c("46,XX", ".46,XY[20]"))
-  expect_equal(result$leading_dot, c(0L, 1L))
+  expect_equal(has_issue(c("46,XX", ".46,XY[20]"), "leading_dot"), c(0L, 1L))
 })
 
 test_that("check_karyo: data frame with id column propagates id as first column", {

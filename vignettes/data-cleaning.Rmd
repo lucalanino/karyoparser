@@ -36,9 +36,12 @@ ck <- check_karyo(example_karyotypes)
 names(ck)
 ```
 
-Columns after `karyotype`/`fixable`/`unfixable` are one 0/1 flag per issue
-type -- unfixable types first (alphabetical), then fixable types
-(alphabetical):
+Columns after `karyotype`/`fixable`/`unfixable` are one 0/1 flag per
+*unfixable* issue type (alphabetical). Fixable issue types don't get their own
+columns -- `preprocess_karyo()` resolves them automatically, so a row is
+simply flagged `fixable`, without needing to know which specific fixable
+pattern fired. The full catalog of issue types, whether or not they surface as
+a column:
 
 - **Fixable**: `chimeric_separator`, `count_sex_separator` (e.g. `46XY` or
   `45.XY` missing the comma before the sex complement), `embedded_newline`,

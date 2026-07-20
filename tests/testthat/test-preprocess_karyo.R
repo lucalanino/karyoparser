@@ -119,7 +119,7 @@ test_that("preprocess_karyo: strips trailing narrative after bracket with no spa
 test_that("preprocess_karyo: non-Latin trailing narrative is flagged unfixable (stray_non_ascii), not silently dropped", {
   x <- "46,XY[20] \u30C6\u30B9\u30C8"
   chk <- suppressMessages(check_karyo(x))
-  expect_equal(chk$trailing_narrative, 0L)
+  expect_equal(has_issue(x, "trailing_narrative"), 0L)
   expect_equal(chk$stray_non_ascii, 1L)
   expect_equal(chk$unfixable, 1L)
   result <- suppressMessages(preprocess_karyo(x))
@@ -226,32 +226,28 @@ test_that("preprocess_karyo: handles empty vector", {
 })
 
 test_that("fish_notation: detected when nuc ish suffix present", {
-  result <- suppressMessages(check_karyo(
-    "[12]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"
-  ))
-  expect_equal(result$fish_notation, 1L)
+  k <- "[12]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"
+  expect_equal(has_issue(k, "fish_notation"), 1L)
 })
 
 test_that("fish_notation: claims trailing FISH clause before trailing_narrative can", {
-  result <- suppressMessages(check_karyo(
-    "[12]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"
-  ))
-  expect_equal(result$fish_notation, 1L)
-  expect_equal(result$trailing_narrative, 0L)
+  k <- "[12]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"
+  expect_equal(has_issue(k, "fish_notation"), 1L)
+  expect_equal(has_issue(k, "trailing_narrative"), 0L)
 
-  result2 <- suppressMessages(check_karyo("46,XX,t(9;22)[15] .ish(BCR-ABL)"))
-  expect_equal(result2$fish_notation, 1L)
-  expect_equal(result2$trailing_narrative, 0L)
+  k2 <- "46,XX,t(9;22)[15] .ish(BCR-ABL)"
+  expect_equal(has_issue(k2, "fish_notation"), 1L)
+  expect_equal(has_issue(k2, "trailing_narrative"), 0L)
 })
 
 test_that("fish_notation: detected when .ish suffix present", {
-  result <- suppressMessages(check_karyo("46,XX,t(9;22)[15] .ish(BCR-ABL)"))
-  expect_equal(result$fish_notation, 1L)
+  k <- "46,XX,t(9;22)[15] .ish(BCR-ABL)"
+  expect_equal(has_issue(k, "fish_notation"), 1L)
 })
 
 test_that("fish_notation: not detected for clean karyotype", {
-  result <- suppressMessages(check_karyo("46,XX,t(9;22)(q34;q11)[15]/46,XX[5]"))
-  expect_equal(result$fish_notation, 0L)
+  k <- "46,XX,t(9;22)(q34;q11)[15]/46,XX[5]"
+  expect_equal(has_issue(k, "fish_notation"), 0L)
 })
 
 test_that("preprocess_karyo: strips nuc ish suffix after bracket", {
@@ -295,17 +291,13 @@ test_that("preprocess_karyo: strips .ish suffix after bracket", {
 })
 
 test_that("fish_notation: detected for ).ish attachment", {
-  result <- suppressMessages(check_karyo(
-    "46,XX,der(17)t(11;17)(q14;q11).ish der(15)t(15;17)(RARA+,PML+)"
-  ))
-  expect_equal(result$fish_notation, 1L)
+  k <- "46,XX,der(17)t(11;17)(q14;q11).ish der(15)t(15;17)(RARA+,PML+)"
+  expect_equal(has_issue(k, "fish_notation"), 1L)
 })
 
 test_that("fish_notation: detected for dmin.ish attachment", {
-  result <- suppressMessages(check_karyo(
-    "46,XY,10~>50dmin.ish del(8)(q24q24)(MYC-),dmin(MYC+)"
-  ))
-  expect_equal(result$fish_notation, 1L)
+  k <- "46,XY,10~>50dmin.ish del(8)(q24q24)(MYC-),dmin(MYC+)"
+  expect_equal(has_issue(k, "fish_notation"), 1L)
 })
 
 test_that("preprocess_karyo: strips .ish suffix after closing paren", {
@@ -345,12 +337,8 @@ test_that("preprocess_karyo: strips .ish after aberration, preserves aberration"
 })
 
 test_that("fish_notation: detected when .ish appears mid-clone before metaphase count", {
-  expect_equal(
-    suppressMessages(check_karyo(
-      "46,XX.ish der(10)ins(10;11)(p13;q23q23)(KMT2A+)[20]"
-    ))$fish_notation,
-    1L
-  )
+  k <- "46,XX.ish der(10)ins(10;11)(p13;q23q23)(KMT2A+)[20]"
+  expect_equal(has_issue(k, "fish_notation"), 1L)
 })
 
 test_that("preprocess_karyo: mid-clone .ish stripped, metaphase count preserved", {
@@ -408,13 +396,11 @@ test_that("preprocess_karyo: mid-clone .ish stripped, range metaphase count pres
 })
 
 test_that("mar_space: detected when space between count and mar", {
-  result <- suppressMessages(check_karyo("47,XY,+1~4 mar[cp15]"))
-  expect_equal(result$mar_space, 1L)
+  expect_equal(has_issue("47,XY,+1~4 mar[cp15]", "mar_space"), 1L)
 })
 
 test_that("mar_space: not detected for well-formed mar token", {
-  result <- suppressMessages(check_karyo("47,XY,+mar[5]"))
-  expect_equal(result$mar_space, 0L)
+  expect_equal(has_issue("47,XY,+mar[5]", "mar_space"), 0L)
 })
 
 test_that("preprocess_karyo: removes space before mar token", {
@@ -432,8 +418,8 @@ test_that("preprocess_karyo: mar_space fix handles minus count", {
 })
 
 test_that("midstring_linewrap: detected for ', .+N' artifact", {
-  result <- suppressMessages(check_karyo("46,XY,del(5)(q13), .+8[10]/46,XY[5]"))
-  expect_equal(result$midstring_linewrap, 1L)
+  k <- "46,XY,del(5)(q13), .+8[10]/46,XY[5]"
+  expect_equal(has_issue(k, "midstring_linewrap"), 1L)
 })
 
 test_that("preprocess_karyo: collapses ', .+8' mid-string artifact", {

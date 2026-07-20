@@ -3,9 +3,12 @@
 #' Checks raw karyotype strings for formatting artifacts and structural errors.
 #' Read-only: this is a diagnostic step and never modifies a karyotype string
 #' (cleaning happens in `preprocess_karyo()`). Returns a wide-format tibble
-#' with one row per input string: each possible issue type is a column
-#' (`0`/`1`), plus summary `fixable` and `unfixable` columns. When `verbose =
-#' TRUE`, prints a count summary and per-issue-type breakdown.
+#' with one row per input string: each unfixable issue type is a column
+#' (`0`/`1`), plus summary `fixable` and `unfixable` columns. Fixable issue
+#' types are not broken out into columns since `parse_karyo()` under
+#' `on_issues = "preprocess"` resolves them automatically; the `fixable`
+#' column flags rows affected by any of them. When `verbose = TRUE`, prints a
+#' count summary and a per-unfixable-issue-type breakdown.
 #'
 #' Fixable issue types (resolvable by `parse_karyo()` under `on_issues =
 #' "preprocess"`): `unicode_notation`, `non_ascii_homoglyph`,
@@ -38,13 +41,12 @@
 #'   data frame. If `NULL` (default), auto-detected from common names
 #'   (`sample_id`, `patient_id`, `id`, `mrn`, etc.) and used silently. Ignored
 #'   when `karyotypes` is a character vector.
-#' @param verbose Logical. If `TRUE`, prints a count summary and per-issue-type
-#'   breakdown. Default `FALSE`.
+#' @param verbose Logical. If `TRUE`, prints a count summary and a
+#'   per-unfixable-issue-type breakdown. Default `FALSE`.
 #' @return A `karyo_check` tibble with `length(karyotypes)` rows (or
 #'   `nrow(karyotypes)` when input is a data frame). Columns: optional id column
 #'   (first, when detected), `karyotype` (full input string), `fixable`,
 #'   `unfixable`, then one integer column per unfixable issue type
-#'   (alphabetical), then one integer column per fixable issue type
 #'   (alphabetical). The tibble can be passed directly to
 #'   `preprocess_karyo()`, which will reuse the cached assessment and
 #'   propagate the id column without re-scanning.
@@ -89,18 +91,12 @@ check_karyo <- function(
     "karyotype",
     "fixable",
     "unfixable",
-    unfixable_issue_cols,
-    fixable_issue_cols
+    unfixable_issue_cols
   )
 
   if (n == 0) {
     out <- tibble::tibble(karyotype = character())
-    for (nm in c(
-      "fixable",
-      "unfixable",
-      unfixable_issue_cols,
-      fixable_issue_cols
-    )) {
+    for (nm in c("fixable", "unfixable", unfixable_issue_cols)) {
       out[[nm]] <- integer()
     }
     out <- out[, all_cols]
@@ -125,13 +121,17 @@ check_karyo <- function(
   long <- assessment$reported_issues
 
   out <- tibble::tibble(karyotype = as.character(karyotypes))
-  for (nm in c(unfixable_issue_cols, fixable_issue_cols)) {
+  for (nm in unfixable_issue_cols) {
     rows_with_type <- long$row_index[long$issue_type == nm]
     out[[nm]] <- as.integer(seq_len(n) %in% rows_with_type)
   }
 
+  fixable_rows <- unique(long$row_index[
+    long$issue_type %in% fixable_issue_cols
+  ])
   out$fixable <- as.integer(
-    rowSums(out[, fixable_issue_cols, drop = FALSE]) > 0 &
+    seq_len(n) %in%
+      fixable_rows &
       !seq_len(n) %in% assessment$unfixable_row_indices
   )
   out$unfixable <- as.integer(seq_len(n) %in% assessment$unfixable_row_indices)
@@ -146,20 +146,12 @@ check_karyo <- function(
       message("  Fixable:   ", n_fix_rows)
       message("  Unfixable: ", n_unfix_rows)
     }
-    fix_counts <- vapply(fixable_issue_cols, \(col) sum(out[[col]]), integer(1))
-    fix_counts <- fix_counts[fix_counts > 0]
     unfix_counts <- vapply(
       unfixable_issue_cols,
       \(col) sum(out[[col]]),
       integer(1)
     )
     unfix_counts <- unfix_counts[unfix_counts > 0]
-    if (length(fix_counts) > 0) {
-      message(
-        "  Fixable breakdown:   ",
-        paste(names(fix_counts), fix_counts, sep = ": ", collapse = ", ")
-      )
-    }
     if (length(unfix_counts) > 0) {
       message(
         "  Unfixable breakdown: ",

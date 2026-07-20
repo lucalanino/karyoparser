@@ -29,15 +29,14 @@ data frame. If \code{NULL} (default), auto-detected from common names
 (\code{sample_id}, \code{patient_id}, \code{id}, \code{mrn}, etc.) and used silently. Ignored
 when \code{karyotypes} is a character vector.}
 
-\item{verbose}{Logical. If \code{TRUE}, prints a count summary and per-issue-type
-breakdown. Default \code{FALSE}.}
+\item{verbose}{Logical. If \code{TRUE}, prints a count summary and a
+per-unfixable-issue-type breakdown. Default \code{FALSE}.}
 }
 \value{
 A \code{karyo_check} tibble with \code{length(karyotypes)} rows (or
 \code{nrow(karyotypes)} when input is a data frame). Columns: optional id column
 (first, when detected), \code{karyotype} (full input string), \code{fixable},
 \code{unfixable}, then one integer column per unfixable issue type
-(alphabetical), then one integer column per fixable issue type
 (alphabetical). The tibble can be passed directly to
 \code{preprocess_karyo()}, which will reuse the cached assessment and
 propagate the id column without re-scanning.
@@ -46,8 +45,12 @@ propagate the id column without re-scanning.
 Checks raw karyotype strings for formatting artifacts and structural errors.
 Read-only: this is a diagnostic step and never modifies a karyotype string
 (cleaning happens in \code{preprocess_karyo()}). Returns a wide-format tibble
-with one row per input string: each possible issue type is a column
-(\code{0}/\code{1}), plus summary \code{fixable} and \code{unfixable} columns. When \code{verbose = TRUE}, prints a count summary and per-issue-type breakdown.
+with one row per input string: each unfixable issue type is a column
+(\code{0}/\code{1}), plus summary \code{fixable} and \code{unfixable} columns. Fixable issue
+types are not broken out into columns since \code{parse_karyo()} under
+\code{on_issues = "preprocess"} resolves them automatically; the \code{fixable}
+column flags rows affected by any of them. When \code{verbose = TRUE}, prints a
+count summary and a per-unfixable-issue-type breakdown.
 }
 \details{
 Fixable issue types (resolvable by \code{parse_karyo()} under \code{on_issues = "preprocess"}): \code{unicode_notation}, \code{non_ascii_homoglyph},
