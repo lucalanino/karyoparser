@@ -116,13 +116,21 @@ test_that("preprocess_karyo: strips trailing narrative after bracket with no spa
   )
 })
 
-test_that("preprocess_karyo: non-Latin trailing narrative is silently stripped but not reported (known gap)", {
+test_that("preprocess_karyo: non-Latin trailing narrative is flagged unfixable (stray_non_ascii), not silently dropped", {
   x <- "46,XY[20] \u30C6\u30B9\u30C8"
   chk <- suppressMessages(check_karyo(x))
   expect_equal(chk$trailing_narrative, 0L)
-  expect_equal(chk$fixable, 0L)
-  expect_equal(chk$unfixable, 0L)
-  expect_equal(suppressMessages(preprocess_karyo(x))$preprocessed, "46,XY[20]")
+  expect_equal(chk$stray_non_ascii, 1L)
+  expect_equal(chk$unfixable, 1L)
+  result <- suppressMessages(preprocess_karyo(x))
+  expect_equal(result$preprocessed, NA_character_)
+  expect_equal(result$status, "unfixable")
+})
+
+test_that("preprocess_karyo: trailing_narrative's fix does not truncate a malformed later clone", {
+  result <- suppressMessages(preprocess_karyo("46,XX[10]/46,XX,del(5)(q13)[5"))
+  expect_equal(result$preprocessed, NA_character_)
+  expect_equal(result$status, "unfixable")
 })
 
 test_that("preprocess_karyo: decodes HTML lt/gt entities", {

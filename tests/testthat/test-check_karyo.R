@@ -49,6 +49,12 @@ test_that("check_karyo: unbalanced brackets detected", {
   expect_equal(result$unfixable, 1L)
 })
 
+test_that("check_karyo: unbalanced brackets in a later clone survive trailing_narrative's fix", {
+  result <- suppressMessages(check_karyo("46,XX[10]/46,XX,del(5)(q13)[5"))
+  expect_equal(result$unbalanced_brackets, 1L)
+  expect_equal(result$unfixable, 1L)
+})
+
 test_that("check_karyo: dirty markers detected as fixable", {
   result <- suppressMessages(check_karyo(".47,XY,+21"))
   expect_equal(result$leading_dot, 1L)

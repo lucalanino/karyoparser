@@ -297,7 +297,13 @@ empty_issues_tibble <- function() {
     }
 
     for (fx in dp$fix) {
-      state <- stringr::str_replace_all(state, fx$pattern, fx$replacement)
+      # Gated on this pattern's own `detected`: a permissive fix regex (e.g.
+      # trailing_narrative's "everything after the last bracket" truncation)
+      # must not touch rows it never reported as having this issue, or it
+      # silently destroys content -- including a later clone's structural
+      # errors -- before a downstream pattern gets a chance to flag it.
+      fixed_state <- stringr::str_replace_all(state, fx$pattern, fx$replacement)
+      state <- ifelse(detected, fixed_state, state)
     }
   }
 
