@@ -7,39 +7,22 @@
 #' (`0`/`1`), plus summary `fixable` and `unfixable` columns. When `verbose =
 #' TRUE`, prints a count summary and per-issue-type breakdown.
 #'
-#' Fixable issues (resolvable by `parse_karyo()` under
-#' `on_issues = "preprocess"`):
-#' dirty markers (`unicode_notation`, `non_ascii_homoglyph`,
+#' Fixable issue types (resolvable by `parse_karyo()` under `on_issues =
+#' "preprocess"`): `unicode_notation`, `non_ascii_homoglyph`,
 #' `embedded_newline`, `html_entities`, `leading_dot`, `count_sex_separator`,
 #' `fish_notation`, `trailing_narrative`, `midstring_linewrap`,
-#' `missing_sex_comma`, `mar_space`, `non_clonal_sca`), `chimeric_separator`,
-#' and `zero_host_chimera` (the donor clone is parsed; see `on_chimeric` in
-#' `parse_karyo()`).
+#' `missing_sex_comma`, `mar_space`, `non_clonal_sca`, `chimeric_separator`,
+#' `zero_host_chimera`.
 #'
-#' Unfixable issues (always returned as NA by `parse_karyo()`):
+#' Unfixable issue types (always returned as NA by `parse_karyo()`):
 #' `multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
 #' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
 #' `no_sex_complement`, `single_token`, `constitutional_sex_complement`,
 #' `mosaic_karyotype`, `invalid_idem`, `unparseable_bracket`,
-#' `stray_non_ascii` (a non-ASCII character with no known automatic fix).
+#' `stray_non_ascii`.
 #'
-#' `single_token` catches a bare comma-less string (e.g. `"8"`): it's
-#' ambiguous whether that was meant as a chromosome count or as an
-#' abnormality whose leading `+`/`-` sign was stripped (a common artifact of
-#' opening ISCN strings in Excel, which silently drops a redundant leading
-#' `+` from numeric-looking cells).
-#'
-#' Some constructs are deliberately out of scope and flagged unfixable rather
-#' than parsed: constitutional abnormalities (a sex complement with a `c`
-#' suffix, e.g. `47,XXYc`, flagged `constitutional_sex_complement`) and mosaic
-#' karyotypes (a leading `mos` prefix, flagged `mosaic_karyotype`). These take
-#' precedence over `no_chromosome_count` and `no_sex_complement` so a present
-#' count or complement is not mislabelled.
-#'
-#' Non-clonal single-cell abnormalities (an `ncSCA` token, standalone or
-#' parenthesized, flagged `non_clonal_sca`) carry no structural detail of
-#' their own, so the token is silently stripped and the remaining clone(s)
-#' parsed as usual.
+#' See `vignette("data-cleaning")` for what each issue type means, worked
+#' examples, and how to resolve the unfixable ones.
 #'
 #' @param karyotypes Character vector of karyotype strings, or a data frame
 #'   containing a karyotype column. If a data frame, the karyotype column is
@@ -65,6 +48,7 @@
 #'   (alphabetical). The tibble can be passed directly to
 #'   `preprocess_karyo()`, which will reuse the cached assessment and
 #'   propagate the id column without re-scanning.
+#' @seealso [preprocess_karyo()], `vignette("data-cleaning")`
 #' @export
 check_karyo <- function(
   karyotypes,

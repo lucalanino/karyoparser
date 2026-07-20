@@ -154,6 +154,7 @@
 #' # Use verbose mode for debugging
 #' result <- parse_karyo(df, karyotype_column = "iscn", verbose = TRUE)
 #'
+#' @seealso [check_karyo()], [preprocess_karyo()], `vignette("data-cleaning")`
 #' @export
 parse_karyo <- function(
   karyotypes,

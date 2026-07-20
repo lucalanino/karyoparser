@@ -1,37 +1,18 @@
 #' Clean and Normalize ISCN Karyotype Strings
 #'
-#' The complete cleaning and normalization pipeline. Fixes dirty markers then
-#' runs `normalize_iscn()` as a final pass. Output is fully normalized and
+#' The complete cleaning and normalization pipeline: fixes every fixable
+#' issue type (see `check_karyo()`) in a fixed order, then runs
+#' `normalize_iscn()` as a final pass. Output is fully normalized and
 #' parser-ready. This is the only place in the workflow where cleaning or
-#' normalization occurs -- `parse_karyo()` does none.
+#' normalization occurs -- `parse_karyo()` does none. See
+#' `vignette("data-cleaning")` for the exact fix order and worked examples.
 #'
-#' Rules applied in order:
-#' 1. Trim leading/trailing whitespace
-#' 2. Replace unicode spaces (NBSP), zero-width spaces, dashes (em/en-dash),
-#'    fullwidth characters
-#' 3. Normalize Greek letter homoglyphs (Chi/Upsilon) to Latin `X`/`Y` in the
-#'    sex chromosome complement
-#' 4. Collapse embedded newlines/tabs to spaces
-#' 5. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
-#' 6. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
-#' 7. Insert missing/dotted separator between chromosome count and sex
-#'    complement (e.g. `46XY` or `45.XY` -> `46,XY`/`45,XY`)
-#' 8. Strip FISH/nuc ish annotation (suffix or mid-clone before metaphase count)
-#' 9. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
-#' 10. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
-#' 11. Insert missing comma after sex chromosome complement
-#' 12. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
-#' 13. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
-#'     parenthesized
-#' 14. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
-#'     idem/sl/cp normalization
-#'
-#' Note: `zero_host_chimera` strings (`.//` or `//` prefix) are donor-only
-#' chimeras with no host metaphases. The leading `.//` prefix is stripped,
-#' leaving the donor clone(s), which are then parsed (under `on_chimeric =
-#' "host"` these rows are instead returned NA). A remaining non-ASCII
-#' character with no known automatic fix (`stray_non_ascii`) is detected but
-#' not modified; such rows are returned as `NA` (unfixable).
+#' `zero_host_chimera` strings (`.//` or `//` prefix) are donor-only chimeras
+#' with no host metaphases. The leading `.//` prefix is stripped, leaving the
+#' donor clone(s), which are then parsed (under `on_chimeric = "host"` these
+#' rows are instead returned NA). A remaining non-ASCII character with no
+#' known automatic fix (`stray_non_ascii`) is detected but not modified; such
+#' rows are returned as `NA` (unfixable).
 #'
 #' @param karyotypes Character vector of raw karyotype strings, the
 #'   `karyo_check` tibble returned by `check_karyo()`, or a data frame
@@ -67,6 +48,7 @@
 #'   The returned tibble can be passed directly to `parse_karyo()` without
 #'   specifying `karyotype_column` or `id_column` -- both are inferred
 #'   automatically from the object's class and cached attributes.
+#' @seealso [check_karyo()], `vignette("data-cleaning")`
 #' @export
 preprocess_karyo <- function(
   karyotypes,

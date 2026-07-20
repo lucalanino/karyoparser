@@ -57,38 +57,21 @@ specifying \code{karyotype_column} or \code{id_column} -- both are inferred
 automatically from the object's class and cached attributes.
 }
 \description{
-The complete cleaning and normalization pipeline. Fixes dirty markers then
-runs \code{normalize_iscn()} as a final pass. Output is fully normalized and
+The complete cleaning and normalization pipeline: fixes every fixable
+issue type (see \code{check_karyo()}) in a fixed order, then runs
+\code{normalize_iscn()} as a final pass. Output is fully normalized and
 parser-ready. This is the only place in the workflow where cleaning or
-normalization occurs -- \code{parse_karyo()} does none.
+normalization occurs -- \code{parse_karyo()} does none. See
+\code{vignette("data-cleaning")} for the exact fix order and worked examples.
 }
 \details{
-Rules applied in order:
-\enumerate{
-\item Trim leading/trailing whitespace
-\item Replace unicode spaces (NBSP), zero-width spaces, dashes (em/en-dash),
-fullwidth characters
-\item Normalize Greek letter homoglyphs (Chi/Upsilon) to Latin \code{X}/\code{Y} in the
-sex chromosome complement
-\item Collapse embedded newlines/tabs to spaces
-\item Decode HTML entities (\verb{&lt;} -> \code{<}, \verb{&gt;} -> \code{>}, \verb{&amp;} -> \code{&})
-\item Strip leading dot(s) before a digit (e.g. \verb{.46,XX} -> \verb{46,XX})
-\item Insert missing/dotted separator between chromosome count and sex
-complement (e.g. \verb{46XY} or \verb{45.XY} -> \verb{46,XY}/\verb{45,XY})
-\item Strip FISH/nuc ish annotation (suffix or mid-clone before metaphase count)
-\item Strip trailing narrative: \verb{] .text} -> \verb{]}; \verb{) Capital text} -> \verb{)}
-\item Collapse mid-string line-wrap artifacts (\verb{, .der(...)} -> \verb{,der(...)})
-\item Insert missing comma after sex chromosome complement
-\item Remove space between count and \code{mar} token (\verb{+1~4 mar} -> \verb{+1~4mar})
-\item Strip non-clonal single-cell abnormality (\code{ncSCA}) tokens, standalone or
-parenthesized
-\item \code{normalize_iscn()}: whitespace collapsing, delimiter tightening,
-idem/sl/cp normalization
+\code{zero_host_chimera} strings (\verb{.//} or \verb{//} prefix) are donor-only chimeras
+with no host metaphases. The leading \verb{.//} prefix is stripped, leaving the
+donor clone(s), which are then parsed (under \code{on_chimeric = "host"} these
+rows are instead returned NA). A remaining non-ASCII character with no
+known automatic fix (\code{stray_non_ascii}) is detected but not modified; such
+rows are returned as \code{NA} (unfixable).
 }
-
-Note: \code{zero_host_chimera} strings (\verb{.//} or \verb{//} prefix) are donor-only
-chimeras with no host metaphases. The leading \verb{.//} prefix is stripped,
-leaving the donor clone(s), which are then parsed (under \code{on_chimeric = "host"} these rows are instead returned NA). A remaining non-ASCII
-character with no known automatic fix (\code{stray_non_ascii}) is detected but
-not modified; such rows are returned as \code{NA} (unfixable).
+\seealso{
+\code{\link[=check_karyo]{check_karyo()}}, \code{vignette("data-cleaning")}
 }

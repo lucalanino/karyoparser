@@ -187,3 +187,6 @@ result <- parse_karyo(df, karyotype_column = "iscn")
 result <- parse_karyo(df, karyotype_column = "iscn", verbose = TRUE)
 
 }
+\seealso{
+\code{\link[=check_karyo]{check_karyo()}}, \code{\link[=preprocess_karyo]{preprocess_karyo()}}, \code{vignette("data-cleaning")}
+}
