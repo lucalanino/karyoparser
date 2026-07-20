@@ -1493,6 +1493,16 @@ test_that("check_karyo: missing_sex_comma does not also fire no_sex_complement",
   expect_equal(result$no_sex_complement, 0L)
 })
 
+test_that("parse_karyo on_issues='warn': bare single-token string is unfixable NA, not silently parsed", {
+  # Regression: '8' (e.g. Excel-mangled '+8') used to sail through as a
+  # 'valid' chromosome_count of 8 with every abnormality flag 0.
+  r <- suppressWarnings(pk("8"))
+  expect_true(is.na(r$chromosome_count))
+  expect_true(is.na(r$tris8))
+  expect_equal(r$unfixable_error, 1L)
+  expect_equal(r$fixable_error, 0L)
+})
+
 test_that("preprocess -> parse workflow: zero_host_chimera parsed to donor", {
   raw <- c("46,XX[20]", ".//46,XY[10]", "46,XX,t(9;22)(q34;q11)[15]")
   proc <- suppressMessages(preprocess_karyo(raw))

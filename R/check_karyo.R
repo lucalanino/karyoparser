@@ -18,8 +18,14 @@
 #' Unfixable issues (always returned as NA by `parse_karyo()`):
 #' `multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
 #' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
-#' `no_sex_complement`, `constitutional_sex_complement`, `mosaic_karyotype`,
-#' `invalid_idem`, `unparseable_bracket`.
+#' `no_sex_complement`, `single_token`, `constitutional_sex_complement`,
+#' `mosaic_karyotype`, `invalid_idem`, `unparseable_bracket`.
+#'
+#' `single_token` catches a bare comma-less string (e.g. `"8"`): it's
+#' ambiguous whether that was meant as a chromosome count or as an
+#' abnormality whose leading `+`/`-` sign was stripped (a common artifact of
+#' opening ISCN strings in Excel, which silently drops a redundant leading
+#' `+` from numeric-looking cells).
 #'
 #' Some constructs are deliberately out of scope and flagged unfixable rather
 #' than parsed: constitutional abnormalities (a sex complement with a `c`

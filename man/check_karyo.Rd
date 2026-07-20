@@ -61,8 +61,14 @@ see \code{on_chimeric} in \code{parse_karyo()}).
 Unfixable issues (always returned as NA by \code{parse_karyo()}):
 \code{multiple_chimeric_separator}, \code{empty}, \code{no_chromosome_count},
 \code{updated_iscn}, \code{unbalanced_parentheses}, \code{unbalanced_brackets},
-\code{no_sex_complement}, \code{constitutional_sex_complement}, \code{mosaic_karyotype},
-\code{invalid_idem}, \code{unparseable_bracket}.
+\code{no_sex_complement}, \code{single_token}, \code{constitutional_sex_complement},
+\code{mosaic_karyotype}, \code{invalid_idem}, \code{unparseable_bracket}.
+
+\code{single_token} catches a bare comma-less string (e.g. \code{"8"}): it's
+ambiguous whether that was meant as a chromosome count or as an
+abnormality whose leading \code{+}/\code{-} sign was stripped (a common artifact of
+opening ISCN strings in Excel, which silently drops a redundant leading
+\code{+} from numeric-looking cells).
 
 Some constructs are deliberately out of scope and flagged unfixable rather
 than parsed: constitutional abnormalities (a sex complement with a \code{c}

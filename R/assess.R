@@ -214,6 +214,7 @@ empty_issues_tibble <- function() {
   "unbalanced_parentheses",
   "unbalanced_brackets",
   "no_sex_complement",
+  "single_token",
   "constitutional_sex_complement",
   "mosaic_karyotype",
   "invalid_idem",
@@ -383,6 +384,13 @@ validate_karyotypes <- function(karyotypes) {
         k,
         "constitutional_sex_complement",
         "Constitutional sex complement (e.g. '47,XXYc'); constitutional abnormalities are out of scope"
+      )
+    } else if (length(tokens) == 1) {
+      add_issue(
+        i,
+        k,
+        "single_token",
+        "Single token with no comma: ambiguous between a bare chromosome count and an abnormality-only entry with a stripped +/- sign (e.g. Excel autocorrect turning '+8' into '8')"
       )
     } else if (!has_sex && !has_sex_aberr && length(tokens) > 1) {
       add_issue(

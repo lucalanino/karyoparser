@@ -182,6 +182,35 @@ test_that("no_sex_complement: bare count+aberration with no sex reference still 
   expect_equal(suppressMessages(check_karyo("46,+8"))$unfixable, 1L)
 })
 
+test_that("single_token fires for a bare comma-less string", {
+  # E.g. Excel silently drops the '+' from a numeric-looking '+8' cell,
+  # leaving '8' indistinguishable from a bare chromosome count.
+  for (k in c("8", "46", "22")) {
+    result <- suppressMessages(check_karyo(k))
+    expect_equal(result$single_token, 1L, info = k)
+    expect_equal(result$unfixable, 1L, info = k)
+    expect_equal(result$no_chromosome_count, 0L, info = k)
+    expect_equal(result$no_sex_complement, 0L, info = k)
+  }
+})
+
+test_that("single_token does not fire once a comma is present", {
+  for (k in c("46,XX", "46,+8", "8,del(5)(q13q33)")) {
+    result <- suppressMessages(check_karyo(k))
+    expect_equal(result$single_token, 0L, info = k)
+  }
+})
+
+test_that("single_token yields to no_chromosome_count for signed bare tokens", {
+  # '-8'/'+8' don't start with a digit, so they're still caught earlier.
+  for (k in c("-8", "+8")) {
+    result <- suppressMessages(check_karyo(k))
+    expect_equal(result$no_chromosome_count, 1L, info = k)
+    expect_equal(result$single_token, 0L, info = k)
+    expect_equal(result$unfixable, 1L, info = k)
+  }
+})
+
 test_that("constitutional sex complement is flagged unfixable, not no_sex_complement", {
   for (k in c(
     "47,XXYc[20]",

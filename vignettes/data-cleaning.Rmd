@@ -49,8 +49,8 @@ type -- unfixable types first (alphabetical), then fixable types
   `zero_host_chimera`.
 - **Unfixable**: `constitutional_sex_complement`, `empty`, `invalid_idem`,
   `mosaic_karyotype`, `multiple_chimeric_separator`, `no_chromosome_count`,
-  `no_sex_complement`, `unbalanced_brackets`, `unbalanced_parentheses`,
-  `unparseable_bracket`, `updated_iscn`.
+  `no_sex_complement`, `single_token`, `unbalanced_brackets`,
+  `unbalanced_parentheses`, `unparseable_bracket`, `updated_iscn`.
 
 ## Out-of-scope constructs take precedence
 
