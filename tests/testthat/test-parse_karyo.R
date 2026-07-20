@@ -1739,6 +1739,77 @@ test_that("full pipeline check -> preprocess -> parse: no extra args needed", {
   expect_equal(result$fixable_error[3], 1L)
 })
 
+test_that("full pipeline with non-autodetected id/karyotype columns: specify once at check_karyo, propagates through", {
+  df <- data.frame(
+    subj = c("S1", "S2", "S3"),
+    result_string = c("46,XX[20]", ".46,XY,+8[10]", ".//46,XX[10]"),
+    stringsAsFactors = FALSE
+  )
+  result <- suppressWarnings(suppressMessages(
+    df |>
+      check_karyo(karyotype_column = "result_string", id_column = "subj") |>
+      preprocess_karyo() |>
+      parse_karyo()
+  ))
+  expect_true("subj" %in% names(result))
+  expect_equal(result$subj, c("S1", "S2", "S3"))
+  expect_false(is.na(result$chromosome_count[1]))
+  expect_false(is.na(result$chromosome_count[2]))
+  expect_equal(result$fixable_error[2], 1L)
+  expect_false(is.na(result$chromosome_count[3]))
+  expect_equal(result$chimeric_clone[3], "donor")
+})
+
+test_that("non-autodetected columns: specifying only at preprocess_karyo (skipping check_karyo) propagates through parse_karyo", {
+  df <- data.frame(
+    subj = c("A", "B"),
+    result_string = c("46,XX", "47,XY,+21"),
+    stringsAsFactors = FALSE
+  )
+  pp <- suppressMessages(
+    preprocess_karyo(df, karyotype_column = "result_string", id_column = "subj")
+  )
+  result <- suppressMessages(parse_karyo(pp))
+  expect_equal(names(result)[1], "subj")
+  expect_equal(result$subj, c("A", "B"))
+})
+
+test_that("non-autodetected columns: specifying only at parse_karyo on a raw data frame works", {
+  df <- data.frame(
+    subj = c("A", "B"),
+    result_string = c("46,XX", "47,XY,+21"),
+    stringsAsFactors = FALSE
+  )
+  result <- suppressMessages(
+    parse_karyo(df, karyotype_column = "result_string", id_column = "subj")
+  )
+  expect_equal(names(result)[1], "subj")
+  expect_equal(result$subj, c("A", "B"))
+})
+
+test_that("non-autodetected karyotype column with no id column present is omitted, not an error", {
+  df <- data.frame(
+    result_string = c("46,XX", "47,XY,+21"),
+    stringsAsFactors = FALSE
+  )
+  ck <- check_karyo(df, karyotype_column = "result_string")
+  expect_false("id" %in% tolower(names(ck)))
+  result <- suppressMessages(
+    df |>
+      check_karyo(karyotype_column = "result_string") |>
+      preprocess_karyo() |>
+      parse_karyo()
+  )
+  expect_equal(nrow(result), 2L)
+})
+
+test_that("karyotype column not given and not autodetectable errors with actionable message", {
+  df <- data.frame(subj = c("A", "B"), result_string = c("46,XX", "47,XY,+21"))
+  expect_error(check_karyo(df), regexp = "karyotype_column")
+  expect_error(preprocess_karyo(df), regexp = "karyotype_column")
+  expect_error(parse_karyo(df), regexp = "karyotype_column")
+})
+
 test_that("karyo_preprocessed with unfixable rows: default on_issues='stop' warns, not errors", {
   pp <- suppressMessages(preprocess_karyo(c("46,XX", NA)))
   expect_warning(

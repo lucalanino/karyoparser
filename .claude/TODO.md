@@ -12,8 +12,6 @@
 
 ### API ergonomics
 
-- **[P2] Column propagation audit**: check that columns are propagated correctly by every command, including when `id_col` is not declared.
-- **[P2] Pipe-friendly commands**: make commands pipe friendly.
 - **[P3] Reconsider `check_karyo()`/`preprocess_karyo()` output shape**: the fixable-issue-type list keeps growing (unicode, dots, separators, glued commas, ...) and auto-fixing is becoming a first-class feature rather than an edge case. Current output is one wide 0/1 column per issue type with no visibility into *what changed*. Worth exploring something that shows before/after evidence per row (e.g. a diff or fixed-span annotation), not just a flag.
 
 ### Performance
