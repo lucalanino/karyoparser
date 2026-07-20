@@ -1,6 +1,6 @@
 ## Project Overview
 
-`karyoparser` is an R package for parsing ISCN karyotype strings into structured features for downstream analysis.
+`karyoparser` is an R package for parsing ISCN karyotype strings into tabular format.
 
 
 ### Key commands
@@ -57,9 +57,9 @@ air format .
 
 - Every user-facing function should be exported and have roxygen2 documentation at the top of the script.
 - Wrap roxygen comments at 80 characters.
-- Internal functions should not have roxygen documentation, comments should be minimal to none
+- Internal functions will not have roxygen documentation.
 - Always re-document the package after changing a roxygen2 comment.
-- `README.md` is generated from `README.Rmd` -- never edit `README.md` directly. After changing `README.Rmd`, run `devtools::build_readme()` to reknit it.
+- `README.md` is generated from `README.Rmd` with `devtools::build_readme()`.
 
 ### Versioning
 
@@ -68,12 +68,8 @@ air format .
 
 ### Git
 
-- This is a pre-1.0 repo with no branch strategy yet. Unless explicitly told otherwise, commit directly to `main` -- do not create a branch first.
+- Unless explicitly told otherwise, commit directly to `main`.
 
 ### TODOs
 
 - Tracked in `.claude/TODO.md`. Entries should be brief, informative, and prioritized.
-
-### Core Architecture
-
-- Surfaced functions should have one job: checking, preprocessing or parsing

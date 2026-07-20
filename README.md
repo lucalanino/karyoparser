@@ -34,7 +34,8 @@ result <- parse_karyo(
   c("46,XX", "47,XY,+21[10]/46,XY[5]", "46,XX,t(9;22)(q34;q11)[20]")
 )
 
-result[, c("original_karyotype", "chromosome_count", "tris21", "t_9_22_q34_q11", "normal_karyotype")]
+result |>
+  dplyr::select(original_karyotype, chromosome_count, tris21, t_9_22_q34_q11, normal_karyotype)
 #> # A tibble: 3 × 5
 #>   original_karyotype     chromosome_count tris21 t_9_22_q34_q11 normal_karyotype
 #>   <chr>                             <int>  <int>          <int>            <int>
@@ -61,32 +62,39 @@ features. This way you catch issues before they show up as missing rows.
 Passing `on_issues = "preprocess"` to `parse_karyo()` runs the same
 check/fix logic internally.
 
-See `vignette("karyoparser", package = "karyoparser")` for the full
-walkthrough: chaining these steps, data frame input, the
-`example_karyotypes` dataset, and the complete output column reference.
+See the [Get
+started](https://lucalanino.github.io/karyoparser/articles/karyoparser.html)
+article for the full walkthrough: chaining these steps, data frame
+input, the `example_karyotypes` dataset, and the complete output column
+reference.
 
 ## What Is Not Handled
 
-- **Sub-band breakpoints**: bands are stripped before matching.
-- **Copy number \> 1**: gain/loss is binary; `+8,+8` still just gives
+- Sub-band breakpoints: bands are stripped before matching.
+- Copy number \> 1: gain/loss is binary; `+8,+8` still just gives
   `tris8 = 1`.
-- **Partial gain from unbalanced der’s**: only the partial loss is
-  flagged (`unbal_partial_loss_*`).
-- **Three-way translocations**: only trip the generic
+- Partial gain from unbalanced der’s: only the partial loss is flagged
+  (`unbal_partial_loss_*`).
+- Three-way translocations: only trip the generic
   `general_translocation` flag; partial-loss derivation is limited to
   two-partner `der(a)t(a;b)`.
-- **Non-ISCN inputs**: array CGH/SNP `seq[GRCh38]` notation and
-  standalone FISH results aren’t parsed.
+- Non-ISCN inputs: array CGH/SNP `seq[GRCh38]` notation and standalone
+  FISH results aren’t parsed.
 
 ## Learn More
 
-- `vignette("karyoparser", package = "karyoparser")` – the full pipeline
-  walkthrough, chaining, data frame input, and the complete output
-  column reference.
-- `vignette("data-cleaning", package = "karyoparser")` – the `on_issues`
-  modes, the fixable/unfixable issue catalog, and `preprocess_karyo()`’s
-  cleaning pipeline.
-- `vignette("chimeric-karyotypes", package = "karyoparser")` – clone
-  selection for `//`-separated chimeric karyotypes.
-- `vignette("custom-rules", package = "karyoparser")` – writing your own
-  rule tables and restricting `parse_karyo()`’s output with `columns`.
+- [Get
+  started](https://lucalanino.github.io/karyoparser/articles/karyoparser.html)
+  – the full pipeline walkthrough, chaining, data frame input, and the
+  complete output column reference.
+- [Data
+  cleaning](https://lucalanino.github.io/karyoparser/articles/data-cleaning.html)
+  – the `on_issues` modes, the fixable/unfixable issue catalog, and
+  `preprocess_karyo()`’s cleaning pipeline.
+- [Chimeric
+  karyotypes](https://lucalanino.github.io/karyoparser/articles/chimeric-karyotypes.html)
+  – clone selection for `//`-separated chimeric karyotypes.
+- [Custom
+  rules](https://lucalanino.github.io/karyoparser/articles/custom-rules.html)
+  – writing your own rule tables and restricting `parse_karyo()`’s
+  output with `columns`.
