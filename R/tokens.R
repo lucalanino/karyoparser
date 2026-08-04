@@ -90,10 +90,7 @@ build_sample_meta <- function(input_df) {
         1L,
         0L
       ),
-      chromosome_count = purrr::map_int(
-        original_karyotype,
-        chromosome_count_from_karyotype
-      )
+      chromosome_count = chromosome_count_from_karyotype(original_karyotype)
     ) |>
     dplyr::left_join(counts_tbl, by = ".pk_row_id")
 }
