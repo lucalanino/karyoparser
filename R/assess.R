@@ -22,27 +22,24 @@ empty_issues_tibble <- function() {
 
 # detect/fix/detail entries; empty fix list means detected-only (unfixable).
 .dirty_patterns <- list(
+  # Non-overlapping character-level substitutions, so all entries are
+  # collapsed into one named-vector fix step (a single str_replace_all() call
+  # matching every entry at once) rather than one sequential pass per entry.
   unicode_notation = list(
     detect = "[\u00A0\u2007\u202F\u200B\u2212\u2012\u2013\u2014\uFE63\uFF0D\uFF0B]",
     use_trimmed = FALSE,
-    fix = list(
-      list(pattern = "[\u00A0\u2007\u202F]", replacement = " "),
-      list(pattern = "\u200B", replacement = ""),
-      list(
-        pattern = "[\u2212\u2012\u2013\u2014\uFE63\uFF0D]",
-        replacement = "-"
-      ),
-      list(pattern = "\uFF0B", replacement = "+")
-    ),
+    fix = list(c(
+      "[\u00A0\u2007\u202F]" = " ",
+      "\u200B" = "",
+      "[\u2212\u2012\u2013\u2014\uFE63\uFF0D]" = "-",
+      "\uFF0B" = "+"
+    )),
     detail = "Contains unicode spaces (NBSP), zero-width spaces, dashes (em/en-dash), or fullwidth characters"
   ),
   non_ascii_homoglyph = list(
     detect = "[\u03A7\u03A5]",
     use_trimmed = FALSE,
-    fix = list(
-      list(pattern = "\u03A7", replacement = "X"),
-      list(pattern = "\u03A5", replacement = "Y")
-    ),
+    fix = list(c("\u03A7" = "X", "\u03A5" = "Y")),
     detail = "Greek letter homoglyph (Chi/Upsilon) standing in for Latin X/Y in sex chromosome complement"
   ),
   embedded_newline = list(
@@ -56,11 +53,7 @@ empty_issues_tibble <- function() {
   html_entities = list(
     detect = "&lt;|&gt;|&amp;",
     use_trimmed = FALSE,
-    fix = list(
-      list(pattern = "&lt;", replacement = "<"),
-      list(pattern = "&gt;", replacement = ">"),
-      list(pattern = "&amp;", replacement = "&")
-    ),
+    fix = list(c("&lt;" = "<", "&gt;" = ">", "&amp;" = "&")),
     detail = "Contains HTML entities (&lt;, &gt;, or &amp;)"
   ),
   leading_dot = list(
@@ -311,7 +304,16 @@ empty_issues_tibble <- function() {
       # must not touch rows it never reported as having this issue, or it
       # silently destroys content -- including a later clone's structural
       # errors -- before a downstream pattern gets a chance to flag it.
-      fixed_state <- stringr::str_replace_all(state, fx$pattern, fx$replacement)
+      #
+      # A step is either list(pattern=, replacement=) -- one sequential pass,
+      # for fixes whose patterns depend on an earlier step's output -- or a
+      # named character vector (pattern = replacement) applying several
+      # non-overlapping character-level substitutions in a single pass.
+      fixed_state <- if (is.list(fx)) {
+        stringr::str_replace_all(state, fx$pattern, fx$replacement)
+      } else {
+        stringr::str_replace_all(state, fx)
+      }
       state <- ifelse(detected, fixed_state, state)
     }
   }
