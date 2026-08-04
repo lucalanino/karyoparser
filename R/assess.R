@@ -20,6 +20,12 @@ empty_issues_tibble <- function() {
   collapse = "|"
 )
 
+# Longest-first, same reasoning as .sex_alt above.
+.aberr_alt <- paste(
+  .aberr_indicators_paren[order(-nchar(.aberr_indicators_paren))],
+  collapse = "|"
+)
+
 # detect/fix/detail entries; empty fix list means detected-only (unfixable).
 .dirty_patterns <- list(
   # Non-overlapping character-level substitutions, so all entries are
@@ -171,13 +177,15 @@ empty_issues_tibble <- function() {
       # anchors on a preceding comma, not string start.
       paste0(",(", .sex_alt, ")(?=[+-])"),
       # Glued directly to a letter/paren-led aberration token with no
-      # separator at all, e.g. '46,XYdel(5q)'. Detect-only: unlike the two
-      # cases above, there's no fix for this below (see TODO.md) -- '[a-z(]'
-      # right after a sex complement is too broad a trigger surface to safely
-      # auto-insert a comma without real-corpus validation. The negative
-      # lookahead excludes the constitutional-sex-complement 'c' suffix (e.g.
-      # '47,XXYc[20]', optionally '?'-suffixed) so this doesn't collide with
-      # `constitutional_sex_complement`.
+      # separator at all, e.g. '46,XYdel(5q)'. '[a-z(]' right after a sex
+      # complement is a broad trigger surface, so detection stays broad (it
+      # also catches garbled tokens the fix below won't touch, e.g.
+      # '47,XY(inv)(9)'), while the fix step is grounded to known aberration
+      # indicators (see .aberr_alt) so it never auto-inserts a comma before
+      # something that isn't actually a recognized aberration token. The
+      # negative lookahead excludes the constitutional-sex-complement 'c'
+      # suffix (e.g. '47,XXYc[20]', optionally '?'-suffixed) so this doesn't
+      # collide with `constitutional_sex_complement`.
       paste0(",(", .sex_alt, ")(?!c\\??(?:[,/\\[]|$))(?=[a-z(])")
     ),
     use_trimmed = FALSE,
@@ -189,9 +197,22 @@ empty_issues_tibble <- function() {
       list(
         pattern = paste0("(,(", .sex_alt, "))(?=[+-])"),
         replacement = "\\1,"
+      ),
+      # Letter-glued case, grounded to a recognized aberration indicator
+      # immediately following (see .aberr_indicators_paren / _bare in
+      # karyoparser-package.R) so this never fires on unrecognized text.
+      list(
+        pattern = paste0(
+          "(,(",
+          .sex_alt,
+          "))(?=(?:",
+          .aberr_alt,
+          ")\\(|mar\\b)"
+        ),
+        replacement = "\\1,"
       )
     ),
-    detail = "Missing comma between sex chromosome complement and first aberration (e.g. '46,XX der(...)' or '46,XY+8' should be '46,XX,der(...)' / '46,XY,+8'; a letter-glued form like '46,XYdel(5q)' is detected but not auto-fixed)"
+    detail = "Missing comma between sex chromosome complement and first aberration (e.g. '46,XX der(...)' or '46,XY+8' should be '46,XX,der(...)' / '46,XY,+8'; a letter-glued form like '46,XYdel(5q)' is auto-fixed when the glued token is a recognized aberration indicator, otherwise detected but unfixable)"
   ),
   mar_space = list(
     detect = "[+~0-9-] mar\\b",

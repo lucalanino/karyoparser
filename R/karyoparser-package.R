@@ -84,3 +84,27 @@ utils::globalVariables(c(
   "XXXX",
   "XXXXY"
 )
+
+# Structural aberration indicator prefixes this package recognizes (mirrors the
+# names in `.general_flag_patterns`, flags.R -- kept in sync manually since
+# flags.R loads after this file in Collate order). Used to ground auto-fixes
+# that need to tell a real aberration token apart from arbitrary glued text,
+# e.g. the letter-glued `missing_sex_comma` case in assess.R. All are
+# paren-led (e.g. 'del(5q)') except 'mar', which is bare (e.g. '1mar').
+.aberr_indicators_paren <- c(
+  "psu dic",
+  "idic",
+  "ider",
+  "trp",
+  "dup",
+  "ins",
+  "inv",
+  "add",
+  "del",
+  "dic",
+  "der",
+  "i",
+  "r",
+  "t"
+)
+.aberr_indicators_bare <- c("mar")

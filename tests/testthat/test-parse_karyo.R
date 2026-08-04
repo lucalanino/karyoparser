@@ -929,16 +929,35 @@ test_that("missing_sex_comma: glued case does not fire on donor clone boundary a
   expect_equal(has_issue("46,XX[15]//46,XY[5]", "missing_sex_comma"), 0L)
 })
 
-test_that("missing_sex_comma: letter-glued case (no separator, no +/-) is detected but not auto-fixed", {
-  for (k in c("46,XYdel(5q)", "48,XXYYdel(5q)[10]", "47,XY(inv)(9)[10]")) {
+test_that("missing_sex_comma: letter-glued case is auto-fixed when the glued token is a recognized aberration indicator", {
+  cases <- list(
+    c("46,XYdel(5q)", "46,XY,del(5q)"),
+    c("48,XXYYdel(5q)[10]", "48,XXYY,del(5q)[10]"),
+    c("46,XYt(9;22)(q34;q11)", "46,XY,t(9;22)(q34;q11)"),
+    c("46,XYider(9)(q10)", "46,XY,ider(9)(q10)"),
+    c("46,XYmar", "46,XY,mar")
+  )
+  for (case in cases) {
+    k <- case[[1]]
     result <- suppressMessages(check_karyo(k))
     expect_equal(has_issue(k, "missing_sex_comma"), 1L, info = k)
-    expect_equal(result$fixable, 0L, info = k)
-    expect_equal(result$unfixable, 1L, info = k)
+    expect_equal(result$fixable, 1L, info = k)
+    expect_equal(result$unfixable, 0L, info = k)
     fixed <- suppressMessages(preprocess_karyo(k))
-    expect_equal(fixed$preprocessed, NA_character_, info = k)
-    expect_equal(fixed$status, "unfixable", info = k)
+    expect_equal(fixed$preprocessed, case[[2]], info = k)
+    expect_equal(fixed$status, "fixed", info = k)
   }
+})
+
+test_that("missing_sex_comma: letter-glued case stays detected-but-unfixable for an unrecognized/garbled token", {
+  k <- "47,XY(inv)(9)[10]"
+  result <- suppressMessages(check_karyo(k))
+  expect_equal(has_issue(k, "missing_sex_comma"), 1L)
+  expect_equal(result$fixable, 0L)
+  expect_equal(result$unfixable, 1L)
+  fixed <- suppressMessages(preprocess_karyo(k))
+  expect_equal(fixed$preprocessed, NA_character_)
+  expect_equal(fixed$status, "unfixable")
 })
 
 test_that("missing_sex_comma: letter-glued case does not collide with constitutional sex complement 'c' suffix", {
