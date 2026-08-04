@@ -45,14 +45,17 @@ a column:
 
 - **Fixable**: `chimeric_separator`, `count_sex_separator` (e.g. `46XY` or
   `45.XY` missing the comma before the sex complement), `embedded_newline`,
-  `fish_notation`, `html_entities`, `leading_dot`, `mar_space`,
+  `fish_notation`, `fullwidth_punctuation` (fullwidth brackets, tilde,
+  parentheses, comma, semicolon, or equals sign standing in for their ASCII
+  equivalents), `html_entities`, `leading_dot`, `mar_space`,
   `midstring_linewrap`, `missing_sex_comma` (e.g. `46,XX der(...)` or
   `46,XY+8` missing the comma after the sex complement -- a letter-glued form
-  like `46,XYdel(5q)` is detected but not auto-fixed, so it still comes back
-  `NA`), `non_ascii_homoglyph` (a Greek Chi/Upsilon
-  standing in for Latin `X`/`Y` in the sex complement), `non_clonal_sca` (an
-  `ncSCA` token, standalone or parenthesized), `trailing_narrative`,
-  `unicode_notation`, `zero_host_chimera`.
+  like `46,XYdel(5q)` is auto-fixed when the glued token is a recognized
+  aberration indicator, otherwise it's detected but comes back `NA`),
+  `non_ascii_homoglyph` (a Greek Chi/Upsilon standing in for Latin `X`/`Y` in
+  the sex complement), `non_clonal_sca` (an `ncSCA` token, standalone or
+  parenthesized), `trailing_narrative`, `unicode_notation`,
+  `zero_host_chimera`.
 - **Unfixable**: `constitutional_sex_complement`, `empty`, `invalid_idem`,
   `mosaic_karyotype`, `multiple_chimeric_separator`, `no_chromosome_count`,
   `no_sex_complement`, `single_token`, `stray_non_ascii`,
@@ -69,7 +72,7 @@ constructs the package deliberately doesn't handle.
 |---|---|---|
 | `empty` | Input was `NA` or `""` | Confirm the source column doesn't have missing/blank karyotype values before parsing, or filter them out upstream. |
 | `no_chromosome_count` | String doesn't start with a digit | Check whether a leading chromosome count was stripped upstream (e.g. spreadsheet auto-formatting), or whether the string is karyotype notation at all. |
-| `no_sex_complement` | First clone has no sex chromosome complement (`XX`/`XY`/etc.) | Check whether the string was truncated before the complement, uses non-standard complement notation, or (if `missing_sex_comma` is also flagged) has the complement glued directly to the first aberration with no comma, e.g. `46,XYdel(5q)`. |
+| `no_sex_complement` | First clone has no sex chromosome complement (`XX`/`XY`/etc.) | Check whether the string was truncated before the complement, uses non-standard complement notation, or (if `missing_sex_comma` is also flagged) has the complement glued directly to an unrecognized or garbled aberration token with no comma, e.g. `47,XY(inv)(9)`. A glued *recognized* aberration indicator, e.g. `46,XYdel(5q)`, is auto-fixed and won't reach this check. |
 | `single_token` | Bare comma-less string, e.g. `"8"` | Ambiguous between a chromosome count and an abnormality whose leading `+`/`-` sign was stripped -- a common artifact of opening ISCN strings in Excel. Check the original cell format/source. |
 | `invalid_idem` | `idem` appears in the first clone | `idem` means "same as the previous clone", but there is no previous clone here. Check whether an earlier clone was dropped from the string. |
 | `unbalanced_parentheses` / `unbalanced_brackets` | Mismatched `(`/`)` or `[`/`]` counts | Usually a truncation or copy-paste error. Inspect the original source record. |
@@ -124,22 +127,24 @@ fixes in a fixed order, then a final `normalize_iscn()` pass:
 
 1. Trim leading/trailing whitespace
 2. Replace unicode spaces (NBSP), zero-width spaces, dashes (em/en-dash),
-   fullwidth characters
+   fullwidth `+`/`-` characters
 3. Normalize Greek letter homoglyphs (Chi/Upsilon) to Latin `X`/`Y` in the
    sex chromosome complement
-4. Collapse embedded newlines/tabs to spaces
-5. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
-6. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
-7. Insert missing/dotted separator between chromosome count and sex
+4. Replace fullwidth ISCN punctuation (brackets, tilde, parentheses, comma,
+   semicolon, equals sign) with their ASCII equivalents
+5. Collapse embedded newlines/tabs to spaces
+6. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
+7. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
+8. Insert missing/dotted separator between chromosome count and sex
    complement (e.g. `46XY` or `45.XY` -> `46,XY`/`45,XY`)
-8. Strip FISH/`nuc ish` annotation (suffix or mid-clone before metaphase count)
-9. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
-10. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
-11. Insert missing comma after sex chromosome complement
-12. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
-13. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
+9. Strip FISH/`nuc ish` annotation (suffix or mid-clone before metaphase count)
+10. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
+11. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
+12. Insert missing comma after sex chromosome complement
+13. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
+14. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
     parenthesized
-14. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+15. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
     idem/sl/cp normalization
 
 (`zero_host_chimera` and chimeric clone selection happen alongside this

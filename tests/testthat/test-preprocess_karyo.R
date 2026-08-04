@@ -1,10 +1,10 @@
 test_that("unicode normalization: NBSPs detected and fixed by preprocess_karyo", {
-  result <- suppressMessages(preprocess_karyo("46, XX"))
+  result <- suppressMessages(preprocess_karyo("46,\u00A0XX"))
   expect_equal(result$preprocessed, "46,XX")
   expect_equal(result$status, "fixed")
-  r_warn <- suppressWarnings(pk("46, XX"))
+  r_warn <- suppressWarnings(pk("46,\u00A0XX"))
   expect_true(is.na(r_warn$normal_karyotype))
-  r_fix <- parse_karyo("46, XX", on_issues = "preprocess", verbose = FALSE)
+  r_fix <- parse_karyo("46,\u00A0XX", on_issues = "preprocess", verbose = FALSE)
   expect_equal(r_fix$normal_karyotype, 1L)
 })
 
@@ -47,9 +47,9 @@ test_that("duplicate commas and leading/trailing delimiters: normalize_iscn in p
 })
 
 test_that("fullwidth plus: detected as unicode_notation, fixed by preprocess_karyo", {
-  result <- suppressMessages(preprocess_karyo("47,XY,＋8"))
+  result <- suppressMessages(preprocess_karyo("47,XY,\uFF0B8"))
   expect_equal(result$preprocessed, "47,XY,+8")
-  r <- parse_karyo("47,XY,＋8", on_issues = "preprocess", verbose = FALSE)
+  r <- parse_karyo("47,XY,\uFF0B8", on_issues = "preprocess", verbose = FALSE)
   expect_equal(r$tris8, 1L)
 })
 
@@ -66,6 +66,22 @@ test_that("Greek homoglyph sex complement: normalized to Latin X/Y by preprocess
     "45,\u03A7\u03A7,-7[22]/47,\u03A7\u03A7,+8[3]"
   ))
   expect_equal(result$preprocessed, "45,XX,-7[22]/47,XX,+8[3]")
+  expect_equal(result$status, "fixed")
+})
+
+test_that("fullwidth ISCN punctuation: brackets/parens/comma normalized by preprocess_karyo", {
+  result <- suppressMessages(preprocess_karyo(
+    "46\uFF0CXX\uFF0Cdel\uFF085\uFF09\uFF08q13\uFF09\uFF3B10\uFF3D"
+  ))
+  expect_equal(result$preprocessed, "46,XX,del(5)(q13)[10]")
+  expect_equal(result$status, "fixed")
+})
+
+test_that("fullwidth ISCN punctuation: semicolon, tilde, and equals normalized by preprocess_karyo", {
+  result <- suppressMessages(preprocess_karyo(
+    "46,XY,t(9\uFF1B22)(q34\uFF1Bq11)[5\uFF5E10]"
+  ))
+  expect_equal(result$preprocessed, "46,XY,t(9;22)(q34;q11)[5~10]")
   expect_equal(result$status, "fixed")
 })
 

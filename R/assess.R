@@ -48,6 +48,21 @@ empty_issues_tibble <- function() {
     fix = list(c("\u03A7" = "X", "\u03A5" = "Y")),
     detail = "Greek letter homoglyph (Chi/Upsilon) standing in for Latin X/Y in sex chromosome complement"
   ),
+  fullwidth_punctuation = list(
+    detect = "[\uFF3B\uFF3D\uFF5E\uFF08\uFF09\uFF0C\uFF1B\uFF1D]",
+    use_trimmed = FALSE,
+    fix = list(c(
+      "\uFF3B" = "[",
+      "\uFF3D" = "]",
+      "\uFF5E" = "~",
+      "\uFF08" = "(",
+      "\uFF09" = ")",
+      "\uFF0C" = ",",
+      "\uFF1B" = ";",
+      "\uFF1D" = "="
+    )),
+    detail = "Contains fullwidth ISCN punctuation (brackets, tilde, parentheses, comma, semicolon, or equals sign) standing in for ASCII equivalents"
+  ),
   embedded_newline = list(
     detect = "[\n\r\t]",
     use_trimmed = FALSE,

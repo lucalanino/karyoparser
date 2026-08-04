@@ -774,6 +774,7 @@ test_that(".dirty_patterns contains all expected keys", {
     c(
       "unicode_notation",
       "non_ascii_homoglyph",
+      "fullwidth_punctuation",
       "embedded_newline",
       "html_entities",
       "leading_dot",
@@ -788,6 +789,22 @@ test_that(".dirty_patterns contains all expected keys", {
       "stray_non_ascii"
     )
   )
+})
+
+test_that("fullwidth_punctuation: detects each fullwidth character", {
+  for (ch in c(
+    "\uFF3B",
+    "\uFF3D",
+    "\uFF5E",
+    "\uFF08",
+    "\uFF09",
+    "\uFF0C",
+    "\uFF1B",
+    "\uFF1D"
+  )) {
+    k <- paste0("46,XX,del(5)(q13)[10]", ch)
+    expect_equal(has_issue(k, "fullwidth_punctuation"), 1L, info = ch)
+  }
 })
 
 test_that("preprocess_karyo() output is consistent with .dirty_patterns fix rules", {
@@ -1072,7 +1089,7 @@ test_that("preprocess_karyo: anchor on no-bracket string leaves unchanged", {
   )
 })
 
-test_that("preprocess_karyo: trailing content with its own bracket — rule 3 cleans up remainder", {
+test_that("preprocess_karyo: trailing content with its own bracket \u2014 rule 3 cleans up remainder", {
   expect_equal(
     suppressMessages(preprocess_karyo(
       "46,XX[20] .Note with [5] cells"

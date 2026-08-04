@@ -5,8 +5,7 @@
 ### Parsing & data quality
 
 - **[P2] Myeloid rule completeness**: Final pass over `myeloid_rules`.
-- **[P2] Fullwidth ISCN punctuation normalization**: some real-world karyotype strings use fullwidth brackets (`［`/`］`) as literal metaphase-count bracket notation, plus other fullwidth punctuation (tilde, parens, comma, semicolon, equals). Currently lands in `stray_non_ascii` as unfixable. Needs its own normalization pattern in `R/assess.R` -- larger scope than the X/Y homoglyph fix, separate task. Use a single named-vector `fix` entry (see `unicode_notation`/`non_ascii_homoglyph` in `.dirty_patterns` for the pattern) since the runner already supports it.
-- **[P2] Finish real-world-data review**: continue auditing real-world karyotype strings for unhandled dirty-data patterns, beyond the fullwidth-punctuation finding above (missing sex-complement comma was fixed separately) and the `trailing_narrative` bias below.
+- **[P2] Finish real-world-data review**: continue auditing real-world karyotype strings for unhandled dirty-data patterns (missing sex-complement comma and fullwidth ISCN punctuation were both fixed separately) and the `trailing_narrative` bias below.
 - **[P3] Manually review tests with non-ASCII and other weird placeholders**.
 
 ### Release process

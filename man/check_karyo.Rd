@@ -54,10 +54,10 @@ count summary and a per-unfixable-issue-type breakdown.
 }
 \details{
 Fixable issue types (resolvable by \code{parse_karyo()} under \code{on_issues = "preprocess"}): \code{unicode_notation}, \code{non_ascii_homoglyph},
-\code{embedded_newline}, \code{html_entities}, \code{leading_dot}, \code{count_sex_separator},
-\code{fish_notation}, \code{trailing_narrative}, \code{midstring_linewrap},
-\code{missing_sex_comma}, \code{mar_space}, \code{non_clonal_sca}, \code{chimeric_separator},
-\code{zero_host_chimera}.
+\code{fullwidth_punctuation}, \code{embedded_newline}, \code{html_entities},
+\code{leading_dot}, \code{count_sex_separator}, \code{fish_notation},
+\code{trailing_narrative}, \code{midstring_linewrap}, \code{missing_sex_comma},
+\code{mar_space}, \code{non_clonal_sca}, \code{chimeric_separator}, \code{zero_host_chimera}.
 
 Unfixable issue types (always returned as NA by \code{parse_karyo()}):
 \code{multiple_chimeric_separator}, \code{empty}, \code{no_chromosome_count},
