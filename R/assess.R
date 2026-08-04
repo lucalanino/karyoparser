@@ -324,19 +324,21 @@ empty_issues_tibble <- function() {
   list(issues = issues, fixed = stringr::str_trim(state))
 }
 
-validate_karyotypes <- function(karyotypes) {
-  issue_list <- vector("list", length(karyotypes))
-  n_issues <- 0L
+# Aggregates a flat per-token/per-item logical vector back to one value per
+# row (TRUE if any item in that row's group is TRUE). Assumes every group in
+# seq_len(n_groups) has at least one member (true of str_split() output,
+# which always returns >= 1 element per input string).
+.agg_any_by_group <- function(flat_logical, flat_group, n_groups) {
+  as.logical(tapply(
+    flat_logical,
+    factor(flat_group, levels = seq_len(n_groups)),
+    any
+  ))
+}
 
-  add_issue <- function(idx, karyo, type, detail) {
-    n_issues <<- n_issues + 1L
-    issue_list[[n_issues]] <<- tibble::tibble(
-      row_index = idx,
-      karyotype = truncate_str(as.character(karyo)),
-      issue_type = type,
-      issue_detail = detail
-    )
-  }
+validate_karyotypes <- function(karyotypes) {
+  n <- length(karyotypes)
+  disp <- truncate_str(as.character(karyotypes))
 
   # Constitutional sex complement, e.g. '47,XXYc'; out of scope, flagged unfixable
   # rather than mislabelled no_sex_complement.
@@ -346,149 +348,206 @@ validate_karyotypes <- function(karyotypes) {
   # still accounts for sex, so it must not trip no_sex_complement.
   sex_aberr_re <- "(?:^[+-](?:X|Y)(?:x\\d+)?$)|[(;](?:X|Y)[);]"
 
-  for (i in seq_along(karyotypes)) {
-    k <- karyotypes[i]
-
-    if (is.na(k) || k == "") {
-      add_issue(i, if (is.na(k)) "NA" else "", "empty", "NA or empty string")
-      next
+  issue_list <- list()
+  add_batch <- function(idx, karyo, type, detail) {
+    if (length(idx) == 0L) {
+      return(invisible())
     }
+    issue_list[[length(issue_list) + 1L]] <<- tibble::tibble(
+      row_index = idx,
+      karyotype = karyo,
+      issue_type = type,
+      issue_detail = detail
+    )
+  }
 
-    # Checked before the count/sex checks so these out-of-scope constructs
-    # aren't mislabelled no_chromosome_count / no_sex_complement.
-    if (stringr::str_detect(k, "(?i)^mos\\b")) {
-      add_issue(
-        i,
-        k,
-        "mosaic_karyotype",
-        "Mosaic 'mos' prefix; mosaic karyotypes are out of scope"
-      )
-      next
-    }
+  # Priority chain: each check below only claims rows still `remaining`, so a
+  # row is reported under (at most) the first category that matches it, same
+  # as the `next`-chained early exits this replaces. `remaining & <NA-capable
+  # expr>` is always FALSE (never NA) for rows already excluded, since `&`
+  # short-circuits to FALSE on a FALSE left side.
+  remaining <- rep(TRUE, n)
 
-    if (!stringr::str_detect(k, "^\\d")) {
-      add_issue(
-        i,
-        k,
-        "no_chromosome_count",
-        "String doesn't start with chromosome count"
-      )
-      next
-    }
+  is_na <- is.na(karyotypes)
+  hit <- remaining & (is_na | karyotypes == "")
+  idx <- which(hit)
+  add_batch(idx, ifelse(is_na[idx], "NA", ""), "empty", "NA or empty string")
+  remaining <- remaining & !hit
 
-    if (stringr::str_detect(k, "//")) {
-      add_issue(
-        i,
-        k,
-        "chimeric_separator",
-        "Contains '//' chimeric separator (independent cell populations)"
-      )
-      next
-    }
+  # Checked before the count/sex checks so these out-of-scope constructs
+  # aren't mislabelled no_chromosome_count / no_sex_complement.
+  hit <- remaining & stringr::str_detect(karyotypes, "(?i)^mos\\b")
+  idx <- which(hit)
+  add_batch(
+    idx,
+    disp[idx],
+    "mosaic_karyotype",
+    "Mosaic 'mos' prefix; mosaic karyotypes are out of scope"
+  )
+  remaining <- remaining & !hit
 
-    if (stringr::str_detect(k, "(?i)Updated ISCN")) {
-      add_issue(
-        i,
-        k,
-        "updated_iscn",
-        "Contains 'Updated ISCN' correction marker \u2014 original karyotype may be superseded"
-      )
-      next
-    }
+  hit <- remaining & !stringr::str_detect(karyotypes, "^\\d")
+  idx <- which(hit)
+  add_batch(
+    idx,
+    disp[idx],
+    "no_chromosome_count",
+    "String doesn't start with chromosome count"
+  )
+  remaining <- remaining & !hit
 
-    open_parens <- stringr::str_count(k, "\\(")
-    close_parens <- stringr::str_count(k, "\\)")
-    if (open_parens != close_parens) {
-      add_issue(
-        i,
-        k,
-        "unbalanced_parentheses",
-        sprintf(
-          "Mismatched parentheses: %d open, %d close",
-          open_parens,
-          close_parens
-        )
-      )
-      next
-    }
+  hit <- remaining & stringr::str_detect(karyotypes, "//")
+  idx <- which(hit)
+  add_batch(
+    idx,
+    disp[idx],
+    "chimeric_separator",
+    "Contains '//' chimeric separator (independent cell populations)"
+  )
+  remaining <- remaining & !hit
 
-    open_brackets <- stringr::str_count(k, "\\[")
-    close_brackets <- stringr::str_count(k, "\\]")
-    if (open_brackets != close_brackets) {
-      add_issue(
-        i,
-        k,
-        "unbalanced_brackets",
-        sprintf(
-          "Mismatched brackets: %d open, %d close",
-          open_brackets,
-          close_brackets
-        )
-      )
-      next
-    }
+  hit <- remaining & stringr::str_detect(karyotypes, "(?i)Updated ISCN")
+  idx <- which(hit)
+  add_batch(
+    idx,
+    disp[idx],
+    "updated_iscn",
+    "Contains 'Updated ISCN' correction marker \u2014 original karyotype may be superseded"
+  )
+  remaining <- remaining & !hit
 
-    first_clone <- stringr::str_split(k, "/")[[1]][1]
+  open_parens <- stringr::str_count(karyotypes, "\\(")
+  close_parens <- stringr::str_count(karyotypes, "\\)")
+  hit <- remaining & (open_parens != close_parens)
+  idx <- which(hit)
+  add_batch(
+    idx,
+    disp[idx],
+    "unbalanced_parentheses",
+    sprintf(
+      "Mismatched parentheses: %d open, %d close",
+      open_parens[idx],
+      close_parens[idx]
+    )
+  )
+  remaining <- remaining & !hit
+
+  open_brackets <- stringr::str_count(karyotypes, "\\[")
+  close_brackets <- stringr::str_count(karyotypes, "\\]")
+  hit <- remaining & (open_brackets != close_brackets)
+  idx <- which(hit)
+  add_batch(
+    idx,
+    disp[idx],
+    "unbalanced_brackets",
+    sprintf(
+      "Mismatched brackets: %d open, %d close",
+      open_brackets[idx],
+      close_brackets[idx]
+    )
+  )
+  remaining <- remaining & !hit
+
+  # From here on, only rows that survived every check above are in play, and
+  # tokens/brackets are ragged (variable count per row) -- flatten to (row,
+  # item) pairs across the whole remaining subset so each regex runs once
+  # over every item in the dataset, instead of once per item per row.
+  rem_idx <- which(remaining)
+  if (length(rem_idx) > 0L) {
+    kk <- karyotypes[rem_idx]
+
+    first_clone <- vapply(stringr::str_split(kk, "/"), `[`, character(1), 1)
     first_clone_clean <- stringr::str_replace_all(
       first_clone,
       "\\[[^\\]]+\\]",
       ""
     )
-    tokens <- stringr::str_split(first_clone_clean, ",")[[1]]
-    has_sex <- any(tokens %in% .sex_complements)
-    has_const_sex <- any(stringr::str_detect(tokens, const_sex_re))
-    has_sex_aberr <- any(stringr::str_detect(tokens, sex_aberr_re))
-    if (has_const_sex) {
-      add_issue(
-        i,
-        k,
-        "constitutional_sex_complement",
-        "Constitutional sex complement (e.g. '47,XXYc'); constitutional abnormalities are out of scope"
-      )
-    } else if (length(tokens) == 1) {
-      add_issue(
-        i,
-        k,
-        "single_token",
-        "Single token with no comma: ambiguous between a bare chromosome count and an abnormality-only entry with a stripped +/- sign (e.g. Excel autocorrect turning '+8' into '8')"
-      )
-    } else if (!has_sex && !has_sex_aberr && length(tokens) > 1) {
-      add_issue(
-        i,
-        k,
-        "no_sex_complement",
-        "No sex chromosome complement found in first clone"
-      )
-    }
+    tokens_list <- stringr::str_split(first_clone_clean, ",")
+    n_tokens <- lengths(tokens_list)
+    flat_tokens <- unlist(tokens_list)
+    flat_row <- rep(seq_along(tokens_list), n_tokens)
 
-    if (length(tokens) > 1 && any(tolower(tokens) == "idem")) {
-      add_issue(
-        i,
-        k,
-        "invalid_idem",
-        "idem found in clone 1 (nothing to inherit from)"
-      )
-    }
+    has_sex <- .agg_any_by_group(
+      flat_tokens %in% .sex_complements,
+      flat_row,
+      length(tokens_list)
+    )
+    has_const_sex <- .agg_any_by_group(
+      stringr::str_detect(flat_tokens, const_sex_re),
+      flat_row,
+      length(tokens_list)
+    )
+    has_sex_aberr <- .agg_any_by_group(
+      stringr::str_detect(flat_tokens, sex_aberr_re),
+      flat_row,
+      length(tokens_list)
+    )
+    has_idem <- .agg_any_by_group(
+      tolower(flat_tokens) == "idem",
+      flat_row,
+      length(tokens_list)
+    )
 
-    brackets <- stringr::str_extract_all(k, "\\[[^\\]]+\\]")[[1]]
-    for (br in brackets) {
-      content <- stringr::str_replace_all(br, "\\[|\\]", "")
-      is_valid_bracket <- stringr::str_detect(content, "^(cp)?\\d+(~\\d+)?$")
-      if (!is_valid_bracket && content != "") {
-        add_issue(
-          i,
-          k,
-          "unparseable_bracket",
-          sprintf("Cannot parse '%s' as metaphase count", br)
-        )
-      }
+    sub_remaining <- rep(TRUE, length(rem_idx))
+
+    hit <- sub_remaining & has_const_sex
+    idx <- rem_idx[hit]
+    add_batch(
+      idx,
+      disp[idx],
+      "constitutional_sex_complement",
+      "Constitutional sex complement (e.g. '47,XXYc'); constitutional abnormalities are out of scope"
+    )
+    sub_remaining <- sub_remaining & !hit
+
+    hit <- sub_remaining & (n_tokens == 1L)
+    idx <- rem_idx[hit]
+    add_batch(
+      idx,
+      disp[idx],
+      "single_token",
+      "Single token with no comma: ambiguous between a bare chromosome count and an abnormality-only entry with a stripped +/- sign (e.g. Excel autocorrect turning '+8' into '8')"
+    )
+    sub_remaining <- sub_remaining & !hit
+
+    hit <- sub_remaining & !has_sex & !has_sex_aberr & (n_tokens > 1L)
+    idx <- rem_idx[hit]
+    add_batch(
+      idx,
+      disp[idx],
+      "no_sex_complement",
+      "No sex chromosome complement found in first clone"
+    )
+
+    idx <- rem_idx[n_tokens > 1L & has_idem]
+    add_batch(
+      idx,
+      disp[idx],
+      "invalid_idem",
+      "idem found in clone 1 (nothing to inherit from)"
+    )
+
+    brackets_list <- stringr::str_extract_all(kk, "\\[[^\\]]+\\]")
+    br_lengths <- lengths(brackets_list)
+    if (sum(br_lengths) > 0L) {
+      flat_brackets <- unlist(brackets_list)
+      flat_br_row <- rem_idx[rep(seq_along(rem_idx), br_lengths)]
+      content <- stringr::str_replace_all(flat_brackets, "\\[|\\]", "")
+      invalid <- !stringr::str_detect(content, "^(cp)?\\d+(~\\d+)?$") &
+        content != ""
+      add_batch(
+        flat_br_row[invalid],
+        disp[flat_br_row[invalid]],
+        "unparseable_bracket",
+        sprintf("Cannot parse '%s' as metaphase count", flat_brackets[invalid])
+      )
     }
   }
 
-  if (n_issues == 0L) {
+  if (length(issue_list) == 0L) {
     return(empty_issues_tibble())
   }
-  dplyr::bind_rows(issue_list[seq_len(n_issues)])
+  dplyr::bind_rows(issue_list)
 }
 
 # Shared fix-and-classify pipeline for check/preprocess/parse.

@@ -10,15 +10,6 @@
 - **[P2] Finish real-world-data review**: continue auditing real-world karyotype strings for unhandled dirty-data patterns, beyond the fullwidth-punctuation finding above (missing sex-complement comma was fixed separately) and the `trailing_narrative` bias below.
 - **[P3] Manually review tests with non-ASCII and other weird placeholders**.
 
-### API ergonomics
-
-- **[P3] Reconsider `check_karyo()`/`preprocess_karyo()` output shape**: the fixable-issue-type list keeps growing (unicode, dots, separators, glued commas, ...) and auto-fixing is becoming a first-class feature rather than an edge case. Current output is one wide 0/1 column per issue type with no visibility into *what changed*. Worth exploring something that shows before/after evidence per row (e.g. a diff or fixed-span annotation), not just a flag.
-
-### Performance
-
-- **[P3] Speed up `.dirty_patterns` fixing in `R/assess.R`**: `.run_dirty_patterns()` applies each pattern's `fix` list as a loop of sequential `stringr::str_replace_all()` calls (one per `list(pattern=, replacement=)` entry); collapsing same-pass, non-overlapping char/token substitutions (e.g. `unicode_notation`'s dash/space variants) into a single named-vector `str_replace_all()` call benchmarked ~2x faster (see `fullwidth_punctuation` above). Worth a pass over the other multi-entry `fix` lists to see which ones qualify, and whether row-batching elsewhere in the check/preprocess/parse pipeline has similar wins.
-- **[P3] Profile each stage of `check_karyo()`/`preprocess_karyo()`/`parse_karyo()`**: benchmark the major internal steps (dirty-pattern fixing, validation, tokenization, translocation/aberration flagging, output-schema assembly, etc.) on a realistic-size input to see where time actually goes, before sinking effort into speedups. Prioritize by measured share of runtime, not by guesswork -- some sections may already be fast enough that optimizing them is a waste of time.
-
 ### Release process
 
 - **[P3] Branch strategy (decided, not yet implemented)**: `main` stays the default branch (so untagged `pak::pak()`/`install_github()` installs always resolve to the last release -- confirmed via pak docs: "if `<detail>` is missing, the latest commit of the default branch is used"). Ongoing work moves to a `dev` branch (not set as default). Releases: PR `dev -> main`, require `R-CMD-check` green before allowing the merge, merge, tag (`vX.Y.Z`) on `main`. Update workflow triggers (`R-CMD-check.yaml`, `format-check.yaml`) to run on `dev` pushes and on PRs into `dev`/`main`. Update `.claude/CLAUDE.md` git section ("commit directly to main" -> "commit directly to dev; main only advances via release PR").
