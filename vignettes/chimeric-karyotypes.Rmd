@@ -61,7 +61,7 @@ problem, so the row still counts as fixable, not unfixable:
 ```{r zero-host}
 ck <- check_karyo(".//46,XX,+8[10]")
 ck |>
-  dplyr::select(karyotype, fixable, unfixable, zero_host_chimera)
+  dplyr::select(karyotype, fixable, unfixable)
 
 parse_karyo(".//46,XX,+8[10]", on_issues = "warn", on_chimeric = "host") |>
   dplyr::select(preprocessed_karyotype, chimeric_clone)
