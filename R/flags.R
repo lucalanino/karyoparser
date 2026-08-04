@@ -31,22 +31,34 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   aneuploidy_tbl
 }
 
-# Universal structural flags: fire independently of any rule match on the same token.
+# Universal structural flags: fire independently of any rule match on the same
+# token. Built around the indicator tokens in .aberr_indicators_paren /
+# .aberr_indicators_bare (karyoparser-package.R), the single source of truth
+# for these strings, rather than retyping them here; each flag adds only the
+# anchoring/boundary it needs on top of its shared token.
 .general_flag_patterns <- c(
-  general_dicentric = "dic\\(",
-  general_isodicentric = "idic\\(",
-  general_isochromosome = "i\\(",
-  general_pseudodicentric = "psu dic\\(",
-  general_ring = "\\br\\(",
-  general_insertion = "ins\\(",
-  general_duplication = "dup\\(",
-  general_triplication = "trp\\(",
-  general_translocation = "^[?~]?t\\([0-9XY]",
-  general_addition = "add\\(",
-  general_inversion = "inv\\(",
-  general_deletion = "del\\(",
-  general_marker = "\\bmar\\b",
-  general_derivative = "^\\+?i?der\\("
+  general_dicentric = paste0(.aberr_indicators_paren[["dic"]], "\\("),
+  general_isodicentric = paste0(.aberr_indicators_paren[["idic"]], "\\("),
+  general_isochromosome = paste0(.aberr_indicators_paren[["i"]], "\\("),
+  general_pseudodicentric = paste0(.aberr_indicators_paren[["psu_dic"]], "\\("),
+  general_ring = paste0("\\b", .aberr_indicators_paren[["r"]], "\\("),
+  general_insertion = paste0(.aberr_indicators_paren[["ins"]], "\\("),
+  general_duplication = paste0(.aberr_indicators_paren[["dup"]], "\\("),
+  general_triplication = paste0(.aberr_indicators_paren[["trp"]], "\\("),
+  general_translocation = paste0(
+    "^[?~]?",
+    .aberr_indicators_paren[["t"]],
+    "\\([0-9XY]"
+  ),
+  general_addition = paste0(.aberr_indicators_paren[["add"]], "\\("),
+  general_inversion = paste0(.aberr_indicators_paren[["inv"]], "\\("),
+  general_deletion = paste0(.aberr_indicators_paren[["del"]], "\\("),
+  general_marker = paste0("\\b", .aberr_indicators_bare[["mar"]], "\\b"),
+  general_derivative = paste0(
+    "^\\+?i?",
+    .aberr_indicators_paren[["der"]],
+    "\\("
+  )
 )
 
 # Structural flags counted by the monosomal-karyotype rule (excludes a lone marker).

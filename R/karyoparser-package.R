@@ -85,26 +85,30 @@ utils::globalVariables(c(
   "XXXXY"
 )
 
-# Structural aberration indicator prefixes this package recognizes (mirrors the
-# names in `.general_flag_patterns`, flags.R -- kept in sync manually since
-# flags.R loads after this file in Collate order). Used to ground auto-fixes
-# that need to tell a real aberration token apart from arbitrary glued text,
-# e.g. the letter-glued `missing_sex_comma` case in assess.R. All are
+# Structural aberration indicator prefixes this package recognizes -- the
+# single source of truth for these token strings, named so callers can look
+# up a specific token instead of retyping it. Used both to ground auto-fixes
+# that need to tell a real aberration token apart from arbitrary glued text
+# (e.g. the letter-glued `missing_sex_comma` case in assess.R) and to build
+# the `general_*` structural flags in flags.R (which loads after this file
+# in Collate order, so it reads from here rather than the reverse). All are
 # paren-led (e.g. 'del(5q)') except 'mar', which is bare (e.g. '1mar').
 .aberr_indicators_paren <- c(
-  "psu dic",
-  "idic",
-  "ider",
-  "trp",
-  "dup",
-  "ins",
-  "inv",
-  "add",
-  "del",
-  "dic",
-  "der",
-  "i",
-  "r",
-  "t"
+  psu_dic = "psu dic",
+  idic = "idic",
+  # Not a distinct general_* flag; flags.R folds this into general_derivative
+  # via the optional 'i' it wraps around the 'der' token below.
+  ider = "ider",
+  trp = "trp",
+  dup = "dup",
+  ins = "ins",
+  inv = "inv",
+  add = "add",
+  del = "del",
+  dic = "dic",
+  der = "der",
+  i = "i",
+  r = "r",
+  t = "t"
 )
-.aberr_indicators_bare <- c("mar")
+.aberr_indicators_bare <- c(mar = "mar")
