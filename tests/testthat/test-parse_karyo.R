@@ -240,6 +240,17 @@ test_that("three-way: lone der of a three-way t() is unbalanced, no loss", {
   expect_equal(r$general_derivative, 1L)
 })
 
+test_that("three-way: fewer bands than partners is handled, not an error", {
+  # 3 partner chromosomes but only 2 breakpoints: .canonical_der_t() drops the
+  # bands rather than mis-pairing them, so the der still classifies but derives
+  # no loss.
+  r <- pk("46,XX,der(1)t(1;2;3)(p11;q22)")
+  expect_equal(r$unbalanced_translocation, 1L)
+  expect_equal(r$balanced_translocation, 0L)
+  expect_equal(r$unbal_partial_loss, 0L)
+  expect_equal(r$general_derivative, 1L)
+})
+
 test_that("three-way: complete bare t(a;b;c) is balanced", {
   r <- pk("46,XY,t(9;22;11)(q34;q11;q23)")
   expect_equal(r$balanced_translocation, 1L)

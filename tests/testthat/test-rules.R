@@ -566,6 +566,15 @@ test_that("validate_rules() errors on missing columns", {
   expect_error(validate_rules(bad), "missing required columns")
 })
 
+test_that("validate_rules() errors on a zero-row rules table", {
+  empty <- data.frame(
+    flag_name = character(0),
+    regex = character(0),
+    stringsAsFactors = FALSE
+  )
+  expect_error(validate_rules(empty), "must have at least one row")
+})
+
 test_that("validate_rules() errors on non-data-frame input", {
   expect_error(validate_rules("not a data frame"), "must be a data frame")
 })

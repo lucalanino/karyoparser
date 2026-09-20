@@ -241,6 +241,26 @@ test_that("preprocess_karyo: handles empty vector", {
   expect_named(result, c("original", "preprocessed", "status"))
 })
 
+test_that("preprocess_karyo: empty data frame keeps the detected id column first", {
+  df <- data.frame(
+    sample_id = character(0),
+    karyotype = character(0),
+    stringsAsFactors = FALSE
+  )
+  result <- suppressMessages(preprocess_karyo(df))
+  expect_equal(nrow(result), 0L)
+  expect_named(result, c("sample_id", "original", "preprocessed", "status"))
+  expect_type(result$sample_id, "character")
+})
+
+test_that("preprocess_karyo: rejects input that is neither character, data frame, nor karyo_check", {
+  expect_error(
+    preprocess_karyo(list("46,XX")),
+    "must be a character vector, data frame, or karyo_check object"
+  )
+  expect_error(preprocess_karyo(1:3), "must be a character vector")
+})
+
 test_that("fish_notation: detected when nuc ish suffix present", {
   k <- "[12]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"
   expect_equal(has_issue(k, "fish_notation"), 1L)
