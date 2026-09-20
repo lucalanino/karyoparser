@@ -4,7 +4,6 @@
 
 ### Parsing & data quality
 
-- **[P2] Myeloid rule completeness**: Final pass over `myeloid_rules`.
 - **[P2] Finish real-world-data review**: continue auditing real-world karyotype strings for unhandled dirty-data patterns (missing sex-complement comma and fullwidth ISCN punctuation were both fixed separately) and the `trailing_narrative` bias below.
 - **[P3] Manually review tests with non-ASCII and other weird placeholders**.
 

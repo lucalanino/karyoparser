@@ -4,7 +4,7 @@
 \alias{example_karyotypes}
 \title{Synthetic Example Karyotypes}
 \format{
-A tibble with 100 rows and columns:
+A tibble with 101 rows and columns:
 \describe{
 \item{sample_id}{character. Synthetic sample identifier (\code{"EX001"}, ...).}
 \item{karyotype}{character. Raw ISCN karyotype string.}
@@ -14,7 +14,7 @@ A tibble with 100 rows and columns:
 example_karyotypes
 }
 \description{
-A synthetic dataset of 100 ISCN karyotype strings for trying out
+A synthetic dataset of 101 ISCN karyotype strings for trying out
 \code{\link[=check_karyo]{check_karyo()}}, \code{\link[=preprocess_karyo]{preprocess_karyo()}}, and \code{\link[=parse_karyo]{parse_karyo()}}. Covers normal
 karyotypes, one example per \code{myeloid_rules} flag, general structural
 aberrations with no matching specific rule, aneuploidy-only cases,
