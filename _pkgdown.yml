@@ -1,7 +1,6 @@
 url: https://lucalanino.github.io/karyoparser/
 template:
   bootstrap: 5
-
 articles:
 - title: Articles
   navbar: ~
