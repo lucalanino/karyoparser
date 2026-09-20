@@ -373,8 +373,8 @@ validate_karyotypes <- function(karyotypes) {
   }
 
   # Priority chain: each check claims only rows still `remaining`, so a row is
-  # reported under at most one category. (The per-clone sub-checks further
-  # down are only partly chained -- see there.)
+  # reported under at most one of these mutually exclusive categories. The
+  # per-clone checks further down deliberately co-fire instead.
   remaining <- rep(TRUE, n)
 
   is_na <- is.na(karyotypes)
@@ -495,8 +495,9 @@ validate_karyotypes <- function(karyotypes) {
       length(tokens_list)
     )
 
-    # Only the first two sub-checks are mutually exclusive; the rest test
-    # `rem_idx` directly, so "46,idem,+8" fires two of them.
+    # These report independently: a clone can carry several distinct problems
+    # and all of them should surface. Only the first two are exclusive, since
+    # a constitutional complement or a lone token makes the rest meaningless.
     sub_remaining <- rep(TRUE, length(rem_idx))
 
     hit <- sub_remaining & has_const_sex
