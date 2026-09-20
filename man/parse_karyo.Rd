@@ -12,7 +12,8 @@ parse_karyo(
   verbose = FALSE,
   on_issues = c("stop", "preprocess", "warn"),
   on_chimeric = c("default", "host", "donor"),
-  columns = NULL
+  columns = NULL,
+  min_metaphases = 2
 )
 }
 \arguments{
@@ -105,6 +106,16 @@ of \code{columns}. Valid values (any combination):
 \code{total_metaphases}
 \item \code{"der_loss"}: \verb{unbal_partial_loss_<arm>} and \code{unbal_partial_loss}
 }}
+
+\item{min_metaphases}{Numeric. Minimum metaphase count for a clone to be
+eligible to supply \code{chromosome_count}. Default \code{2}. Clones whose bracket
+reports fewer metaphases are skipped, so a small side clone does not
+outvote the main one; if no clone in a row clears the threshold,
+\code{chromosome_count} is \code{NA} for that row. The threshold applies only to
+rows where at least one clone carries a metaphase bracket -- a row with
+no brackets anywhere uses all of its clones regardless. Raise it to
+ignore more small clones (\code{5} is a common cytogenetics convention), or
+set \code{0} to consider every clone that has a count.}
 }
 \value{
 A tibble with columns:
@@ -115,7 +126,11 @@ karyotype string, consistent across all \code{on_issues} modes. In
 \code{"preprocess"} mode this is also dirty-fixed; in \code{"warn"}/\code{"stop"} modes
 only \code{normalize_iscn()} is applied (chimeric rows are clone-selected in
 every mode). \code{NA_character_} for issue rows.
-\item chromosome_count: Integer chromosome count extracted from the karyotype
+\item chromosome_count: Integer chromosome count, taken from the most
+abnormal eligible clone in the row (the one whose count is furthest
+from 46). Eligibility is governed by \code{min_metaphases}; \code{NA} when no
+clone in the row qualifies, which can happen even though
+\code{total_metaphases} is non-\code{NA}.
 \item One column per aberration flag (0/1 binary); rule-based columns are
 named after a sanitized \code{flag_name} (see \code{rules} above)
 \item monoX, monoY, mono1-22: Monosomy flags for each chromosome
@@ -124,7 +139,14 @@ named after a sanitized \code{flag_name} (see \code{rules} above)
 \item total_metaphases: Count from bracket notation
 \item comma_count_aberrations: Number of comma-separated aberrations
 \item complex_karyotype: 1 if >=3 unique aberrations, else 0
-\item monosomal_karyotype: 1 if meets monosomal criteria, else 0
+\item monosomal_karyotype: 1 if the row has two or more autosomal
+monosomies, or one autosomal monosomy plus at least one structural
+aberration (any \verb{general_*} flag except \code{general_marker} -- a lone
+marker does not count). Two carve-outs: sex-chromosome monosomies
+(\code{monoX}/\code{monoY}) never count toward either criterion, and a
+CBF-AML row (\verb{t(8;21)(q22;q22)}, \code{inv(16)(p13q22)}, or
+\verb{t(16;16)(p13;q22)}) is forced to 0 per clinical guidelines even
+when the criteria are met.
 \item balanced_translocation: 1 if the row carries a balanced translocation --
 a bare \code{t(...)} token, or a reciprocal der pair where both partner
 chromosomes appear as centromere donors (e.g.

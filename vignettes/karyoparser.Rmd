@@ -132,17 +132,47 @@ status columns are always included regardless.
 | Metadata | `original_karyotype`, `preprocessed_karyotype` | character | Raw input; cleaned/normalized string that was parsed (NA for unfixable rows) |
 | Classification | `normal_karyotype` | integer 0/1 | 1 if `46,XX` or `46,XY` exactly |
 | Classification | `complex_karyotype` | integer 0/1 | 1 if >= 3 distinct aberrations across clones |
-| Classification | `monosomal_karyotype` | integer 0/1 | 1 if >= 2 autosomal monosomies, or >= 1 monosomy + >= 1 structural aberration |
+| Classification | `monosomal_karyotype` | integer 0/1 | 1 if >= 2 autosomal monosomies, or >= 1 autosomal monosomy + >= 1 structural aberration (any `general_*` flag except `general_marker`). Sex-chromosome monosomies never count. Forced to 0 for CBF-AML rows -- `t(8;21)(q22;q22)`, `inv(16)(p13q22)`, `t(16;16)(p13;q22)` -- even when the criteria are met |
 | Rule flags | *(one per `myeloid_rules` entry)* | integer 0/1 | Specific lesions -- see Aberration flags below |
 | General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_derivative`, `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Universal structural-aberration detections, incl. translocation balance |
 | Aneuploidy | `mono1`--`mono22`, `monoX`, `monoY`; `tris1`--`tris22`, `trisX`, `trisY` | integer 0/1 | Whole-chromosome loss/gain from `-`/`+` tokens |
 | Summary | `comma_count_aberrations` | integer | Aberration count (max across clones; idem-expanded) |
-| Summary | `chromosome_count` | integer | Count from the most abnormal eligible clone |
+| Summary | `chromosome_count` | integer | Count from the most abnormal clone that clears `min_metaphases` (see below); NA if none does |
 | Summary | `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |
 | Derived loss | `unbal_partial_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation |
 | Status | `fixable_error`, `unfixable_error` | integer 0/1 | Row had a fixable / unfixable issue (unfixable rows are all NA) |
 | Status | `chimeric_karyotype` | integer 0/1 | 1 if input contained a `//` chimeric separator |
 | Status | `chimeric_clone` | character | Which clone was parsed for a chimeric row (`"host"`, `"donor"`, or NA) -- see `vignette("chimeric-karyotypes")` |
+
+### Which clone `chromosome_count` comes from
+
+A karyotype can describe several clones, so `parse_karyo()` has to pick one
+to report a count for. It takes the **most abnormal** clone -- the one whose
+count is furthest from 46 -- among those large enough to be worth trusting.
+
+"Large enough" is the `min_metaphases` argument, and you can change it:
+
+```{r min-metaphases}
+k <- "25,X[3]/46,XX[10]"
+
+# Default: a clone needs >= 2 metaphases, so the 3-metaphase clone counts.
+parse_karyo(k, verbose = FALSE)$chromosome_count
+
+# Raise the bar and the small clone is ignored.
+parse_karyo(k, verbose = FALSE, min_metaphases = 5)$chromosome_count
+```
+
+Two things to know:
+
+- If **no** clone clears the threshold, `chromosome_count` is `NA` -- even
+  though `total_metaphases` still reports the brackets it found. Seeing `NA`
+  next to a non-`NA` `total_metaphases` means "every clone was too small",
+  not "no count present".
+- The threshold only applies to rows where at least one clone carries a
+  metaphase bracket. A string with no brackets anywhere (e.g. `46,XX/45,XY,-7`)
+  uses all of its clones regardless of `min_metaphases`.
+
+Set `min_metaphases = 0` to consider every clone that has a count at all.
 
 ### Aberration flags
 

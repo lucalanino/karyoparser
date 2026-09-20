@@ -85,6 +85,15 @@
 #'   - `"summary"`: `comma_count_aberrations`, `chromosome_count`,
 #'     `total_metaphases`
 #'   - `"der_loss"`: `unbal_partial_loss_<arm>` and `unbal_partial_loss`
+#' @param min_metaphases Numeric. Minimum metaphase count for a clone to be
+#'   eligible to supply `chromosome_count`. Default `2`. Clones whose bracket
+#'   reports fewer metaphases are skipped, so a small side clone does not
+#'   outvote the main one; if no clone in a row clears the threshold,
+#'   `chromosome_count` is `NA` for that row. The threshold applies only to
+#'   rows where at least one clone carries a metaphase bracket -- a row with
+#'   no brackets anywhere uses all of its clones regardless. Raise it to
+#'   ignore more small clones (`5` is a common cytogenetics convention), or
+#'   set `0` to consider every clone that has a count.
 #'
 #' @return A tibble with columns:
 #'   - original_karyotype: Input karyotype string (always the raw input)
@@ -93,7 +102,11 @@
 #'     `"preprocess"` mode this is also dirty-fixed; in `"warn"`/`"stop"` modes
 #'     only `normalize_iscn()` is applied (chimeric rows are clone-selected in
 #'     every mode). `NA_character_` for issue rows.
-#'   - chromosome_count: Integer chromosome count extracted from the karyotype
+#'   - chromosome_count: Integer chromosome count, taken from the most
+#'     abnormal eligible clone in the row (the one whose count is furthest
+#'     from 46). Eligibility is governed by `min_metaphases`; `NA` when no
+#'     clone in the row qualifies, which can happen even though
+#'     `total_metaphases` is non-`NA`.
 #'   - One column per aberration flag (0/1 binary); rule-based columns are
 #'     named after a sanitized `flag_name` (see `rules` above)
 #'   - monoX, monoY, mono1-22: Monosomy flags for each chromosome
@@ -102,7 +115,14 @@
 #'   - total_metaphases: Count from bracket notation
 #'   - comma_count_aberrations: Number of comma-separated aberrations
 #'   - complex_karyotype: 1 if >=3 unique aberrations, else 0
-#'   - monosomal_karyotype: 1 if meets monosomal criteria, else 0
+#'   - monosomal_karyotype: 1 if the row has two or more autosomal
+#'     monosomies, or one autosomal monosomy plus at least one structural
+#'     aberration (any `general_*` flag except `general_marker` -- a lone
+#'     marker does not count). Two carve-outs: sex-chromosome monosomies
+#'     (`monoX`/`monoY`) never count toward either criterion, and a
+#'     CBF-AML row (`t(8;21)(q22;q22)`, `inv(16)(p13q22)`, or
+#'     `t(16;16)(p13;q22)`) is forced to 0 per clinical guidelines even
+#'     when the criteria are met.
 #'   - balanced_translocation: 1 if the row carries a balanced translocation --
 #'     a bare `t(...)` token, or a reciprocal der pair where both partner
 #'     chromosomes appear as centromere donors (e.g.
@@ -164,11 +184,24 @@ parse_karyo <- function(
   verbose = FALSE,
   on_issues = c("stop", "preprocess", "warn"),
   on_chimeric = c("default", "host", "donor"),
-  columns = NULL
+  columns = NULL,
+  min_metaphases = 2
 ) {
   on_issues <- match.arg(on_issues)
   on_chimeric_provided <- !missing(on_chimeric)
   on_chimeric <- match.arg(on_chimeric)
+
+  if (
+    !is.numeric(min_metaphases) ||
+      length(min_metaphases) != 1L ||
+      is.na(min_metaphases) ||
+      min_metaphases < 0
+  ) {
+    stop(
+      "`min_metaphases` must be a single non-negative number.",
+      call. = FALSE
+    )
+  }
 
   # Validate rules early (needed for empty result structure) ------------------
   # `rules` may be a single karyo_rules object, or a list of karyo_rules
@@ -616,7 +649,7 @@ parse_karyo <- function(
   }
 
   # ---- Parsing pipeline -------------------------------------------------------
-  sample_meta <- build_sample_meta(dedup_df)
+  sample_meta <- build_sample_meta(dedup_df, min_metaphases = min_metaphases)
   tokens <- build_clone_tokens(sample_meta)
   flags <- match_rules(tokens, rules, rule_flag_names)
   aneuploidy <- compute_aneuploidy(tokens, chroms)

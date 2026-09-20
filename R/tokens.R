@@ -30,7 +30,7 @@ normalize_token <- function(x) {
   out
 }
 
-build_sample_meta <- function(input_df) {
+build_sample_meta <- function(input_df, min_metaphases = 2) {
   counts_raw <- input_df |>
     dplyr::mutate(
       bracket = stringr::str_extract_all(original_karyotype, "\\[[^\\]]+\\]")
@@ -90,7 +90,10 @@ build_sample_meta <- function(input_df) {
         1L,
         0L
       ),
-      chromosome_count = chromosome_count_from_karyotype(original_karyotype)
+      chromosome_count = chromosome_count_from_karyotype(
+        original_karyotype,
+        min_metaphases = min_metaphases
+      )
     ) |>
     dplyr::left_join(counts_tbl, by = ".pk_row_id")
 }

@@ -319,6 +319,20 @@ test_that("CBF-AML t(16;16) overrides monosomal karyotype to 0", {
   expect_equal(r$monosomal_karyotype, 0L)
 })
 
+test_that("CBF-AML override beats the 2-autosomal-monosomy criterion", {
+  r <- pk("43,XX,-5,-7,t(8;21)(q22;q22)")
+  expect_equal(r$mono5, 1L)
+  expect_equal(r$mono7, 1L)
+  expect_equal(r$monosomal_karyotype, 0L)
+})
+
+test_that("two sex monosomies alone don't qualify as monosomal", {
+  r <- pk("44,X,-X,-Y")
+  expect_equal(r$monoX, 1L)
+  expect_equal(r$monoY, 1L)
+  expect_equal(r$monosomal_karyotype, 0L)
+})
+
 test_that("idem inherits stemline comma count", {
   r <- pk("46,XX,del(5)(q13),del(7)(q22)[10]/46,idem,+8[5]")
   expect_equal(r$comma_count_aberrations, 3L)
@@ -650,6 +664,34 @@ test_that("parse_karyo() always returns a tibble", {
 test_that("comma_count_aberrations for simple karyotype", {
   r <- pk("46,XX")
   expect_equal(r$comma_count_aberrations, 0L)
+})
+
+test_that("min_metaphases: default 2 keeps a 3-metaphase clone", {
+  expect_equal(pk("25,X[3]/46,XX[10]")$chromosome_count, 25L)
+})
+
+test_that("min_metaphases: raising it excludes the small clone", {
+  expect_equal(
+    pk("25,X[3]/46,XX[10]", min_metaphases = 5)$chromosome_count,
+    46L
+  )
+})
+
+test_that("min_metaphases: chromosome_count NA when no clone qualifies, total_metaphases still set", {
+  r <- pk("46,XX[2]/45,XY,-7[3]", min_metaphases = 5)
+  expect_true(is.na(r$chromosome_count))
+  expect_equal(r$total_metaphases, 5L)
+})
+
+test_that("min_metaphases: rejects invalid values", {
+  expect_error(
+    pk("46,XX[10]", min_metaphases = -1),
+    "single non-negative number"
+  )
+  expect_error(
+    pk("46,XX[10]", min_metaphases = c(2, 3)),
+    "single non-negative number"
+  )
 })
 
 test_that("total_metaphases is NA when no brackets", {

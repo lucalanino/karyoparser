@@ -1,11 +1,14 @@
 # Chromosome count per karyotype string, taken from the most abnormal
-# eligible clone (the one whose count is furthest from 46) in each row. NA
-# where no clone in a row is eligible. Vectorized: flattens all rows' clones
+# eligible clone (the one whose count is furthest from 46) in each row. A
+# clone is eligible when its metaphase count is at least `min_metaphases`;
+# rows where no clone carries a bracket at all skip the threshold entirely
+# and use every clone. NA where no clone in a row is eligible. Vectorized:
+# flattens all rows' clones
 # into one (row, clone) pair per element so every regex runs once over the
 # whole dataset, then picks the per-row argmax via order()+duplicated()
 # instead of looping row by row (mirrors the flatten-and-group approach used
 # in validate_karyotypes()).
-chromosome_count_from_karyotype <- function(karyotypes) {
+chromosome_count_from_karyotype <- function(karyotypes, min_metaphases = 2) {
   n <- length(karyotypes)
   clones_list <- stringr::str_split(karyotypes, "/")
   flat_row <- rep(seq_len(n), lengths(clones_list))
@@ -44,7 +47,7 @@ chromosome_count_from_karyotype <- function(karyotypes) {
   has_any_brackets <- .agg_any_by_group(has_bracket, flat_row, n)[flat_row]
   eligible <- ifelse(
     has_any_brackets,
-    !is.na(chrom_count) & !is.na(metaphases) & metaphases >= 5,
+    !is.na(chrom_count) & !is.na(metaphases) & metaphases >= min_metaphases,
     !is.na(chrom_count)
   )
 
