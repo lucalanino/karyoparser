@@ -1,6 +1,6 @@
 #' Synthetic Example Karyotypes
 #'
-#' A synthetic dataset of 101 ISCN karyotype strings for trying out
+#' A synthetic dataset of 102 ISCN karyotype strings for trying out
 #' [check_karyo()], [preprocess_karyo()], and [parse_karyo()]. Covers normal
 #' karyotypes, one example per `myeloid_rules` flag, general structural
 #' aberrations with no matching specific rule, aneuploidy-only cases,
@@ -10,7 +10,7 @@
 #' constitutional markers, ...) to demonstrate `check_karyo()` and
 #' `preprocess_karyo()`.
 #'
-#' @format A tibble with 101 rows and columns:
+#' @format A tibble with 102 rows and columns:
 #' \describe{
 #'   \item{sample_id}{character. Synthetic sample identifier (`"EX001"`, ...).}
 #'   \item{karyotype}{character. Raw ISCN karyotype string.}
@@ -87,66 +87,67 @@ example_karyotypes <- tibble::tribble(
   "EX054"    , "46,XX,i(9)(q10)[10]"                                      ,
   "EX055"    , "46,XY,inv(9)(p11q13)[10]"                                 ,
   "EX056"    , "46,XX,idic(15)(q10)[10]"                                  ,
+  "EX057"    , "47,XY,+8,dmin[10]"                                        ,
 
   # Aneuploidy only
-  "EX057"    , "47,XY,+8[15]"                                             ,
-  "EX058"    , "45,XY,-7[15]"                                             ,
-  "EX059"    , "45,XX,-5[12]"                                             ,
-  "EX060"    , "47,XX,+21[18]"                                            ,
-  "EX061"    , "47,XY,+9[10]"                                             ,
-  "EX062"    , "45,XX,-X[10]"                                             ,
-  "EX063"    , "47,XX,+Y[8]"                                              ,
-  "EX064"    , "45,XY,-18[9]"                                             ,
+  "EX058"    , "47,XY,+8[15]"                                             ,
+  "EX059"    , "45,XY,-7[15]"                                             ,
+  "EX060"    , "45,XX,-5[12]"                                             ,
+  "EX061"    , "47,XX,+21[18]"                                            ,
+  "EX062"    , "47,XY,+9[10]"                                             ,
+  "EX063"    , "45,XX,-X[10]"                                             ,
+  "EX064"    , "47,XX,+Y[8]"                                              ,
+  "EX065"    , "45,XY,-18[9]"                                             ,
 
   # Balanced translocations (reciprocal der pairs)
-  "EX065"    , "46,XX,der(5)t(5;17)(q11;q11),der(17)t(5;17)(q11;q11)[10]" ,
-  "EX066"    , "46,XY,der(1)t(1;19)(q23;p13),der(19)t(1;19)(q23;p13)[10]" ,
+  "EX066"    , "46,XX,der(5)t(5;17)(q11;q11),der(17)t(5;17)(q11;q11)[10]" ,
+  "EX067"    , "46,XY,der(1)t(1;19)(q23;p13),der(19)t(1;19)(q23;p13)[10]" ,
 
   # Unbalanced translocations / derived partial loss
-  "EX067"    , "45,XX,-7,der(8)t(8;21)(q22;q22)[10]"                      ,
-  "EX068"    , "46,XX,der(5)t(5;8)(q11;q11)[10]"                          ,
-  "EX069"    , "46,XY,der(9)t(9;22)(q34;q11)[10]"                         ,
-  "EX070"    , "46,XX,der(1)t(2;3)(p11;q22)[10]"                          ,
-  "EX071"    , "45,XX,der(9)t(9;22)(q34;q11)[10]"                         ,
+  "EX068"    , "45,XX,-7,der(8)t(8;21)(q22;q22)[10]"                      ,
+  "EX069"    , "46,XX,der(5)t(5;8)(q11;q11)[10]"                          ,
+  "EX070"    , "46,XY,der(9)t(9;22)(q34;q11)[10]"                         ,
+  "EX071"    , "46,XX,der(1)t(2;3)(p11;q22)[10]"                          ,
+  "EX072"    , "45,XX,der(9)t(9;22)(q34;q11)[10]"                         ,
 
   # Complex karyotypes (>= 3 distinct aberrations)
-  "EX072"    , "46,XX,del(5)(q13),del(7)(q22),add(11)(p11)[10]"           ,
-  "EX073"    , "46,XY,t(9;22)(q34;q11),del(20)(q11q13),+8[12]"            ,
-  "EX074"    , "45,XX,-7,del(5)(q13),add(21)(p11)[9]"                     ,
+  "EX073"    , "46,XX,del(5)(q13),del(7)(q22),add(11)(p11)[10]"           ,
+  "EX074"    , "46,XY,t(9;22)(q34;q11),del(20)(q11q13),+8[12]"            ,
+  "EX075"    , "45,XX,-7,del(5)(q13),add(21)(p11)[9]"                     ,
 
   # Monosomal karyotypes
-  "EX075"    , "45,XX,-5,-7[10]"                                          ,
-  "EX076"    , "45,XY,-7,del(5)(q13)[10]"                                 ,
-  "EX077"    , "43,XX,-5,-7,-17[8]"                                       ,
+  "EX076"    , "45,XX,-5,-7[10]"                                          ,
+  "EX077"    , "45,XY,-7,del(5)(q13)[10]"                                 ,
+  "EX078"    , "43,XX,-5,-7,-17[8]"                                       ,
 
   # Messy/dirty strings -- demonstrate check_karyo() / preprocess_karyo()
-  "EX078"    , ".46,XX,del(5)(q13)[10]"                                   ,
-  "EX079"    , "46, XX,+8[10]"                                            ,
-  "EX080"    , "46,XX,PSU DIC(15;22)[10]"                                 ,
-  "EX081"    , ",46,,XX,del(7)(q22)[10],"                                 ,
-  "EX082"    , "47,XY,\uFF0B8[10]"                                        ,
-  "EX083"    , "46,XX[cp 20]"                                             ,
-  "EX084"    , "46,XX,t(9;22)(q34;q11)[20] .Clinical note here"           ,
-  "EX085"    , "46,XX,t(9;22)(q34;q11)[15] &lt;AML&gt;"                   ,
-  "EX086"    , ".//46,XX,+8[10]"                                          ,
-  "EX087"    , "46,XX,t(9;22)[15]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"   ,
-  "EX088"    , "46,XX der(7)t(7;12)(q36;q24)[10]"                         ,
-  "EX089"    , "46,XX,del(5)(q13),del(7)(q22)[10]/46,idem,+8[5]"          ,
+  "EX079"    , ".46,XX,del(5)(q13)[10]"                                   ,
+  "EX080"    , "46, XX,+8[10]"                                            ,
+  "EX081"    , "46,XX,PSU DIC(15;22)[10]"                                 ,
+  "EX082"    , ",46,,XX,del(7)(q22)[10],"                                 ,
+  "EX083"    , "47,XY,\uFF0B8[10]"                                        ,
+  "EX084"    , "46,XX[cp 20]"                                             ,
+  "EX085"    , "46,XX,t(9;22)(q34;q11)[20] .Clinical note here"           ,
+  "EX086"    , "46,XX,t(9;22)(q34;q11)[15] &lt;AML&gt;"                   ,
+  "EX087"    , ".//46,XX,+8[10]"                                          ,
+  "EX088"    , "46,XX,t(9;22)[15]/46,XX[3] .nuc ish(PDGFRA x3)[20/200]"   ,
+  "EX089"    , "46,XX der(7)t(7;12)(q36;q24)[10]"                         ,
+  "EX090"    , "46,XX,del(5)(q13),del(7)(q22)[10]/46,idem,+8[5]"          ,
 
   # Out-of-scope rows -- flagged by check_karyo(); mos/constitutional/triple-//
   # are unfixable, ncSCA is fixable (token stripped, remaining clone parsed)
-  "EX090"    , "46,XX//47//48"                                            ,
-  "EX091"    , "mos 47,XXY[10]/46,XY[5]"                                  ,
-  "EX092"    , "ncSCA[4]/46,XY[11]"                                       ,
-  "EX093"    , "47,XXYc[20]"                                              ,
-  "EX094"    , "46,XX &amp; notes"                                        ,
+  "EX091"    , "46,XX//47//48"                                            ,
+  "EX092"    , "mos 47,XXY[10]/46,XY[5]"                                  ,
+  "EX093"    , "ncSCA[4]/46,XY[11]"                                       ,
+  "EX094"    , "47,XXYc[20]"                                              ,
+  "EX095"    , "46,XX &amp; notes"                                        ,
 
   # Multi-clone / chimeric / ploidy variety
-  "EX095"    , "46,XX[10]/46,idem[5]"                                     ,
-  "EX096"    , "46,XX,t(9;22)(q34;q11)[15]//46,XX[5]"                     ,
-  "EX097"    , "69,XXX[10]"                                               ,
-  "EX098"    , "45,X[10]"                                                 ,
-  "EX099"    , "47,XY,+21[10]/46,XY[10]"                                  ,
-  "EX100"    , "46,XX,dup(1)(q21q32),t(9;22)(q34;q11)[10]"                ,
-  "EX101"    , "46,XY,der(9)t(9;22;11)(q34;q11;q23)[10]"
+  "EX096"    , "46,XX[10]/46,idem[5]"                                     ,
+  "EX097"    , "46,XX,t(9;22)(q34;q11)[15]//46,XX[5]"                     ,
+  "EX098"    , "69,XXX[10]"                                               ,
+  "EX099"    , "45,X[10]"                                                 ,
+  "EX100"    , "47,XY,+21[10]/46,XY[10]"                                  ,
+  "EX101"    , "46,XX,dup(1)(q21q32),t(9;22)(q34;q11)[10]"                ,
+  "EX102"    , "46,XY,der(9)t(9;22;11)(q34;q11;q23)[10]"
 )

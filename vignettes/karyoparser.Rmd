@@ -71,7 +71,7 @@ so you can trace a saved result back to whatever version produced it.
 
 ## A first pass, with `example_karyotypes`
 
-`example_karyotypes` ships with the package -- 101 synthetic ISCN strings
+`example_karyotypes` ships with the package -- 102 synthetic ISCN strings
 covering one example per `myeloid_rules` flag, general structural
 aberrations, aneuploidy-only cases, balanced/unbalanced translocations,
 complex and monosomal karyotypes, chimeric/multi-clone cases, and a batch of
