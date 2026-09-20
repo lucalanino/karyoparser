@@ -85,19 +85,15 @@ utils::globalVariables(c(
   "XXXXY"
 )
 
-# Structural aberration indicator prefixes this package recognizes -- the
-# single source of truth for these token strings, named so callers can look
-# up a specific token instead of retyping it. Used both to ground auto-fixes
-# that need to tell a real aberration token apart from arbitrary glued text
-# (e.g. the letter-glued `missing_sex_comma` case in assess.R) and to build
-# the `general_*` structural flags in flags.R (which loads after this file
-# in Collate order, so it reads from here rather than the reverse). All are
-# paren-led (e.g. 'del(5q)') except 'mar', which is bare (e.g. '1mar').
+# Structural aberration indicator prefixes, the single source of truth for
+# these token strings. Used to ground auto-fixes that must tell a real
+# aberration token from glued text (assess.R) and to build the `general_*`
+# flags (flags.R, which loads after this file). All are paren-led except the
+# bare ones below.
 .aberr_indicators_paren <- c(
   psu_dic = "psu dic",
   idic = "idic",
-  # Not a distinct general_* flag; flags.R folds this into general_derivative
-  # via the optional 'i' it wraps around the 'der' token below.
+  # Not a distinct general_* flag; flags.R folds it into general_derivative.
   ider = "ider",
   trp = "trp",
   dup = "dup",
@@ -111,7 +107,6 @@ utils::globalVariables(c(
   r = "r",
   t = "t"
 )
-# Bare indicators: no parenthesised breakpoint list, and both can carry a
-# leading count ('2mar', '10~>50dmin'), so their flag patterns below must not
-# require a word boundary on the left.
+# Bare indicators: no breakpoint list, and both can carry a leading count
+# ('2mar'), so their flag patterns must not require a left word boundary.
 .aberr_indicators_bare <- c(mar = "mar", dmin = "dmin")

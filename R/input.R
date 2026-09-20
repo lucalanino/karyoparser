@@ -1,7 +1,5 @@
-# Columns are always declared, never inferred: guessing which column holds
-# the karyotype risks silently parsing the wrong one when a data frame
-# carries more than one plausible candidate (e.g. a raw `iscn` alongside a
-# cleaned `karyotype`).
+# Columns are always declared, never inferred: a data frame may carry more
+# than one plausible candidate (a raw `iscn` beside a cleaned `karyotype`).
 
 .quote_cols <- function(x) {
   if (length(x) == 0L) {
@@ -10,10 +8,8 @@
   paste(sprintf("\"%s\"", x), collapse = ", ")
 }
 
-# Duplicate ids are a downstream problem, not a karyoparser one: rows are
-# matched on the karyotype string, never on the id, so parsing is unaffected.
-# Warn rather than stop -- serial karyotypes for one patient (diagnosis,
-# post-induction, relapse) are a legitimate shape.
+# Warn rather than stop: rows are matched on the karyotype string, never the
+# id, and serial karyotypes for one patient are a legitimate shape.
 .warn_duplicate_ids <- function(id_values, id_col_name) {
   dup_mask <- duplicated(id_values) | duplicated(id_values, fromLast = TRUE)
   if (!any(dup_mask)) {

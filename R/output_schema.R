@@ -1,4 +1,4 @@
-# Single source of truth for parse_karyo()'s output column list, order, and typing.
+# Single source of truth for parse_karyo()'s column list, order and typing.
 .column_catalog <- function(rules) {
   chroms <- c(as.character(1:22), "X", "Y")
   row <- function(column, class, type) {

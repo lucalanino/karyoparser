@@ -4,7 +4,7 @@
   c("p", "q")
 )
 
-# Sorts a der's t(...) partners into a signature so reciprocal ders group together.
+# Sorts a der's t(...) partners into a signature so reciprocals group.
 .canonical_der_t <- function(chroms_str, bands_str) {
   chroms <- strsplit(chroms_str, ";", fixed = TRUE)[[1]]
   bands <- if (is.na(bands_str)) {
@@ -36,7 +36,8 @@
   )
 }
 
-# TRUE when every partner chromosome is donored at least as often as it recurs (balanced).
+# TRUE when every partner chromosome is donored at least as often as it
+# recurs (balanced).
 .donors_cover_partners <- function(donors, partners) {
   all(vapply(
     unique(partners),
@@ -45,8 +46,8 @@
   ))
 }
 
-# Extracts der(...)t(...) tokens with a t-signature and balanced_pair flag; shared by
-# classify_translocation_balance() and derive_unbalanced_loss().
+# Extracts der(...)t(...) tokens with a t-signature and balanced_pair flag,
+# shared by classify_translocation_balance() and derive_unbalanced_loss().
 .der_translocations <- function(tokens_tbl) {
   der_t <- tokens_tbl |>
     dplyr::filter(!is.na(clone_id), aberr_raw != "") |>
@@ -157,8 +158,8 @@ classify_translocation_balance <- function(
   )
 }
 
-# Derives implied arm loss from a lone der(a)t(a;b)(bp_a;bp_b): kept separate from
-# del()/mono* signals. Only simple two-partner, single-junction ders are resolved.
+# Derives implied arm loss from a lone der(a)t(a;b)(bp_a;bp_b), kept separate
+# from del()/mono* signals. Only simple single-junction ders are resolved.
 derive_unbalanced_loss <- function(der_t) {
   cols <- paste0("unbal_partial_loss_", .unbal_partial_loss_arms)
   empty <- tibble::tibble(.pk_row_id = integer())

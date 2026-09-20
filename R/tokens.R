@@ -163,7 +163,8 @@ build_clone_tokens <- function(sample_meta) {
     dplyr::mutate(aberr_norm = normalize_token(aberr_raw))
 }
 
-# Rules fire independently; mutual exclusivity, where wanted, is encoded in the regex itself.
+# Rules fire independently; mutual exclusivity, where wanted, is encoded in
+# the regex itself.
 match_rules <- function(tokens_tbl, rules, rule_flag_names) {
   match_text <- strip_bands(tokens_tbl$aberr_raw)
   ids <- tokens_tbl$.pk_row_id

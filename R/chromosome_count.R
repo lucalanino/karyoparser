@@ -1,13 +1,6 @@
-# Chromosome count per karyotype string, taken from the most abnormal
-# eligible clone (the one whose count is furthest from 46) in each row. A
-# clone is eligible when its metaphase count is at least `min_metaphases`;
-# rows where no clone carries a bracket at all skip the threshold entirely
-# and use every clone. NA where no clone in a row is eligible. Vectorized:
-# flattens all rows' clones
-# into one (row, clone) pair per element so every regex runs once over the
-# whole dataset, then picks the per-row argmax via order()+duplicated()
-# instead of looping row by row (mirrors the flatten-and-group approach used
-# in validate_karyotypes()).
+# Chromosome count per row, from the eligible clone furthest from 46. A clone
+# is eligible at >= `min_metaphases`; rows where no clone carries a bracket
+# skip the threshold entirely. NA when no clone is eligible.
 chromosome_count_from_karyotype <- function(karyotypes, min_metaphases = 2) {
   n <- length(karyotypes)
   clones_list <- stringr::str_split(karyotypes, "/")
@@ -51,10 +44,8 @@ chromosome_count_from_karyotype <- function(karyotypes, min_metaphases = 2) {
     !is.na(chrom_count)
   )
 
-  # Most abnormal = furthest from 46; ineligible clones are pinned to -Inf so
-  # they never win the per-row argmax below unless every clone in a row is
-  # ineligible, in which case the picked distance stays -Inf and the row's
-  # result is NA.
+  # Ineligible clones are pinned to -Inf so they never win the argmax below;
+  # a row where all clones are ineligible stays -Inf and resolves to NA.
   distance <- ifelse(eligible, abs(chrom_count - 46), -Inf)
   ord <- order(flat_row, -distance)
   picked <- !duplicated(flat_row[ord])

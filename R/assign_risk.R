@@ -252,9 +252,8 @@ assign_risk <- function(parsed, scheme = c("ipssr", "eln2022")) {
     isolated & del_5q ~ "Good",
     isolated & one("del_12p") ~ "Good",
     isolated & one("del_20q") ~ "Good",
-    # Everything else -- including isolated del(7q), +8, +19 and i(17q), which
-    # the table lists explicitly but which land on the same category as the
-    # "any other single or double" catch-all.
+    # Everything else, including the lesions the table lists explicitly but
+    # which land on the same category as the catch-all.
     TRUE ~ "Intermediate"
   )
 
@@ -277,10 +276,9 @@ assign_risk <- function(parsed, scheme = c("ipssr", "eln2022")) {
   "t_16_16_p13_q22"
 )
 
-# Both canonical and non-canonical breakpoints for t(6;9) and t(9;22): ELN
-# names the fusion, not the breakpoint, and ELN's own t(6;9)(p23.3;q34.1)
-# spelling is non-canonical for myeloid_rules. inv(3)/t(3;3) stay canonical,
-# since their non-canonical variants are not the GATA2/MECOM lesion.
+# t(6;9) and t(9;22) list both breakpoint spellings because ELN names the
+# fusion, not the breakpoint. inv(3)/t(3;3) stay canonical: their variants are
+# not the GATA2/MECOM lesion.
 .eln2022_adverse <- c(
   "t_6_9_p22_q34",
   "t_6_9_other",
@@ -322,9 +320,8 @@ assign_risk <- function(parsed, scheme = c("ipssr", "eln2022")) {
   kmt2a_9_11 <- .risk_any(parsed, "t_9_11_p21_q23")
 
   # ELN's complex definition, not the scheme-neutral complex_karyotype: the
-  # hyperdiploid carve-out excludes pure-gain karyotypes. A marker counts as
-  # a structural abnormality here (unlike in monosomal_karyotype, whose own
-  # definition excludes it).
+  # hyperdiploid carve-out excludes pure-gain karyotypes, and a marker counts
+  # as structural here (unlike in monosomal_karyotype).
   n_trisomies <- .risk_count(parsed, paste0("tris", .risk_chroms))
   n_monosomies <- .risk_count(parsed, paste0("mono", .risk_chroms))
   n_structural <- .risk_count(parsed, names(.general_flag_patterns))

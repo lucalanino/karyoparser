@@ -32,10 +32,8 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
 }
 
 # Universal structural flags: fire independently of any rule match on the same
-# token. Built around the indicator tokens in .aberr_indicators_paren /
-# .aberr_indicators_bare (karyoparser-package.R), the single source of truth
-# for these strings, rather than retyping them here; each flag adds only the
-# anchoring/boundary it needs on top of its shared token.
+# token. Built from the indicator tokens in karyoparser-package.R rather than
+# retyping them; each flag adds only the anchoring it needs.
 .general_flag_patterns <- c(
   general_dicentric = paste0(.aberr_indicators_paren[["dic"]], "\\("),
   general_isodicentric = paste0(.aberr_indicators_paren[["idic"]], "\\("),
@@ -53,9 +51,8 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   general_addition = paste0(.aberr_indicators_paren[["add"]], "\\("),
   general_inversion = paste0(.aberr_indicators_paren[["inv"]], "\\("),
   general_deletion = paste0(.aberr_indicators_paren[["del"]], "\\("),
-  # A leading count makes the left \\b vanish ('+2mar', '+1~4mar' -- the exact
-  # form the mar_space fix produces), so anchor on "not preceded by a letter"
-  # instead, which still rejects word tails like 'marker'.
+  # A leading count makes the left \\b vanish ('+2mar'), so anchor on "not
+  # preceded by a letter", which still rejects word tails like 'marker'.
   general_marker = paste0(
     "(?<![A-Za-z])",
     .aberr_indicators_bare[["mar"]],
@@ -74,9 +71,8 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
 )
 
 # Structural flags counted by the monosomal-karyotype rule. Markers and double
-# minutes are excluded: both are unidentifiable or extrachromosomal material
-# rather than a structural rearrangement of a chromosome. (The ELN 2022
-# hyperdiploid carve-out counts them, deliberately -- see assign_risk().)
+# minutes are excluded as unidentifiable or extrachromosomal rather than a
+# rearrangement. (The ELN 2022 hyperdiploid carve-out counts them, by design.)
 .general_flags_for_monosomal <- setdiff(
   names(.general_flag_patterns),
   c("general_marker", "general_dmin")

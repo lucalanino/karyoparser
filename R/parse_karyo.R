@@ -223,11 +223,8 @@ parse_karyo <- function(
   }
 
   # Validate rules early (needed for empty result structure) ----
-  # `rules` may be a single karyo_rules object, or a list of karyo_rules
-  # objects to combine (e.g. list(myeloid_rules, lymphoid_rules)). Excluding
-  # data frames here matters because a data.frame is itself a list -- without
-  # it, a plain (unvalidated) rules data frame would be mistaken for a list of
-  # rules tables instead of hitting the karyo_rules class check below.
+  # Data frames are excluded because a data.frame is itself a list, and would
+  # otherwise be taken for a list of rules tables.
   if (!is.data.frame(rules) && is.list(rules)) {
     if (length(rules) == 0L) {
       stop(
@@ -255,20 +252,11 @@ parse_karyo <- function(
   rule_flag_names <- unique(rules$flag_name)
   chroms <- c(as.character(1:22), "X", "Y")
 
-  # Single source of truth for the output columns: a provenance-tagged catalog
-  # of every column (see .column_catalog()). `all_output_cols` is the full
-  # ordered column list; `abnormality_names` is the subset of binary 0/1 flags
-  # that share the parsed-row treatment (backfill missing with 0L,
-  # integer-coerce, NA -> 0); `char_cols` is the set of character-typed columns.
-  # Adding a feature in .column_catalog() flows to all three automatically.
   catalog <- .column_catalog(rules)
 
   # Output-column filtering (width knob) ----
-  # `columns` selects which output-column classes to keep, using the `class`
-  # field from .column_catalog(). "meta" and "status" (row identity plus
-  # error/chimeric bookkeeping) are always kept regardless of `columns` --
-  # every caller needs them to identify rows and interpret the rest, mirroring
-  # how `id_column` is always placed first regardless of other arguments.
+  # "meta" and "status" are never filterable: every caller needs them to
+  # identify rows and interpret the rest.
   filterable_classes <- setdiff(unique(catalog$class), c("meta", "status"))
   if (!is.null(columns)) {
     unknown_classes <- setdiff(columns, filterable_classes)
@@ -290,7 +278,8 @@ parse_karyo <- function(
   }
 
   all_output_cols <- catalog$column
-  # chromosome_count/total_metaphases excluded: NA is meaningful for them, not backfillable to 0.
+  # chromosome_count/total_metaphases excluded: for them NA is meaningful,
+  # not backfillable to 0.
   abnormality_names <- catalog$column[
     catalog$class %in%
       c("rule", "general", "aneuploidy", "classification", "der_loss") |
@@ -318,9 +307,8 @@ parse_karyo <- function(
   if (is_preprocessed) {
     raw_vec <- as.character(karyotypes[["preprocessed"]])
     original_vec <- as.character(karyotypes[["original"]])
-    # Clone selection was baked in at preprocess time; inherit it. An explicit,
-    # conflicting on_chimeric cannot be honored without re-deriving from the raw
-    # input, so stop and tell the user how to proceed.
+    # Clone selection was baked in at preprocess time, so a conflicting
+    # on_chimeric cannot be honored without re-deriving from the raw input.
     cached_on_chimeric <- attr(karyotypes, ".kp_on_chimeric")
     if (is.null(cached_on_chimeric)) {
       cached_on_chimeric <- "default"
@@ -346,11 +334,7 @@ parse_karyo <- function(
     }
     on_chimeric <- cached_on_chimeric
     if (!is.null(id_column)) {
-      # preprocess_karyo() returns a narrow tibble -- its id column plus
-      # original/preprocessed/status -- so any other column of the source
-      # data frame is already gone by the time we get here, and the only
-      # real fix is to name it upstream. The three structural columns are
-      # reserved: accepting one would silently fill the output's id column
+      # Reserved: accepting one of these would fill the output's id column
       # with karyotype strings or cleaning statuses.
       reserved <- c("original", "preprocessed", "status")
       if (id_column %in% reserved) {
@@ -421,7 +405,6 @@ parse_karyo <- function(
 
     if (is_preprocessed) {
       # Reuse cached assessment indices -- skip .assess_karyotypes() entirely.
-      # Clone selection was already applied to the `preprocessed` column.
       fixable_row_indices <- attr(karyotypes, ".kp_fixable_rows")
       if (is.null(fixable_row_indices)) {
         fixable_row_indices <- integer(0)
@@ -439,7 +422,8 @@ parse_karyo <- function(
         chimeric_clone_vec <- rep(NA_character_, n_total_vec)
       }
 
-      # Override "stop" for karyo_preprocessed: user has already inspected; NA rows warn, don't error.
+      # Override "stop" for karyo_preprocessed: the user has already
+      # inspected these, so NA rows warn rather than error.
       issue_row_indices <- which(is.na(raw_vec))
       if (on_issues == "stop" && length(issue_row_indices) > 0) {
         warning(
@@ -458,7 +442,7 @@ parse_karyo <- function(
         if (n_fixed > 0) {
           message("  Fixed:      ", n_fixed)
         }
-        # Skip verbose message in "stop" mode -- the unconditional warning already covers it.
+        # In "stop" mode the unconditional warning already covers this.
         if (n_final_issues > 0 && on_issues != "stop") {
           message("  Unfixable:  ", n_final_issues, "  (returned as NA)")
         }
@@ -480,9 +464,8 @@ parse_karyo <- function(
       chimeric_clone_vec <- assessment$chimeric_clone
       proc <- assessment$processed
 
-      # Chimeric handling is orthogonal to on_issues: chimeric rows are always
-      # clone-selected and parsed (NA only when the selected clone is itself
-      # unparseable). on_issues governs dirty + structural rows only.
+      # Chimeric handling is orthogonal to on_issues, which governs dirty and
+      # structural rows only.
       if (on_issues == "stop") {
         non_chimeric_issues <- assessment$reported_issues |>
           dplyr::filter(!row_index %in% chimeric_all_indices)
@@ -554,9 +537,8 @@ parse_karyo <- function(
         issue_row_indices <- which(is.na(raw_vec))
       } else if (on_issues == "preprocess") {
         raw_vec <- proc
-        # Blank unfixable rows plus any chimeric row whose selected clone is NA
-        # (e.g. a zero-host chimera under on_chimeric = "host"): output is NA,
-        # but such policy-NA rows stay classified as fixable, not unfixable.
+        # Policy-NA rows (e.g. a zero-host chimera under on_chimeric = "host")
+        # stay classified fixable, not unfixable.
         chimeric_na_rows <- intersect(which(is.na(proc)), chimeric_all_indices)
         issue_row_indices <- unique(c(unfixable_row_indices, chimeric_na_rows))
 
@@ -574,8 +556,7 @@ parse_karyo <- function(
           }
         }
       } else {
-        # warn: dirty + structural rows are returned NA (no fix attempted), but
-        # chimeric rows are still clone-selected and parsed.
+        # warn: dirty and structural rows return NA with no fix attempted.
         norm_vec <- normalize_iscn(raw_vec)
         norm_vec[chimeric_all_indices] <- proc[chimeric_all_indices]
         raw_vec <- norm_vec
@@ -723,13 +704,8 @@ parse_karyo <- function(
     dplyr::left_join(general_flags, by = ".pk_row_id") |>
     dplyr::mutate(dplyr::across(-.pk_row_id, ~ tidyr::replace_na(., 0L)))
 
-  # A row has a structural aberration (for monosomal-karyotype) if any general
-  # structural flag fires. The general_* detections cover every structural
-  # category universally (translocation, deletion, inversion, addition,
-  # dicentric, isodicentric, pseudodicentric, isochromosome, ring, insertion,
-  # duplication, triplication, derivative), so "is there a structural
-  # aberration?" no longer depends on per-rule annotation. The lone clinical
-  # exception, CBF-AML, is applied as an explicit override below.
+  # The general_* flags cover every structural category, so this does not
+  # depend on per-rule annotation. CBF-AML is overridden below.
   structural_flags <- .general_flags_for_monosomal
 
   autosomal_mono_cols <- paste0("mono", as.character(1:22))
@@ -765,7 +741,7 @@ parse_karyo <- function(
       -structural_aberrations_sample
     )
 
-  # CBF-AML cases are never monosomal per clinical guidelines, regardless of co-firing rules.
+  # CBF-AML is never monosomal per clinical guidelines, whatever else fires.
   cbf_flags <- .sanitize_flag_name(
     c("t(8;21)(q22;q22)", "inv(16)(p13q22)", "t(16;16)(p13;q22)")
   )

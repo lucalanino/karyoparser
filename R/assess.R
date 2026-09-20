@@ -14,7 +14,7 @@ empty_issues_tibble <- function() {
   )
 }
 
-# Longest-first so the regex engine can't match a shorter prefix before a longer one.
+# Longest-first, so the regex engine can't match a shorter prefix first.
 .sex_alt <- paste(
   .sex_complements[order(-nchar(.sex_complements))],
   collapse = "|"
@@ -28,9 +28,7 @@ empty_issues_tibble <- function() {
 
 # detect/fix/detail entries; empty fix list means detected-only (unfixable).
 .dirty_patterns <- list(
-  # Non-overlapping character-level substitutions, so all entries are
-  # collapsed into one named-vector fix step (a single str_replace_all() call
-  # matching every entry at once) rather than one sequential pass per entry.
+  # Non-overlapping, so all entries collapse into one named-vector fix step.
   unicode_notation = list(
     detect = "[\u00A0\u2007\u202F\u200B\u2212\u2012\u2013\u2014\uFE63\uFF0D\uFF0B]",
     use_trimmed = FALSE,
@@ -86,11 +84,9 @@ empty_issues_tibble <- function() {
     detail = "String starts with dot(s) (and any stray whitespace) before chromosome count"
   ),
   # Runs after leading_dot; repairs a missing/dotted count-sex separator, e.g.
-  # '46XY,...' or '45.XY,...' -> '46,XY,...'.
-  # Lookahead includes +/- (not just ,[/ or end) so a count glued to a sex
-  # complement that's *also* glued to the first aberration (e.g. '46XY+13')
-  # still gets its count-sex comma inserted here; missing_sex_comma (below)
-  # then closes the remaining gap on the same pass.
+  # '46XY,...' or '45.XY,...' -> '46,XY,...'. The lookahead includes +/- so a
+  # count glued to a sex complement that is also glued to the first aberration
+  # ('46XY+13') is still separated here.
   count_sex_separator = list(
     detect = paste0(
       "(?:^|/)\\d+(?:~\\d+)?[.]?(?:",
@@ -120,7 +116,7 @@ empty_issues_tibble <- function() {
         pattern = "[. ]+nuc ish\\b.*?(?=//|$)",
         replacement = ""
       ),
-      # Bare '.ish'/'ish' may sit mid-clone; stop before the metaphase count bracket.
+      # Bare '.ish'/'ish' may sit mid-clone; stop before the count bracket.
       list(
         pattern = "[. ]+ish\\b.*?(?=\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]|$)",
         replacement = ""
@@ -139,7 +135,7 @@ empty_issues_tibble <- function() {
     ),
     use_trimmed = FALSE,
     fix = list(
-      # Strip everything after the last metaphase-count bracket ([n]/[cpN]/[n~m]).
+      # Strip everything after the last count bracket ([n]/[cpN]/[n~m]).
       list(
         pattern = "^(.*\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]).*$",
         replacement = "\\1"
@@ -159,9 +155,8 @@ empty_issues_tibble <- function() {
         pattern = "\\s+\\.\\s*[A-Z].*$",
         replacement = ""
       ),
-      # Strip narrative after a count+sex karyotype with no bracket/paren to anchor
-      # on; the lookahead keeps an "Updated ISCN" marker unfixable rather than
-      # silently truncating it to a clean count+sex.
+      # Nothing to anchor on, so the lookahead keeps an "Updated ISCN" marker
+      # unfixable rather than truncating it to a clean count+sex.
       list(
         pattern = paste0(
           "^(?!.*(?i:Updated ISCN))(\\d+(?:~\\d+)?,(?:",
@@ -187,20 +182,14 @@ empty_issues_tibble <- function() {
   missing_sex_comma = list(
     detect = c(
       paste0(",(", .sex_alt, ")\\s+(?=[a-z(+])"),
-      # No separator at all, e.g. '46,XX+8' or '46,XY-7' -- covers every
-      # clone in the string (not just the first), since the pattern only
-      # anchors on a preceding comma, not string start.
+      # Anchors on a preceding comma, not string start, so every clone is
+      # covered, e.g. '46,XX+8'.
       paste0(",(", .sex_alt, ")(?=[+-])"),
-      # Glued directly to a letter/paren-led aberration token with no
-      # separator at all, e.g. '46,XYdel(5q)'. '[a-z(]' right after a sex
-      # complement is a broad trigger surface, so detection stays broad (it
-      # also catches garbled tokens the fix below won't touch, e.g.
-      # '47,XY(inv)(9)'), while the fix step is grounded to known aberration
-      # indicators (see .aberr_alt) so it never auto-inserts a comma before
-      # something that isn't actually a recognized aberration token. The
-      # negative lookahead excludes the constitutional-sex-complement 'c'
-      # suffix (e.g. '47,XXYc[20]', optionally '?'-suffixed) so this doesn't
-      # collide with `constitutional_sex_complement`.
+      # Glued to a letter/paren-led token, e.g. '46,XYdel(5q)'. Detection is
+      # deliberately broader than the fix, which is grounded to known
+      # aberration indicators so it never inserts a comma before unrecognized
+      # text. The negative lookahead leaves 'c'-suffixed constitutional
+      # complements to `constitutional_sex_complement`.
       paste0(",(", .sex_alt, ")(?!c\\??(?:[,/\\[]|$))(?=[a-z(])")
     ),
     use_trimmed = FALSE,
@@ -213,9 +202,8 @@ empty_issues_tibble <- function() {
         pattern = paste0("(,(", .sex_alt, "))(?=[+-])"),
         replacement = "\\1,"
       ),
-      # Letter-glued case, grounded to a recognized aberration indicator
-      # immediately following (see .aberr_indicators_paren / _bare in
-      # karyoparser-package.R) so this never fires on unrecognized text.
+      # Grounded to a recognized aberration indicator, so it never fires on
+      # unrecognized text.
       list(
         pattern = paste0(
           "(,(",
@@ -258,9 +246,8 @@ empty_issues_tibble <- function() {
     ),
     detail = "Non-clonal single-cell abnormality ('ncSCA' token); stripped, remaining clone parsed"
   ),
-  # Last so it only ever sees what survives every earlier fix (including
-  # trailing_narrative's stripping) -- catches leftover non-ASCII with no
-  # known automatic fix, without false-firing on discarded narrative text.
+  # Last, so it only sees what survives every earlier fix and does not fire
+  # on non-ASCII that trailing_narrative already discarded.
   stray_non_ascii = list(
     detect = "[^\x01-\x7F]",
     use_trimmed = FALSE,
@@ -292,16 +279,11 @@ empty_issues_tibble <- function() {
   "unparseable_bracket"
 )
 
-# Single ordered walk over .dirty_patterns, replacing what used to be two
-# independent passes (one for detection, one for fixing) over the raw string.
-# Threads a "state" vector through the patterns in list order: each pattern's
-# detect runs against the state as left by every earlier pattern's fix (not
-# the raw original), then that pattern's own fix is applied before moving to
-# the next one. This mirrors the dependency the fixes already have on each
-# other (e.g. fish_notation must claim a trailing FISH clause before
-# trailing_narrative's blunter truncation rule would misclassify it as
-# narrative) so detection and fixing finally agree on what each row's issues
-# are.
+# Single ordered walk: each pattern detects against the state left by every
+# earlier pattern's fix, then applies its own. One pass rather than separate
+# detect and fix passes, so the two agree on what a row's issues are, and so
+# order-dependent patterns compose (fish_notation must claim a trailing FISH
+# clause before trailing_narrative would truncate it as narrative).
 .run_dirty_patterns <- function(x) {
   orig_display <- truncate_str(as.character(x))
   na_mask <- is.na(x)
@@ -335,16 +317,9 @@ empty_issues_tibble <- function() {
     }
 
     for (fx in dp$fix) {
-      # Gated on this pattern's own `detected`: a permissive fix regex (e.g.
-      # trailing_narrative's "everything after the last bracket" truncation)
-      # must not touch rows it never reported as having this issue, or it
-      # silently destroys content -- including a later clone's structural
-      # errors -- before a downstream pattern gets a chance to flag it.
-      #
-      # A step is either list(pattern=, replacement=) -- one sequential pass,
-      # for fixes whose patterns depend on an earlier step's output -- or a
-      # named character vector (pattern = replacement) applying several
-      # non-overlapping character-level substitutions in a single pass.
+      # Gated on this pattern's own `detected`: a permissive fix regex must
+      # not touch rows it never reported, or it destroys content a later
+      # pattern would have flagged.
       fixed_state <- if (is.list(fx)) {
         stringr::str_replace_all(state, fx$pattern, fx$replacement)
       } else {
@@ -362,10 +337,8 @@ empty_issues_tibble <- function() {
   list(issues = issues, fixed = stringr::str_trim(state))
 }
 
-# Aggregates a flat per-token/per-item logical vector back to one value per
-# row (TRUE if any item in that row's group is TRUE). Assumes every group in
-# seq_len(n_groups) has at least one member (true of str_split() output,
-# which always returns >= 1 element per input string).
+# Flat per-item logicals -> one value per row. Assumes every group has at
+# least one member, which holds for str_split() output.
 .agg_any_by_group <- function(flat_logical, flat_group, n_groups) {
   as.logical(tapply(
     flat_logical,
@@ -378,11 +351,11 @@ validate_karyotypes <- function(karyotypes) {
   n <- length(karyotypes)
   disp <- truncate_str(as.character(karyotypes))
 
-  # Constitutional sex complement, e.g. '47,XXYc'; out of scope, flagged unfixable
-  # rather than mislabelled no_sex_complement.
+  # Out of scope, so flagged unfixable rather than mislabelled
+  # no_sex_complement.
   const_sex_re <- paste0("^(?:", .sex_alt, ")c\\??$")
 
-  # An aberrant sex chromosome (e.g. '-Y', '+X', or X/Y inside a der/t() paren list)
+  # An aberrant sex chromosome ('-Y', or X/Y inside a der/t() paren list)
   # still accounts for sex, so it must not trip no_sex_complement.
   sex_aberr_re <- "(?:^[+-](?:X|Y)(?:x\\d+)?$)|[(;](?:X|Y)[);]"
 
@@ -399,12 +372,9 @@ validate_karyotypes <- function(karyotypes) {
     )
   }
 
-  # Priority chain: each check in this chain only claims rows still
-  # `remaining`, so a row is reported under (at most) the first category that
-  # matches it, same as the `next`-chained early exits this replaces. (The
-  # per-clone sub-checks further down are only partly chained -- see there.)
-  # `remaining & <NA-capable expr>` is always FALSE (never NA) for rows
-  # already excluded, since `&` short-circuits to FALSE on a FALSE left side.
+  # Priority chain: each check claims only rows still `remaining`, so a row is
+  # reported under at most one category. (The per-clone sub-checks further
+  # down are only partly chained -- see there.)
   remaining <- rep(TRUE, n)
 
   is_na <- is.na(karyotypes)
@@ -487,10 +457,8 @@ validate_karyotypes <- function(karyotypes) {
   )
   remaining <- remaining & !hit
 
-  # From here on, only rows that survived every check above are in play, and
-  # tokens/brackets are ragged (variable count per row) -- flatten to (row,
-  # item) pairs across the whole remaining subset so each regex runs once
-  # over every item in the dataset, instead of once per item per row.
+  # Tokens/brackets are ragged, so flatten to (row, item) pairs and run each
+  # regex once over the whole subset rather than once per row.
   rem_idx <- which(remaining)
   if (length(rem_idx) > 0L) {
     kk <- karyotypes[rem_idx]
@@ -527,10 +495,8 @@ validate_karyotypes <- function(karyotypes) {
       length(tokens_list)
     )
 
-    # Only the first two sub-checks are mutually exclusive. `no_sex_complement`
-    # does not clear `sub_remaining`, and `invalid_idem`/`unparseable_bracket`
-    # test `rem_idx` directly, so a row can be reported under several of them
-    # (e.g. "46,idem,+8" fires `no_sex_complement` and `invalid_idem`).
+    # Only the first two sub-checks are mutually exclusive; the rest test
+    # `rem_idx` directly, so "46,idem,+8" fires two of them.
     sub_remaining <- rep(TRUE, length(rem_idx))
 
     hit <- sub_remaining & has_const_sex
@@ -611,7 +577,7 @@ validate_karyotypes <- function(karyotypes) {
     dirty_issues$row_index[dirty_issues$issue_type == "zero_host_chimera"]
   )
 
-  # zero_host_chimera's fix already strips the leading './/', reducing it to a donor.
+  # zero_host_chimera's fix already strips the leading './/'.
   partially_fixed <- dp_walk$fixed
   norm_partial <- normalize_iscn(partially_fixed)
 
