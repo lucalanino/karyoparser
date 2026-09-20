@@ -1988,6 +1988,62 @@ test_that("parse_karyo: karyo_preprocessed propagates id without re-specificatio
   expect_equal(result$sample_id, c("A", "B"))
 })
 
+test_that("parse_karyo: explicit id_column naming the inherited id works", {
+  df <- data.frame(
+    sample_id = c("A", "B"),
+    karyotype = c("46,XX", "47,XY,+21"),
+    stringsAsFactors = FALSE
+  )
+  pp <- suppressMessages(preprocess_karyo(df))
+  result <- suppressMessages(parse_karyo(pp, id_column = "sample_id"))
+  expect_equal(names(result)[1], "sample_id")
+  expect_equal(result$sample_id, c("A", "B"))
+})
+
+test_that("parse_karyo: id_column naming a column preprocess_karyo dropped errors with the upstream fix", {
+  df <- data.frame(
+    sample_id = c("A", "B"),
+    mrn = c("M1", "M2"),
+    karyotype = c("46,XX", "47,XY,+21"),
+    stringsAsFactors = FALSE
+  )
+  pp <- suppressMessages(preprocess_karyo(df))
+  expect_false("mrn" %in% names(pp))
+  expect_error(
+    suppressMessages(parse_karyo(pp, id_column = "mrn")),
+    "not found in karyo_preprocessed input"
+  )
+  expect_error(
+    suppressMessages(parse_karyo(pp, id_column = "mrn")),
+    "Re-run check_karyo\\(\\) or preprocess_karyo\\(\\)"
+  )
+})
+
+test_that("parse_karyo: structural columns are rejected as id_column", {
+  pp <- suppressMessages(preprocess_karyo(c("46,XX", "47,XY,+21")))
+  for (nm in c("original", "preprocessed", "status")) {
+    expect_error(
+      suppressMessages(parse_karyo(pp, id_column = nm)),
+      "structural column of",
+      info = nm
+    )
+  }
+})
+
+test_that("parse_karyo: a column attached to the preprocessed tibble is usable as id", {
+  df <- data.frame(
+    sample_id = c("A", "B"),
+    mrn = c("M1", "M2"),
+    karyotype = c("46,XX", "47,XY,+21"),
+    stringsAsFactors = FALSE
+  )
+  pp <- suppressMessages(preprocess_karyo(df))
+  pp$mrn <- df$mrn
+  result <- suppressMessages(parse_karyo(pp, id_column = "mrn"))
+  expect_equal(names(result)[1], "mrn")
+  expect_equal(result$mrn, c("M1", "M2"))
+})
+
 test_that("parse_karyo: original_karyotype shows pre-fix string when using karyo_preprocessed", {
   raw <- ".46,XX,t(9;22)(q34;q11)[20]"
   pp <- suppressMessages(preprocess_karyo(raw))

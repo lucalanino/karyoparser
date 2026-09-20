@@ -41,10 +41,20 @@ a plain data frame. If \code{NULL} (default), auto-detected from common names
 
 \item{id_column}{Character. Name of the id column when input is a data frame.
 If \code{NULL} (default), auto-detected from common names (\code{sample_id},
-\code{patient_id}, \code{id}, \code{mrn}, etc.) and used silently. The id column is
-placed first in the output. For \code{karyo_preprocessed} input, the id is
-propagated automatically
-from upstream pipeline steps; pass \code{id_column} explicitly only to override.}
+\code{patient_id}, \code{id}, \code{mrn}, etc.) and used silently. Detection follows the
+candidate list's own order rather than the column order, so \code{sample_id}
+wins over \code{mrn} whatever their positions. The id column is placed first
+in the output.
+
+For \code{karyo_preprocessed} input the id is inherited automatically and
+\code{id_column} is rarely needed. \code{preprocess_karyo()} returns a narrow
+tibble -- its id column plus \code{original}, \code{preprocessed}, and \code{status} --
+so every other column of the source data frame is already gone, and
+naming one here is an error rather than an override. To key the output
+on a different column, name it upstream (\code{check_karyo()} or
+\code{preprocess_karyo(..., id_column = )}), or attach it to the preprocessed
+tibble yourself before parsing. The three structural column names are
+reserved and rejected as \code{id_column}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints column detection and parsing
 summary messages. Default \code{FALSE}.}

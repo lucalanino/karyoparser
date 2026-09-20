@@ -30,10 +30,20 @@
 #'   `karyo_preprocessed` input.
 #' @param id_column Character. Name of the id column when input is a data frame.
 #'   If `NULL` (default), auto-detected from common names (`sample_id`,
-#'   `patient_id`, `id`, `mrn`, etc.) and used silently. The id column is
-#'   placed first in the output. For `karyo_preprocessed` input, the id is
-#'   propagated automatically
-#'   from upstream pipeline steps; pass `id_column` explicitly only to override.
+#'   `patient_id`, `id`, `mrn`, etc.) and used silently. Detection follows the
+#'   candidate list's own order rather than the column order, so `sample_id`
+#'   wins over `mrn` whatever their positions. The id column is placed first
+#'   in the output.
+#'
+#'   For `karyo_preprocessed` input the id is inherited automatically and
+#'   `id_column` is rarely needed. `preprocess_karyo()` returns a narrow
+#'   tibble -- its id column plus `original`, `preprocessed`, and `status` --
+#'   so every other column of the source data frame is already gone, and
+#'   naming one here is an error rather than an override. To key the output
+#'   on a different column, name it upstream (`check_karyo()` or
+#'   `preprocess_karyo(..., id_column = )`), or attach it to the preprocessed
+#'   tibble yourself before parsing. The three structural column names are
+#'   reserved and rejected as `id_column`.
 #' @param verbose Logical. If `TRUE`, prints column detection and parsing
 #'   summary messages. Default `FALSE`.
 #' @param on_issues Character string specifying how to handle **dirty markers**
@@ -328,10 +338,47 @@ parse_karyo <- function(
     }
     on_chimeric <- cached_on_chimeric
     if (!is.null(id_column)) {
-      if (!id_column %in% names(karyotypes)) {
+      # preprocess_karyo() returns a narrow tibble -- its id column plus
+      # original/preprocessed/status -- so any other column of the source
+      # data frame is already gone by the time we get here, and the only
+      # real fix is to name it upstream. The three structural columns are
+      # reserved: accepting one would silently fill the output's id column
+      # with karyotype strings or cleaning statuses.
+      reserved <- c("original", "preprocessed", "status")
+      if (id_column %in% reserved) {
         stop(
           sprintf(
-            "ID column '%s' not found in karyo_preprocessed input.",
+            paste(
+              "`id_column` cannot be \"%s\": that is a structural column of",
+              "karyo_preprocessed, not an identifier.",
+              "\nUsing it would fill the id column with karyotype strings or",
+              "cleaning statuses."
+            ),
+            id_column
+          ),
+          call. = FALSE
+        )
+      }
+      if (!id_column %in% names(karyotypes)) {
+        available <- setdiff(names(karyotypes), reserved)
+        stop(
+          sprintf(
+            paste(
+              "ID column \"%s\" not found in karyo_preprocessed input.",
+              "Available: %s.",
+              "\npreprocess_karyo() keeps only its id column plus",
+              "`original`/`preprocessed`/`status`, so a column dropped",
+              "upstream cannot be named here.",
+              "\nRe-run check_karyo() or preprocess_karyo() with",
+              "id_column = \"%s\" to carry it through, or attach the column",
+              "to the preprocessed tibble before parsing."
+            ),
+            id_column,
+            if (length(available) > 0) {
+              paste(sprintf("\"%s\"", available), collapse = ", ")
+            } else {
+              "none"
+            },
             id_column
           ),
           call. = FALSE
