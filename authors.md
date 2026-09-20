@@ -11,12 +11,12 @@ Source:
 [`DESCRIPTION`](https://github.com/lucalanino/karyoparser/blob/main/DESCRIPTION)
 
 Lanino L (2026). *karyoparser: Parse ISCN Karyotype Strings*. R package
-version 0.36.3, <https://github.com/lucalanino/karyoparser>.
+version 1.0.0, <https://github.com/lucalanino/karyoparser>.
 
     @Manual{,
       title = {karyoparser: Parse ISCN Karyotype Strings},
       author = {Luca Lanino},
       year = {2026},
-      note = {R package version 0.36.3},
+      note = {R package version 1.0.0},
       url = {https://github.com/lucalanino/karyoparser},
     }
