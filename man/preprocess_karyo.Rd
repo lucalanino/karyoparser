@@ -21,14 +21,17 @@ computed is reused directly -- no re-scanning -- and any id column detected
 upstream is propagated automatically. When a plain data frame is supplied,
 the karyotype column is auto-detected or specified via \code{karyotype_column}.}
 
-\item{karyotype_column}{Character. Name of the karyotype column when \code{x} is
-a plain data frame. If \code{NULL} (default), auto-detected from common names.
+\item{karyotype_column}{Character. Name of the karyotype column.
+\strong{Required} when \code{x} is a plain data frame -- columns are never guessed.
 Ignored for character vector or \code{karyo_check} input.}
 
-\item{id_column}{Character. Name of the id column when \code{x} is a plain data
-frame. If \code{NULL} (default), auto-detected from common names and used
-silently. Ignored for character vector or \code{karyo_check} input (id is
-propagated automatically from \code{karyo_check} attrs in that case).}
+\item{id_column}{Character. Name of the id column. Optional: \code{NULL}
+(default) means the data has no identifier, and one is never inferred.
+Ignored for character vector or \code{karyo_check} input, where the id is
+propagated from the upstream object's attributes.
+Duplicate ids are warned about, not rejected: rows are matched on the
+karyotype string and never on the id, so parsing is unaffected -- but
+downstream joins on the column may fan out.}
 
 \item{on_chimeric}{Character string controlling which clone is kept for
 chimeric karyotypes (those containing a \verb{//} separator). One of:
@@ -48,13 +51,13 @@ reuse it.
 }
 \value{
 A \code{karyo_preprocessed} tibble. Columns: optional id column (first,
-when detected or propagated), \code{original} (raw input, always unchanged),
+when given or propagated), \code{original} (raw input, always unchanged),
 \code{preprocessed} (fully normalized string, \code{NA_character_} for unfixable
 rows), \code{status} (\code{"clean"}, \code{"fixed"}, or \code{"unfixable"}).
 
 The returned tibble can be passed directly to \code{parse_karyo()} without
-specifying \code{karyotype_column} or \code{id_column} -- both are inferred
-automatically from the object's class and cached attributes.
+specifying \code{karyotype_column} or \code{id_column} -- both are carried on the
+object's class and cached attributes.
 }
 \description{
 The complete cleaning and normalization pipeline: fixes every fixable

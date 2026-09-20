@@ -8,6 +8,8 @@ test_that("example_karyotypes has expected structure", {
 test_that("example_karyotypes parses end-to-end without error", {
   result <- parse_karyo(
     example_karyotypes,
+    karyotype_column = "karyotype",
+    id_column = "sample_id",
     on_issues = "preprocess",
     verbose = FALSE
   )

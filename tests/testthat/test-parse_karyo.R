@@ -451,22 +451,22 @@ test_that("error columns: survive dplyr::filter()", {
   expect_true("unfixable_error" %in% names(filtered))
 })
 
-test_that("auto-detect sample_id column", {
+test_that("declared sample_id column is carried into the output", {
   df <- data.frame(sample_id = c("A", "B"), karyotype = c("46,XX", "46,XY"))
-  r <- pk(df)
+  r <- pk(df, karyotype_column = "karyotype", id_column = "sample_id")
   expect_equal(r$sample_id, c("A", "B"))
   expect_true("sample_id" %in% names(r))
 })
 
-test_that("auto-detect patient_id column", {
+test_that("declared patient_id column is carried into the output", {
   df <- data.frame(patient_id = c("P1", "P2"), karyotype = c("46,XX", "46,XY"))
-  r <- pk(df)
+  r <- pk(df, karyotype_column = "karyotype", id_column = "patient_id")
   expect_equal(r$patient_id, c("P1", "P2"))
 })
 
 test_that("explicit id_column parameter", {
   df <- data.frame(my_id = c("X", "Y"), karyotype = c("46,XX", "46,XY"))
-  r <- pk(df, id_column = "my_id")
+  r <- pk(df, karyotype_column = "karyotype", id_column = "my_id")
   expect_equal(r$my_id, c("X", "Y"))
   expect_equal(names(r)[1], "my_id")
 })
@@ -479,7 +479,9 @@ test_that("character vector input has no ID column", {
 
 test_that("parse_karyo: data.frame with all invalid rows and ID column preserves ID in output", {
   df <- data.frame(sample_id = "A", karyotype = "XX,+8")
-  r <- suppressWarnings(pk(df))
+  r <- suppressWarnings(
+    pk(df, karyotype_column = "karyotype", id_column = "sample_id")
+  )
   expect_equal(r$sample_id, "A")
   expect_true(is.na(r$chromosome_count))
   expect_equal(names(r)[1], "sample_id")
@@ -736,7 +738,7 @@ test_that("dedup works with data.frame input and ID column", {
     sample_id = c("A", "B", "C"),
     karyotype = c("46,XX,del(7)(q22)", "46,XY", "46,XX,del(7)(q22)")
   )
-  r <- pk(df)
+  r <- pk(df, karyotype_column = "karyotype", id_column = "sample_id")
   expect_equal(nrow(r), 3)
   expect_equal(r$sample_id, c("A", "B", "C"))
   expect_equal(r$del_7q[1], r$del_7q[3])
@@ -1748,12 +1750,12 @@ test_that("preprocess -> parse workflow: fixable rows are parsed, unfixable are 
   expect_false(is.na(parsed$chromosome_count[3]))
 })
 
-test_that("check_karyo: accepts data frame, auto-detects karyotype column", {
+test_that("check_karyo: accepts a data frame with a declared karyotype column", {
   df <- data.frame(
     karyotype = c("46,XX", ".46,XY[20]"),
     stringsAsFactors = FALSE
   )
-  result <- check_karyo(df)
+  result <- check_karyo(df, karyotype_column = "karyotype")
   expect_s3_class(result, "karyo_check")
   expect_equal(nrow(result), 2L)
   expect_equal(result$karyotype, c("46,XX", ".46,XY[20]"))
@@ -1766,14 +1768,18 @@ test_that("check_karyo: data frame with id column propagates id as first column"
     karyotype = c("46,XX", "46,XY"),
     stringsAsFactors = FALSE
   )
-  result <- check_karyo(df)
+  result <- check_karyo(
+    df,
+    karyotype_column = "karyotype",
+    id_column = "sample_id"
+  )
   expect_equal(names(result)[1], "sample_id")
   expect_equal(result$sample_id, c("S1", "S2"))
 })
 
-test_that("check_karyo: iscn column name auto-detected", {
+test_that("check_karyo: a non-default karyotype column name works when declared", {
   df <- data.frame(iscn = c("46,XX", "47,XY,+21"), stringsAsFactors = FALSE)
-  result <- check_karyo(df)
+  result <- check_karyo(df, karyotype_column = "iscn")
   expect_s3_class(result, "karyo_check")
   expect_equal(nrow(result), 2L)
 })
@@ -1790,14 +1796,16 @@ test_that("check_karyo: explicit id_column", {
     karyotype = c("46,XX", "46,XY"),
     stringsAsFactors = FALSE
   )
-  result <- check_karyo(df, id_column = "my_id")
+  result <- check_karyo(df, karyotype_column = "karyotype", id_column = "my_id")
   expect_equal(names(result)[1], "my_id")
   expect_equal(result$my_id, c("A", "B"))
 })
 
-test_that("preprocess_karyo: accepts data frame, auto-detects karyotype column", {
+test_that("preprocess_karyo: accepts a data frame with a declared karyotype column", {
   df <- data.frame(karyotype = c("46,XX", ".46,XY"), stringsAsFactors = FALSE)
-  result <- suppressMessages(preprocess_karyo(df, verbose = TRUE))
+  result <- suppressMessages(
+    preprocess_karyo(df, karyotype_column = "karyotype", verbose = TRUE)
+  )
   expect_s3_class(result, "karyo_preprocessed")
   expect_equal(nrow(result), 2L)
   expect_equal(result$status, c("clean", "fixed"))
@@ -1809,7 +1817,13 @@ test_that("preprocess_karyo: data frame with id column propagates id as first co
     karyotype = c("46,XX", "46,XY"),
     stringsAsFactors = FALSE
   )
-  result <- suppressMessages(preprocess_karyo(df))
+  result <- suppressMessages(
+    preprocess_karyo(
+      df,
+      karyotype_column = "karyotype",
+      id_column = "sample_id"
+    )
+  )
   expect_equal(names(result)[1], "sample_id")
   expect_equal(result$sample_id, c("S1", "S2"))
 })
@@ -1821,13 +1835,13 @@ test_that("preprocess_karyo: explicit karyotype_column for non-candidate name", 
   expect_equal(result$status, c("clean", "clean"))
 })
 
-test_that("full pipeline check -> preprocess -> parse: no extra args needed", {
+test_that("full pipeline check -> preprocess -> parse: columns declared once at check_karyo", {
   df <- data.frame(
     sample_id = c("S1", "S2", "S3"),
     karyotype = c("46,XX[20]", ".46,XY,+8[10]", ".//46,XX[10]"),
     stringsAsFactors = FALSE
   )
-  ck <- check_karyo(df)
+  ck <- check_karyo(df, karyotype_column = "karyotype", id_column = "sample_id")
   pp <- suppressMessages(preprocess_karyo(ck))
   result <- suppressWarnings(suppressMessages(parse_karyo(pp)))
   expect_true("sample_id" %in% names(result))
@@ -1904,11 +1918,96 @@ test_that("non-autodetected karyotype column with no id column present is omitte
   expect_equal(nrow(result), 2L)
 })
 
-test_that("karyotype column not given and not autodetectable errors with actionable message", {
+test_that("karyotype_column is required for data frame input, with an actionable message", {
   df <- data.frame(subj = c("A", "B"), result_string = c("46,XX", "47,XY,+21"))
-  expect_error(check_karyo(df), regexp = "karyotype_column")
-  expect_error(preprocess_karyo(df), regexp = "karyotype_column")
-  expect_error(parse_karyo(df), regexp = "karyotype_column")
+  for (f in list(check_karyo, preprocess_karyo, parse_karyo)) {
+    expect_error(f(df), regexp = "`karyotype_column` must be given")
+    expect_error(f(df), regexp = "Available columns")
+    expect_error(f(df), regexp = "result_string")
+  }
+})
+
+test_that("columns are never inferred: a candidate-looking name still needs declaring", {
+  df <- data.frame(sample_id = c("A", "B"), karyotype = c("46,XX", "46,XY"))
+  expect_error(parse_karyo(df), "`karyotype_column` must be given")
+})
+
+test_that("a declared column that does not exist errors, naming what is available", {
+  df <- data.frame(sample_id = c("A", "B"), karyotype = c("46,XX", "46,XY"))
+  expect_error(
+    parse_karyo(df, karyotype_column = "nope"),
+    "Karyotype column 'nope' not found"
+  )
+  expect_error(
+    parse_karyo(df, karyotype_column = "karyotype", id_column = "nope"),
+    "ID column 'nope' not found"
+  )
+  expect_error(
+    parse_karyo(df, karyotype_column = "nope"),
+    "Available columns"
+  )
+})
+
+test_that("no id_column means no id in the output, not an error", {
+  df <- data.frame(sample_id = c("A", "B"), karyotype = c("46,XX", "46,XY"))
+  r <- pk(df, karyotype_column = "karyotype")
+  expect_equal(names(r)[1], "original_karyotype")
+  expect_false("sample_id" %in% names(r))
+})
+
+test_that("duplicate ids warn but do not stop, and parsing is unaffected", {
+  df <- data.frame(
+    sample_id = c("S1", "S1", "S2"),
+    karyotype = c("46,XX", "47,XY,+8", "45,XX,-7")
+  )
+  expect_warning(
+    r <- pk(df, karyotype_column = "karyotype", id_column = "sample_id"),
+    "duplicated value"
+  )
+  expect_warning(
+    pk(df, karyotype_column = "karyotype", id_column = "sample_id"),
+    "joins on this column downstream"
+  )
+  expect_equal(nrow(r), 3L)
+  expect_equal(r$sample_id, c("S1", "S1", "S2"))
+  expect_equal(r$tris8, c(0L, 1L, 0L))
+  expect_equal(r$mono7, c(0L, 0L, 1L))
+})
+
+test_that("duplicate ids warn on every data frame entry point", {
+  df <- data.frame(
+    sample_id = c("S1", "S1"),
+    karyotype = c("46,XX", "47,XY,+8")
+  )
+  for (f in list(check_karyo, preprocess_karyo)) {
+    expect_warning(
+      f(df, karyotype_column = "karyotype", id_column = "sample_id"),
+      "duplicated value"
+    )
+  }
+})
+
+test_that("duplicate NA ids are warned about and called out", {
+  df <- data.frame(
+    sample_id = c(NA, NA, "S1"),
+    karyotype = c("46,XX", "47,XY,+8", "46,XY")
+  )
+  expect_warning(
+    pk(df, karyotype_column = "karyotype", id_column = "sample_id"),
+    "Duplicates include NA"
+  )
+})
+
+test_that("unique ids produce no warning", {
+  df <- data.frame(
+    sample_id = c("S1", "S2"),
+    karyotype = c("46,XX", "46,XY")
+  )
+  expect_no_warning(pk(
+    df,
+    karyotype_column = "karyotype",
+    id_column = "sample_id"
+  ))
 })
 
 test_that("karyo_preprocessed with unfixable rows: default on_issues='stop' warns, not errors", {
@@ -1940,7 +2039,7 @@ test_that("full pipeline: original_karyotype in parse output is the raw string, 
     karyotype = c(".46,XX[20]"),
     stringsAsFactors = FALSE
   )
-  ck <- check_karyo(df)
+  ck <- check_karyo(df, karyotype_column = "karyotype")
   pp <- suppressMessages(preprocess_karyo(ck))
   result <- suppressMessages(parse_karyo(pp))
   expect_equal(result$original_karyotype, ".46,XX[20]")
@@ -1953,7 +2052,7 @@ test_that("type guard: factor karyotype column triggers warning, still parses", 
     stringsAsFactors = TRUE
   )
   expect_warning(
-    result <- check_karyo(df),
+    result <- check_karyo(df, karyotype_column = "karyotype"),
     regexp = "not character"
   )
   expect_equal(nrow(result), 2L)
@@ -1962,7 +2061,7 @@ test_that("type guard: factor karyotype column triggers warning, still parses", 
 test_that("type guard: integer column named karyotype triggers warning", {
   df <- data.frame(karyotype = c(1L, 2L, 3L))
   expect_warning(
-    check_karyo(df),
+    check_karyo(df, karyotype_column = "karyotype"),
     regexp = "not character"
   )
 })
@@ -1973,7 +2072,7 @@ test_that("type guard: factor karyotype column in parse_karyo triggers warning",
     stringsAsFactors = TRUE
   )
   expect_warning(
-    result <- suppressMessages(parse_karyo(df)),
+    result <- suppressMessages(parse_karyo(df, karyotype_column = "karyotype")),
     regexp = "not character"
   )
   expect_equal(nrow(result), 2L)
@@ -1993,7 +2092,9 @@ test_that("parse_karyo: karyo_preprocessed propagates id without re-specificatio
     karyotype = c("46,XX", "47,XY,+21"),
     stringsAsFactors = FALSE
   )
-  pp <- suppressMessages(preprocess_karyo(check_karyo(df)))
+  pp <- suppressMessages(preprocess_karyo(
+    check_karyo(df, karyotype_column = "karyotype", id_column = "sample_id")
+  ))
   result <- suppressMessages(parse_karyo(pp))
   expect_true("sample_id" %in% names(result))
   expect_equal(result$sample_id, c("A", "B"))
@@ -2005,7 +2106,13 @@ test_that("parse_karyo: explicit id_column naming the inherited id works", {
     karyotype = c("46,XX", "47,XY,+21"),
     stringsAsFactors = FALSE
   )
-  pp <- suppressMessages(preprocess_karyo(df))
+  pp <- suppressMessages(
+    preprocess_karyo(
+      df,
+      karyotype_column = "karyotype",
+      id_column = "sample_id"
+    )
+  )
   result <- suppressMessages(parse_karyo(pp, id_column = "sample_id"))
   expect_equal(names(result)[1], "sample_id")
   expect_equal(result$sample_id, c("A", "B"))
@@ -2018,7 +2125,13 @@ test_that("parse_karyo: id_column naming a column preprocess_karyo dropped error
     karyotype = c("46,XX", "47,XY,+21"),
     stringsAsFactors = FALSE
   )
-  pp <- suppressMessages(preprocess_karyo(df))
+  pp <- suppressMessages(
+    preprocess_karyo(
+      df,
+      karyotype_column = "karyotype",
+      id_column = "sample_id"
+    )
+  )
   expect_false("mrn" %in% names(pp))
   expect_error(
     suppressMessages(parse_karyo(pp, id_column = "mrn")),
@@ -2048,7 +2161,13 @@ test_that("parse_karyo: a column attached to the preprocessed tibble is usable a
     karyotype = c("46,XX", "47,XY,+21"),
     stringsAsFactors = FALSE
   )
-  pp <- suppressMessages(preprocess_karyo(df))
+  pp <- suppressMessages(
+    preprocess_karyo(
+      df,
+      karyotype_column = "karyotype",
+      id_column = "sample_id"
+    )
+  )
   pp$mrn <- df$mrn
   result <- suppressMessages(parse_karyo(pp, id_column = "mrn"))
   expect_equal(names(result)[1], "mrn")

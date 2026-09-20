@@ -28,24 +28,24 @@
 #' examples, and how to resolve the unfixable ones.
 #'
 #' @param karyotypes Character vector of karyotype strings, or a data frame
-#'   containing a karyotype column. If a data frame, the karyotype column is
-#'   auto-detected from common names (`karyotype`, `iscn`, etc.) or
-#'   specified via `karyotype_column`. An id column is also auto-detected
-#'   or specified via
-#'   `id_column`; when found it is included as the first column of the output
-#'   and propagated through subsequent pipeline steps.
-#' @param karyotype_column Character. Name of the karyotype column when
-#'   `karyotypes` is a data frame. If `NULL` (default), auto-detected from
-#'   common names. Ignored when `karyotypes` is a character vector.
-#' @param id_column Character. Name of the id column when `karyotypes` is a
-#'   data frame. If `NULL` (default), auto-detected from common names
-#'   (`sample_id`, `patient_id`, `id`, `mrn`, etc.) and used silently. Ignored
-#'   when `karyotypes` is a character vector.
+#'   containing a karyotype column. For a data frame, name the karyotype
+#'   column with `karyotype_column`; optionally name an id column with
+#'   `id_column`, which is then included as the first column of the output and
+#'   propagated through subsequent pipeline steps.
+#' @param karyotype_column Character. Name of the karyotype column.
+#'   **Required** when `karyotypes` is a data frame -- columns are never
+#'   guessed. Ignored when `karyotypes` is a character vector.
+#' @param id_column Character. Name of the id column. Optional: `NULL`
+#'   (default) means the data has no identifier, and one is never inferred.
+#'   When given it is placed first in the output and propagated downstream.
+#'   Duplicate ids are warned about, not rejected: rows are matched on the
+#'   karyotype string and never on the id, so parsing is unaffected -- but
+#'   downstream joins on the column may fan out.
 #' @param verbose Logical. If `TRUE`, prints a count summary and a
 #'   per-unfixable-issue-type breakdown. Default `FALSE`.
 #' @return A `karyo_check` tibble with `length(karyotypes)` rows (or
 #'   `nrow(karyotypes)` when input is a data frame). Columns: optional id column
-#'   (first, when detected), `karyotype` (full input string), `fixable`,
+#'   (first, when given), `karyotype` (full input string), `fixable`,
 #'   `unfixable`, then one integer column per unfixable issue type
 #'   (alphabetical). The tibble can be passed directly to
 #'   `preprocess_karyo()`, which will reuse the cached assessment and

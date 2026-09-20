@@ -34,17 +34,19 @@ frame into an accepted rules object. Each rule's output column is a
 sanitized version of its \code{flag_name} (non-alphanumeric characters
 replaced by \verb{_}), e.g. \code{"t(9;22)(q34;q11)"} becomes \code{t_9_22_q34_q11}.}
 
-\item{karyotype_column}{Character. Name of the karyotype column when input is
-a plain data frame. If \code{NULL} (default), auto-detected from common names
-(\code{karyotype}, \code{iscn}, etc.). Ignored for character vector or
-\code{karyo_preprocessed} input.}
+\item{karyotype_column}{Character. Name of the karyotype column. \strong{Required}
+when input is a plain data frame -- columns are never guessed, since a
+frame carrying more than one plausible candidate (a raw \code{iscn} beside a
+cleaned \code{karyotype}) would otherwise be parsed from the wrong one
+silently. Ignored for character vector or \code{karyo_preprocessed} input.}
 
-\item{id_column}{Character. Name of the id column when input is a data frame.
-If \code{NULL} (default), auto-detected from common names (\code{sample_id},
-\code{patient_id}, \code{id}, \code{mrn}, etc.) and used silently. Detection follows the
-candidate list's own order rather than the column order, so \code{sample_id}
-wins over \code{mrn} whatever their positions. The id column is placed first
-in the output.
+\item{id_column}{Character. Name of the id column. Optional: \code{NULL}
+(default) means the data has no identifier, and one is never inferred.
+When given, the column is placed first in the output and carried through
+the pipeline.
+Duplicate ids are warned about, not rejected: rows are matched on the
+karyotype string and never on the id, so parsing is unaffected -- but
+downstream joins on the column may fan out.
 
 For \code{karyo_preprocessed} input the id is inherited automatically and
 \code{id_column} is rarely needed. \code{preprocess_karyo()} returns a narrow

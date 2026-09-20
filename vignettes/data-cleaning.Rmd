@@ -32,7 +32,7 @@ touches the fixable kind -- unfixable rows always come out `NA`, no matter
 which `on_issues` mode you use.
 
 ```{r issue-catalog}
-ck <- check_karyo(example_karyotypes)
+ck <- check_karyo(example_karyotypes, karyotype_column = "karyotype")
 names(ck)
 ```
 
@@ -163,7 +163,7 @@ preprocess_karyo(messy, verbose = TRUE)
 `check_karyo()`), reusing its cached assessment instead of re-scanning:
 
 ```{r reuse-check}
-ck <- check_karyo(example_karyotypes)
+ck <- check_karyo(example_karyotypes, karyotype_column = "karyotype")
 pp <- preprocess_karyo(ck)
 pp
 ```

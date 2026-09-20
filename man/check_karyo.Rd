@@ -13,21 +13,21 @@ check_karyo(
 }
 \arguments{
 \item{karyotypes}{Character vector of karyotype strings, or a data frame
-containing a karyotype column. If a data frame, the karyotype column is
-auto-detected from common names (\code{karyotype}, \code{iscn}, etc.) or
-specified via \code{karyotype_column}. An id column is also auto-detected
-or specified via
-\code{id_column}; when found it is included as the first column of the output
-and propagated through subsequent pipeline steps.}
+containing a karyotype column. For a data frame, name the karyotype
+column with \code{karyotype_column}; optionally name an id column with
+\code{id_column}, which is then included as the first column of the output and
+propagated through subsequent pipeline steps.}
 
-\item{karyotype_column}{Character. Name of the karyotype column when
-\code{karyotypes} is a data frame. If \code{NULL} (default), auto-detected from
-common names. Ignored when \code{karyotypes} is a character vector.}
+\item{karyotype_column}{Character. Name of the karyotype column.
+\strong{Required} when \code{karyotypes} is a data frame -- columns are never
+guessed. Ignored when \code{karyotypes} is a character vector.}
 
-\item{id_column}{Character. Name of the id column when \code{karyotypes} is a
-data frame. If \code{NULL} (default), auto-detected from common names
-(\code{sample_id}, \code{patient_id}, \code{id}, \code{mrn}, etc.) and used silently. Ignored
-when \code{karyotypes} is a character vector.}
+\item{id_column}{Character. Name of the id column. Optional: \code{NULL}
+(default) means the data has no identifier, and one is never inferred.
+When given it is placed first in the output and propagated downstream.
+Duplicate ids are warned about, not rejected: rows are matched on the
+karyotype string and never on the id, so parsing is unaffected -- but
+downstream joins on the column may fan out.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints a count summary and a
 per-unfixable-issue-type breakdown. Default \code{FALSE}.}
@@ -35,7 +35,7 @@ per-unfixable-issue-type breakdown. Default \code{FALSE}.}
 \value{
 A \code{karyo_check} tibble with \code{length(karyotypes)} rows (or
 \code{nrow(karyotypes)} when input is a data frame). Columns: optional id column
-(first, when detected), \code{karyotype} (full input string), \code{fixable},
+(first, when given), \code{karyotype} (full input string), \code{fixable},
 \code{unfixable}, then one integer column per unfixable issue type
 (alphabetical). The tibble can be passed directly to
 \code{preprocess_karyo()}, which will reuse the cached assessment and

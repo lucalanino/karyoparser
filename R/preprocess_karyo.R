@@ -21,13 +21,16 @@
 #'   computed is reused directly -- no re-scanning -- and any id column detected
 #'   upstream is propagated automatically. When a plain data frame is supplied,
 #'   the karyotype column is auto-detected or specified via `karyotype_column`.
-#' @param karyotype_column Character. Name of the karyotype column when `x` is
-#'   a plain data frame. If `NULL` (default), auto-detected from common names.
+#' @param karyotype_column Character. Name of the karyotype column.
+#'   **Required** when `x` is a plain data frame -- columns are never guessed.
 #'   Ignored for character vector or `karyo_check` input.
-#' @param id_column Character. Name of the id column when `x` is a plain data
-#'   frame. If `NULL` (default), auto-detected from common names and used
-#'   silently. Ignored for character vector or `karyo_check` input (id is
-#'   propagated automatically from `karyo_check` attrs in that case).
+#' @param id_column Character. Name of the id column. Optional: `NULL`
+#'   (default) means the data has no identifier, and one is never inferred.
+#'   Ignored for character vector or `karyo_check` input, where the id is
+#'   propagated from the upstream object's attributes.
+#'   Duplicate ids are warned about, not rejected: rows are matched on the
+#'   karyotype string and never on the id, so parsing is unaffected -- but
+#'   downstream joins on the column may fan out.
 #' @param on_chimeric Character string controlling which clone is kept for
 #'   chimeric karyotypes (those containing a `//` separator). One of:
 #'   - `"default"`: host clone (before `//`) for normal chimeras; donor clone
@@ -41,13 +44,13 @@
 #' @param verbose Logical. If `TRUE`, prints a processing summary. Default
 #'   `FALSE`.
 #' @return A `karyo_preprocessed` tibble. Columns: optional id column (first,
-#'   when detected or propagated), `original` (raw input, always unchanged),
+#'   when given or propagated), `original` (raw input, always unchanged),
 #'   `preprocessed` (fully normalized string, `NA_character_` for unfixable
 #'   rows), `status` (`"clean"`, `"fixed"`, or `"unfixable"`).
 #'
 #'   The returned tibble can be passed directly to `parse_karyo()` without
-#'   specifying `karyotype_column` or `id_column` -- both are inferred
-#'   automatically from the object's class and cached attributes.
+#'   specifying `karyotype_column` or `id_column` -- both are carried on the
+#'   object's class and cached attributes.
 #' @seealso [check_karyo()], `vignette("data-cleaning")`
 #' @export
 preprocess_karyo <- function(

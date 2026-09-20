@@ -24,16 +24,18 @@
 #'   frame into an accepted rules object. Each rule's output column is a
 #'   sanitized version of its `flag_name` (non-alphanumeric characters
 #'   replaced by `_`), e.g. `"t(9;22)(q34;q11)"` becomes `t_9_22_q34_q11`.
-#' @param karyotype_column Character. Name of the karyotype column when input is
-#'   a plain data frame. If `NULL` (default), auto-detected from common names
-#'   (`karyotype`, `iscn`, etc.). Ignored for character vector or
-#'   `karyo_preprocessed` input.
-#' @param id_column Character. Name of the id column when input is a data frame.
-#'   If `NULL` (default), auto-detected from common names (`sample_id`,
-#'   `patient_id`, `id`, `mrn`, etc.) and used silently. Detection follows the
-#'   candidate list's own order rather than the column order, so `sample_id`
-#'   wins over `mrn` whatever their positions. The id column is placed first
-#'   in the output.
+#' @param karyotype_column Character. Name of the karyotype column. **Required**
+#'   when input is a plain data frame -- columns are never guessed, since a
+#'   frame carrying more than one plausible candidate (a raw `iscn` beside a
+#'   cleaned `karyotype`) would otherwise be parsed from the wrong one
+#'   silently. Ignored for character vector or `karyo_preprocessed` input.
+#' @param id_column Character. Name of the id column. Optional: `NULL`
+#'   (default) means the data has no identifier, and one is never inferred.
+#'   When given, the column is placed first in the output and carried through
+#'   the pipeline.
+#'   Duplicate ids are warned about, not rejected: rows are matched on the
+#'   karyotype string and never on the id, so parsing is unaffected -- but
+#'   downstream joins on the column may fan out.
 #'
 #'   For `karyo_preprocessed` input the id is inherited automatically and
 #'   `id_column` is rarely needed. `preprocess_karyo()` returns a narrow
@@ -304,7 +306,6 @@ parse_karyo <- function(
   }
 
   # ---- Input routing: extract raw_vec, original_vec, id info ----------------
-  # Detection before raw_vec is set: "preprocessed" column is not in .karyotype_col_candidates.
   is_preprocessed <- is.data.frame(karyotypes) &&
     inherits(karyotypes, "karyo_preprocessed")
 

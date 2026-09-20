@@ -267,7 +267,12 @@ parse_karyo(c("46,XX,del(5)(q13q33)", "47,XX,+8", "46,XX,t(8;21)(q22;q22)")) |>
 Across the bundled example dataset:
 
 ```{r disagree-table}
-parse_karyo(example_karyotypes, on_issues = "preprocess", verbose = FALSE) |>
+parse_karyo(
+  example_karyotypes,
+  karyotype_column = "karyotype",
+  on_issues = "preprocess",
+  verbose = FALSE
+) |>
   assign_risk("ipssr") |>
   assign_risk("eln2022") |>
   dplyr::count(ipssr_cyto_risk, eln2022_cyto_risk)

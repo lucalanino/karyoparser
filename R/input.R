@@ -1,39 +1,54 @@
-.karyotype_col_candidates <- c(
-  "karyotype",
-  "Karyotype",
-  "KARYOTYPE",
-  "karyotype_string",
-  "karyo",
-  "Karyo",
-  "iscn",
-  "ISCN",
-  "iscn_string"
-)
+# Columns are always declared, never inferred: guessing which column holds
+# the karyotype risks silently parsing the wrong one when a data frame
+# carries more than one plausible candidate (e.g. a raw `iscn` alongside a
+# cleaned `karyotype`).
 
-.id_col_candidates <- c(
-  "sample_id",
-  "Sample_ID",
-  "SampleID",
-  "sample",
-  "patient_id",
-  "Patient_ID",
-  "PatientID",
-  "patient",
-  "case_id",
-  "CaseID",
-  "case",
-  "id",
-  "ID",
-  "Id",
-  "mrn",
-  "MRN",
-  "accession_id",
-  "accession",
-  "specimen_id",
-  "subject_id",
-  "SubjectID",
-  "subject"
-)
+.quote_cols <- function(x) {
+  if (length(x) == 0L) {
+    return("none")
+  }
+  paste(sprintf("\"%s\"", x), collapse = ", ")
+}
+
+# Duplicate ids are a downstream problem, not a karyoparser one: rows are
+# matched on the karyotype string, never on the id, so parsing is unaffected.
+# Warn rather than stop -- serial karyotypes for one patient (diagnosis,
+# post-induction, relapse) are a legitimate shape.
+.warn_duplicate_ids <- function(id_values, id_col_name) {
+  dup_mask <- duplicated(id_values) | duplicated(id_values, fromLast = TRUE)
+  if (!any(dup_mask)) {
+    return(invisible(NULL))
+  }
+  dup_values <- unique(id_values[dup_mask])
+  n_na <- sum(is.na(dup_values))
+  shown <- utils::head(dup_values[!is.na(dup_values)], 5L)
+  detail <- if (length(shown) > 0L) {
+    sprintf(
+      " (%s%s)",
+      .quote_cols(shown),
+      if (length(dup_values) - n_na > length(shown)) ", ..." else ""
+    )
+  } else {
+    ""
+  }
+  warning(
+    sprintf(
+      paste0(
+        "ID column '%s' has %d duplicated value(s) across %d row(s)%s.%s",
+        "\nkaryoparser is unaffected -- rows are matched on the karyotype",
+        " string, not the id -- but joins on this column downstream may fan",
+        " out or fail."
+      ),
+      id_col_name,
+      length(dup_values),
+      sum(dup_mask),
+      detail,
+      if (n_na > 0L) " Duplicates include NA." else ""
+    ),
+    call. = FALSE
+  )
+  invisible(NULL)
+}
 
 .extract_df_input <- function(
   x,
@@ -43,34 +58,33 @@
   caller
 ) {
   if (is.null(karyotype_column)) {
-    detected_karyo <- intersect(.karyotype_col_candidates, names(x))[1]
-    if (is.na(detected_karyo)) {
-      stop(
-        sprintf(
-          "Could not auto-detect karyotype column in `%s()`. ",
-          caller
+    stop(
+      sprintf(
+        paste(
+          "`karyotype_column` must be given when %s() is passed a data frame.",
+          "\nAvailable columns: %s.",
+          "\ne.g. %s(data, karyotype_column = \"<col>\")"
         ),
-        "Tried: ",
-        paste(.karyotype_col_candidates, collapse = ", "),
-        ". Pass `karyotype_column = \"<col>\"` explicitly.",
-        call. = FALSE
-      )
-    }
-    karyotype_col_name <- detected_karyo
-    if (isTRUE(verbose)) {
-      message("Auto-detected karyotype column: ", karyotype_col_name)
-    }
-  } else {
-    if (!karyotype_column %in% names(x)) {
-      stop(
-        sprintf("Column '%s' not found in input.", karyotype_column),
-        call. = FALSE
-      )
-    }
-    karyotype_col_name <- karyotype_column
-    if (isTRUE(verbose)) {
-      message("Using karyotype column: ", karyotype_col_name)
-    }
+        caller,
+        .quote_cols(names(x)),
+        caller
+      ),
+      call. = FALSE
+    )
+  }
+  if (!karyotype_column %in% names(x)) {
+    stop(
+      sprintf(
+        "Karyotype column '%s' not found in input. Available columns: %s.",
+        karyotype_column,
+        .quote_cols(names(x))
+      ),
+      call. = FALSE
+    )
+  }
+  karyotype_col_name <- karyotype_column
+  if (isTRUE(verbose)) {
+    message("Using karyotype column: ", karyotype_col_name)
   }
 
   col_val <- x[[karyotype_col_name]]
@@ -87,26 +101,15 @@
   }
   raw_vec <- as.character(col_val)
 
-  if (is.null(id_column)) {
-    detected_id <- intersect(.id_col_candidates, names(x))[1]
-    id_col_name <- if (!is.na(detected_id)) detected_id else NULL
-    if (!is.null(id_col_name)) {
-      if (isTRUE(verbose)) {
-        message(
-          "Auto-detected ID column: ",
-          id_col_name,
-          ". Use id_column= to specify explicitly."
-        )
-      }
-    } else {
-      if (isTRUE(verbose)) {
-        message("No ID column detected. Use id_column= to specify one.")
-      }
-    }
-  } else {
+  id_col_name <- NULL
+  if (!is.null(id_column)) {
     if (!id_column %in% names(x)) {
       stop(
-        sprintf("ID column '%s' not found in input.", id_column),
+        sprintf(
+          "ID column '%s' not found in input. Available columns: %s.",
+          id_column,
+          .quote_cols(names(x))
+        ),
         call. = FALSE
       )
     }
@@ -114,12 +117,17 @@
     if (isTRUE(verbose)) {
       message("Using ID column: ", id_col_name)
     }
+  } else if (isTRUE(verbose)) {
+    message("No ID column given. Use id_column= to carry one through.")
   }
 
   id_values <- if (!is.null(id_col_name)) {
     as.character(x[[id_col_name]])
   } else {
     NULL
+  }
+  if (!is.null(id_values)) {
+    .warn_duplicate_ids(id_values, id_col_name)
   }
 
   list(

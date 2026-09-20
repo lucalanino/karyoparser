@@ -247,7 +247,13 @@ test_that("preprocess_karyo: empty data frame keeps the detected id column first
     karyotype = character(0),
     stringsAsFactors = FALSE
   )
-  result <- suppressMessages(preprocess_karyo(df))
+  result <- suppressMessages(
+    preprocess_karyo(
+      df,
+      karyotype_column = "karyotype",
+      id_column = "sample_id"
+    )
+  )
   expect_equal(nrow(result), 0L)
   expect_named(result, c("sample_id", "original", "preprocessed", "status"))
   expect_type(result$sample_id, "character")

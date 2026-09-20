@@ -80,7 +80,11 @@ messy or out-of-scope strings.
 ```{r example-data}
 dplyr::glimpse(example_karyotypes)
 
-ck <- check_karyo(example_karyotypes)
+ck <- check_karyo(
+  example_karyotypes,
+  karyotype_column = "karyotype",
+  id_column = "sample_id"
+)
 dplyr::count(ck, fixable, unfixable)
 ```
 
@@ -91,32 +95,50 @@ touches the fixable kind. See `vignette("data-cleaning")` for the full
 breakdown of issue types and how `on_issues` handles each.
 
 ```{r pipeline}
-pp <- preprocess_karyo(example_karyotypes)
+pp <- preprocess_karyo(ck)
 result <- parse_karyo(pp, on_issues = "preprocess")
 result |>
   dplyr::select(sample_id, chromosome_count, general_translocation, complex_karyotype)
 ```
 
-`parse_karyo(example_karyotypes, on_issues = "preprocess")` does the same
-check-and-fix work in one call, without needing the intermediate
-`karyo_check`/`karyo_preprocessed` tibbles.
+Naming the columns once at `check_karyo()` is enough -- `preprocess_karyo()`
+and `parse_karyo()` inherit them from the object they are handed. Passing the
+data frame straight to `parse_karyo(..., on_issues = "preprocess")` does the
+same check-and-fix work in one call, with the columns named there instead.
 
 ## Data frame input
 
-`parse_karyo()` also takes a data frame directly. It auto-detects the
-karyotype column (common names like `karyotype`, `iscn`, `karyo`, ...) and an
-optional id column (`sample_id`, `patient_id`, `id`, `mrn`, ...).
+`parse_karyo()` also takes a data frame directly. Name the karyotype column
+with `karyotype_column`; columns are never guessed, so that argument is
+required. `id_column` is optional -- give it to carry an identifier into the
+output, leave it out if the data has none.
 
-```{r df-input}
+```{r df-required, error = TRUE}
 df <- tibble::tibble(
   sample_id = c("S1", "S2", "S3"),
   iscn = c("46,XX", "47,XY,+21[10]/46,XY[5]", "46,XX,t(9;22)(q34;q11)[20]")
 )
 
-result <- parse_karyo(df, verbose = FALSE)
+parse_karyo(df)
+```
+
+The error lists the available columns, so the fix is usually a copy-paste:
+
+```{r df-input}
+result <- parse_karyo(
+  df,
+  karyotype_column = "iscn",
+  id_column = "sample_id",
+  verbose = FALSE
+)
 result |>
   dplyr::select(sample_id, original_karyotype, chromosome_count, tris21)
 ```
+
+If the id column has duplicated values -- serial karyotypes for one patient,
+say -- you get a warning rather than an error. Parsing is unaffected, because
+rows are matched on the karyotype string and never on the id, but joins on
+that column downstream may fan out.
 
 ## Output reference
 
