@@ -43,7 +43,18 @@ air format .
 * Use the base pipe operator (`|>`) not the magrittr pipe (`%>%`)
 * Don't use `_$x` or `_$[["x"]]` since this package must work on R 4.1.
 * Use `\() ...` for single-line anonymous functions. For all other cases, use `function() {...}`
-* No non-ASCII characters in R source files (CRAN requirement). In comments use `--` and `->` instead of `—`/`→`. In string literals use `\uXXXX` escapes (e.g. `—` for em dash).
+* No non-ASCII characters in R source files (CRAN requirement). In comments and
+  roxygen use `--` and `->` rather than the em dash and arrow glyphs.
+* Never use an em dash as punctuation anywhere -- not in code, comments, roxygen,
+  messages, tests, vignettes or README -- and not as a `\u2014` escape either.
+  Use `--`. This is a style rule, not a portability one: the escape form is
+  perfectly CRAN-safe, it is just not wanted.
+* `\uXXXX` escapes remain correct for non-ASCII characters the package must match
+  in *data*. The dash character classes in `.dirty_patterns$unicode_notation`
+  (`R/assess.R`) and `normalize_iscn()` (`R/preprocess_karyo.R`) contain `\u2014`
+  on purpose: the package detects an em dash in dirty karyotype input and
+  normalizes it to `-`. Do not strip those -- removing them silently disables
+  the fix.
 * Section header comments (rare -- most files are small and don't need them) use the RStudio/VS Code outline-navigable form `# Section Name ----`, one level (`# `) by default; nest `## Subsection Name ----` only when a section genuinely has sub-groupings. Never use full-width `# ---- Name ----------` banners.
 
 ### Testing
