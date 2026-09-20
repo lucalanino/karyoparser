@@ -17,6 +17,7 @@
     row(paste0("mono", chroms), "aneuploidy", "integer"),
     row(paste0("tris", chroms), "aneuploidy", "integer"),
     row("comma_count_aberrations", "summary", "integer"),
+    row("distinct_aberrations", "summary", "integer"),
     row("chromosome_count", "summary", "integer"),
     row("total_metaphases", "summary", "integer"),
     row(

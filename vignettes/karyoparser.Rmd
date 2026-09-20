@@ -30,6 +30,7 @@ output.
 | `parse_karyo()` | Parse karyotype strings into a wide feature tibble |
 | `check_karyo()` | Scan for formatting artifacts and structural errors |
 | `preprocess_karyo()` | Clean and normalize dirty strings |
+| `assign_risk()` | Assign cytogenetic risk categories to a `parse_karyo()` result |
 | `validate_rules()` | Build a custom `karyo_rules` object |
 | `myeloid_rules` | Default rule set for myeloid neoplasms (data object) |
 | `example_karyotypes` | Synthetic karyotypes for trying out the package (data object) |

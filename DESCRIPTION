@@ -1,6 +1,6 @@
 Package: karyoparser
 Title: Parse ISCN Karyotype Strings
-Version: 0.31.2
+Version: 0.32.0
 Authors@R:
     person("Luca", "Lanino", role = c("aut", "cre"),
            email = "lucalanino@gmail.com",
@@ -31,6 +31,7 @@ Config/roxygen2/version: 8.0.0
 Collate: 
     'karyoparser-package.R'
     'assess.R'
+    'assign_risk.R'
     'check_karyo.R'
     'chromosome_count.R'
     'example_karyotypes.R'

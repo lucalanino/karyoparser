@@ -124,6 +124,10 @@
 #'   - normal_karyotype: 1 if 46,XX or 46,XY, else 0
 #'   - total_metaphases: Count from bracket notation
 #'   - comma_count_aberrations: Number of comma-separated aberrations
+#'   - distinct_aberrations: Number of distinct normalized aberration
+#'     tokens pooled across all clones, excluding sex complements,
+#'     `idem`/`sl`, and range markers. This is the count
+#'     `complex_karyotype` thresholds at 3.
 #'   - complex_karyotype: 1 if >=3 unique aberrations, else 0
 #'   - monosomal_karyotype: 1 if the row has two or more autosomal
 #'     monosomies, or one autosomal monosomy plus at least one structural
@@ -285,7 +289,7 @@ parse_karyo <- function(
   abnormality_names <- catalog$column[
     catalog$class %in%
       c("rule", "general", "aneuploidy", "classification", "der_loss") |
-      catalog$column == "comma_count_aberrations"
+      catalog$column %in% c("comma_count_aberrations", "distinct_aberrations")
   ]
   char_cols <- catalog$column[catalog$type == "character"]
 
@@ -782,6 +786,7 @@ parse_karyo <- function(
       unique_aberr |>
         dplyr::transmute(
           .pk_row_id,
+          distinct_aberrations = as.integer(n_unique_aberr),
           complex_karyotype = as.integer(n_unique_aberr >= 3)
         ),
       by = ".pk_row_id"

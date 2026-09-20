@@ -148,6 +148,10 @@ named after a sanitized \code{flag_name} (see \code{rules} above)
 \item normal_karyotype: 1 if 46,XX or 46,XY, else 0
 \item total_metaphases: Count from bracket notation
 \item comma_count_aberrations: Number of comma-separated aberrations
+\item distinct_aberrations: Number of distinct normalized aberration
+tokens pooled across all clones, excluding sex complements,
+\code{idem}/\code{sl}, and range markers. This is the count
+\code{complex_karyotype} thresholds at 3.
 \item complex_karyotype: 1 if >=3 unique aberrations, else 0
 \item monosomal_karyotype: 1 if the row has two or more autosomal
 monosomies, or one autosomal monosomy plus at least one structural
