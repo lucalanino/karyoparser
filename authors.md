@@ -8,7 +8,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/lucalanino/karyoparser/blob/main/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/lucalanino/karyoparser/blob/v1.0.0/DESCRIPTION)
 
 Lanino L (2026). *karyoparser: Parse ISCN Karyotype Strings*. R package
 version 1.0.0, <https://github.com/lucalanino/karyoparser>.
