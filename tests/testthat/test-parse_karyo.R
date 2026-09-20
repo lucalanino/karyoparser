@@ -1131,7 +1131,7 @@ test_that("preprocess_karyo: anchor on no-bracket string leaves unchanged", {
   )
 })
 
-test_that("preprocess_karyo: trailing content with its own bracket \u2014 rule 3 cleans up remainder", {
+test_that("preprocess_karyo: trailing content with its own bracket -- rule 3 cleans up remainder", {
   expect_equal(
     suppressMessages(preprocess_karyo(
       "46,XX[20] .Note with [5] cells"

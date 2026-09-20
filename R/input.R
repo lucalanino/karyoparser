@@ -91,7 +91,7 @@
   if (!is.character(col_val)) {
     warning(
       sprintf(
-        "Column '%s' is %s, not character \u2014 coercing with as.character(). ",
+        "Column '%s' is %s, not character -- coercing with as.character(). ",
         karyotype_col_name,
         class(col_val)[1]
       ),

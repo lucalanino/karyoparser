@@ -17,9 +17,9 @@ preprocess_karyo(
 \code{karyo_check} tibble returned by \code{check_karyo()}, or a data frame
 containing a karyotype
 column. When a \code{karyo_check} tibble is supplied, the assessment it already
-computed is reused directly -- no re-scanning -- and any id column detected
+computed is reused directly -- no re-scanning -- and any id column named
 upstream is propagated automatically. When a plain data frame is supplied,
-the karyotype column is auto-detected or specified via \code{karyotype_column}.}
+name the karyotype column with \code{karyotype_column}.}
 
 \item{karyotype_column}{Character. Name of the karyotype column.
 \strong{Required} when \code{x} is a plain data frame -- columns are never guessed.

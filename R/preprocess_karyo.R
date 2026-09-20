@@ -18,9 +18,9 @@
 #'   `karyo_check` tibble returned by `check_karyo()`, or a data frame
 #'   containing a karyotype
 #'   column. When a `karyo_check` tibble is supplied, the assessment it already
-#'   computed is reused directly -- no re-scanning -- and any id column detected
+#'   computed is reused directly -- no re-scanning -- and any id column named
 #'   upstream is propagated automatically. When a plain data frame is supplied,
-#'   the karyotype column is auto-detected or specified via `karyotype_column`.
+#'   name the karyotype column with `karyotype_column`.
 #' @param karyotype_column Character. Name of the karyotype column.
 #'   **Required** when `x` is a plain data frame -- columns are never guessed.
 #'   Ignored for character vector or `karyo_check` input.
@@ -161,7 +161,7 @@ preprocess_karyo <- function(
         message(
           "  Unfixable:  ",
           n_unfixable,
-          "  \u2014 run check_karyo() to investigate"
+          "  -- run check_karyo() to investigate"
         )
       }
     }

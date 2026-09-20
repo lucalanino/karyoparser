@@ -160,6 +160,7 @@ status columns are always included regardless.
 | General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_dmin`, `general_derivative`, `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Universal structural-aberration detections, incl. translocation balance |
 | Aneuploidy | `mono1`--`mono22`, `monoX`, `monoY`; `tris1`--`tris22`, `trisX`, `trisY` | integer 0/1 | Whole-chromosome loss/gain from `-`/`+` tokens |
 | Summary | `comma_count_aberrations` | integer | Aberration count (max across clones; idem-expanded) |
+| Summary | `distinct_aberrations` | integer | Distinct aberration tokens pooled across clones; the count `complex_karyotype` thresholds at 3 |
 | Summary | `chromosome_count` | integer | Count from the most abnormal clone that clears `min_metaphases` (see below); NA if none does |
 | Summary | `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |
 | Derived loss | `unbal_partial_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation |
