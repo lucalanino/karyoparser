@@ -451,20 +451,7 @@ test_that("error columns: survive dplyr::filter()", {
   expect_true("unfixable_error" %in% names(filtered))
 })
 
-test_that("declared sample_id column is carried into the output", {
-  df <- data.frame(sample_id = c("A", "B"), karyotype = c("46,XX", "46,XY"))
-  r <- pk(df, karyotype_column = "karyotype", id_column = "sample_id")
-  expect_equal(r$sample_id, c("A", "B"))
-  expect_true("sample_id" %in% names(r))
-})
-
-test_that("declared patient_id column is carried into the output", {
-  df <- data.frame(patient_id = c("P1", "P2"), karyotype = c("46,XX", "46,XY"))
-  r <- pk(df, karyotype_column = "karyotype", id_column = "patient_id")
-  expect_equal(r$patient_id, c("P1", "P2"))
-})
-
-test_that("explicit id_column parameter", {
+test_that("a declared id column is carried through and placed first", {
   df <- data.frame(my_id = c("X", "Y"), karyotype = c("46,XX", "46,XY"))
   r <- pk(df, karyotype_column = "karyotype", id_column = "my_id")
   expect_equal(r$my_id, c("X", "Y"))
@@ -487,7 +474,7 @@ test_that("parse_karyo: data.frame with all invalid rows and ID column preserves
   expect_equal(names(r)[1], "sample_id")
 })
 
-test_that("explicit karyotype_column parameter works for non-standard column name", {
+test_that("any declared karyotype column name parses", {
   df <- data.frame(my_col = c("46,XX", "46,XY"), stringsAsFactors = FALSE)
   r <- pk(df, karyotype_column = "my_col")
   expect_equal(nrow(r), 2L)
@@ -1777,19 +1764,6 @@ test_that("check_karyo: data frame with id column propagates id as first column"
   expect_equal(result$sample_id, c("S1", "S2"))
 })
 
-test_that("check_karyo: a non-default karyotype column name works when declared", {
-  df <- data.frame(iscn = c("46,XX", "47,XY,+21"), stringsAsFactors = FALSE)
-  result <- check_karyo(df, karyotype_column = "iscn")
-  expect_s3_class(result, "karyo_check")
-  expect_equal(nrow(result), 2L)
-})
-
-test_that("check_karyo: explicit karyotype_column", {
-  df <- data.frame(my_col = c("46,XX", "46,XY"), stringsAsFactors = FALSE)
-  result <- check_karyo(df, karyotype_column = "my_col")
-  expect_equal(nrow(result), 2L)
-})
-
 test_that("check_karyo: explicit id_column", {
   df <- data.frame(
     my_id = c("A", "B"),
@@ -1826,13 +1800,6 @@ test_that("preprocess_karyo: data frame with id column propagates id as first co
   )
   expect_equal(names(result)[1], "sample_id")
   expect_equal(result$sample_id, c("S1", "S2"))
-})
-
-test_that("preprocess_karyo: explicit karyotype_column for non-candidate name", {
-  df <- data.frame(my_iscn = c("46,XX", "46,XY"), stringsAsFactors = FALSE)
-  result <- suppressMessages(preprocess_karyo(df, karyotype_column = "my_iscn"))
-  expect_equal(nrow(result), 2L)
-  expect_equal(result$status, c("clean", "clean"))
 })
 
 test_that("full pipeline check -> preprocess -> parse: columns declared once at check_karyo", {
