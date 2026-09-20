@@ -153,5 +153,5 @@ both[, c("original_karyotype", "ipssr_cyto_risk", "eln2022_cyto_risk")]
 
 }
 \seealso{
-\code{\link[=parse_karyo]{parse_karyo()}}
+\code{\link[=parse_karyo]{parse_karyo()}}, \code{vignette("risk-stratification")}
 }

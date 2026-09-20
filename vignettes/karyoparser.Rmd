@@ -214,5 +214,7 @@ myeloid_rules
   issue catalog, and `preprocess_karyo()`'s cleaning pipeline in detail.
 - `vignette("chimeric-karyotypes")` -- how `//`-separated chimeric karyotypes
   are handled.
+- `vignette("risk-stratification")` -- IPSS-R and ELN 2022 cytogenetic risk
+  categories via `assign_risk()`.
 - `vignette("custom-rules")` -- writing your own rule tables and restricting
   `parse_karyo()`'s output with `columns`.

@@ -95,6 +95,9 @@ reference.
 - [Chimeric
   karyotypes](https://lucalanino.github.io/karyoparser/articles/chimeric-karyotypes.html)
   – clone selection for `//`-separated chimeric karyotypes.
+- [Risk
+  stratification](https://lucalanino.github.io/karyoparser/articles/risk-stratification.html)
+  – IPSS-R and ELN 2022 cytogenetic risk categories via `assign_risk()`.
 - [Custom
   rules](https://lucalanino.github.io/karyoparser/articles/custom-rules.html)
   – writing your own rule tables and restricting `parse_karyo()`’s

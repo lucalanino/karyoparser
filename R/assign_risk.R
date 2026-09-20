@@ -127,7 +127,7 @@
 #' both <- assign_risk(parsed, "ipssr") |> assign_risk("eln2022")
 #' both[, c("original_karyotype", "ipssr_cyto_risk", "eln2022_cyto_risk")]
 #'
-#' @seealso [parse_karyo()]
+#' @seealso [parse_karyo()], `vignette("risk-stratification")`
 #' @export
 assign_risk <- function(parsed, scheme = c("ipssr", "eln2022")) {
   scheme <- match.arg(scheme)
