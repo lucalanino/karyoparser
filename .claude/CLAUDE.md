@@ -79,7 +79,12 @@ air format .
 
 ### Git
 
-- Unless explicitly told otherwise, commit directly to `main`.
+- Always check the current branch before committing.
+- All changes live on `dev`. If `dev` does not exist yet, create it from
+  `main` (`git switch -c dev`) rather than committing to `main`.
+- `main` only advances via a PR from `dev`, merged once `R-CMD-check` is
+  green. Never commit directly to `main` unless explicitly told otherwise.
+- Releases are annotated tags (`vX.Y.Z`) on `main`.
 
 ### TODOs
 
