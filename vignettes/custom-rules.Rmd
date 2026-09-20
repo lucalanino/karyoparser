@@ -127,7 +127,8 @@ parse_karyo(
 
 General structural categories -- translocations, deletions, inversions,
 additions, dicentrics, isodicentrics, pseudodicentrics, isochromosomes,
-rings, insertions, duplications, triplications, markers, derivatives -- are
+rings, insertions, duplications, triplications, markers, double minutes,
+derivatives -- are
 already detected universally by the parser as `general_*` columns,
 independently of whatever `rules` table you pass. You don't need a rule for
 "any translocation" -- write rules only for the *specific* lesions your
@@ -135,7 +136,7 @@ analysis cares about.
 
 ## Restricting output with `columns`
 
-The full output is wide -- 167 columns for the default `myeloid_rules`.
+The full output is wide -- 170 columns for the default `myeloid_rules`.
 Pass `columns` to `parse_karyo()` to keep only the groups you need; metadata
 and status columns (`original_karyotype`, `fixable_error`,
 `chimeric_karyotype`, ...) are always included regardless. Valid values:

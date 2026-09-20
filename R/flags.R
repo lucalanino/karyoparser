@@ -53,7 +53,19 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   general_addition = paste0(.aberr_indicators_paren[["add"]], "\\("),
   general_inversion = paste0(.aberr_indicators_paren[["inv"]], "\\("),
   general_deletion = paste0(.aberr_indicators_paren[["del"]], "\\("),
-  general_marker = paste0("\\b", .aberr_indicators_bare[["mar"]], "\\b"),
+  # A leading count makes the left \\b vanish ('+2mar', '+1~4mar' -- the exact
+  # form the mar_space fix produces), so anchor on "not preceded by a letter"
+  # instead, which still rejects word tails like 'marker'.
+  general_marker = paste0(
+    "(?<![A-Za-z])",
+    .aberr_indicators_bare[["mar"]],
+    "\\b"
+  ),
+  general_dmin = paste0(
+    "(?<![A-Za-z])",
+    .aberr_indicators_bare[["dmin"]],
+    "\\b"
+  ),
   general_derivative = paste0(
     "^\\+?i?",
     .aberr_indicators_paren[["der"]],
@@ -61,10 +73,13 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   )
 )
 
-# Structural flags counted by the monosomal-karyotype rule (excludes a lone marker).
+# Structural flags counted by the monosomal-karyotype rule. Markers and double
+# minutes are excluded: both are unidentifiable or extrachromosomal material
+# rather than a structural rearrangement of a chromosome. (The ELN 2022
+# hyperdiploid carve-out counts them, deliberately -- see assign_risk().)
 .general_flags_for_monosomal <- setdiff(
   names(.general_flag_patterns),
-  "general_marker"
+  c("general_marker", "general_dmin")
 )
 
 compute_general_flags <- function(tokens_tbl) {

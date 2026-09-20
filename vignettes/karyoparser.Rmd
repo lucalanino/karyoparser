@@ -145,7 +145,7 @@ that column downstream may fan out.
 ### Output columns
 
 Each row is one input karyotype; columns fall into a handful of groups by
-provenance. The full output is wide -- 167 columns for the default
+provenance. The full output is wide -- 170 columns for the default
 `myeloid_rules` -- so pass `columns` to `parse_karyo()` to keep just the
 groups you want (see `vignette("custom-rules")` for details). Metadata and
 status columns are always included regardless.
@@ -157,7 +157,7 @@ status columns are always included regardless.
 | Classification | `complex_karyotype` | integer 0/1 | 1 if >= 3 distinct aberrations across clones |
 | Classification | `monosomal_karyotype` | integer 0/1 | 1 if >= 2 autosomal monosomies, or >= 1 autosomal monosomy + >= 1 structural aberration (any `general_*` flag except `general_marker`). Sex-chromosome monosomies never count. Forced to 0 for CBF-AML rows -- `t(8;21)(q22;q22)`, `inv(16)(p13q22)`, `t(16;16)(p13;q22)` -- even when the criteria are met |
 | Rule flags | *(one per `myeloid_rules` entry)* | integer 0/1 | Specific lesions -- see Aberration flags below |
-| General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_derivative`, `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Universal structural-aberration detections, incl. translocation balance |
+| General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_dmin`, `general_derivative`, `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Universal structural-aberration detections, incl. translocation balance |
 | Aneuploidy | `mono1`--`mono22`, `monoX`, `monoY`; `tris1`--`tris22`, `trisX`, `trisY` | integer 0/1 | Whole-chromosome loss/gain from `-`/`+` tokens |
 | Summary | `comma_count_aberrations` | integer | Aberration count (max across clones; idem-expanded) |
 | Summary | `chromosome_count` | integer | Count from the most abnormal clone that clears `min_metaphases` (see below); NA if none does |
@@ -208,7 +208,8 @@ at once. They come from three sources:
 - **General structural flags** (`general_*`) -- universal, disease-agnostic
   detections (any translocation, deletion, inversion, addition, dicentric,
   isodicentric, pseudodicentric, isochromosome, ring, insertion, duplication,
-  triplication, marker, derivative). Always on, regardless of which rule set
+  triplication, marker, double minutes, derivative). Always on, regardless of
+  which rule set
   you pass.
 - **Aneuploidy flags** (`mono*`/`tris*`) -- whole-chromosome loss/gain from
   `-`/`+` tokens.

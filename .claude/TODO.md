@@ -4,7 +4,6 @@
 
 ### Parsing & data quality
 
-- **[P3] Manually review tests with non-ASCII and other weird placeholders**.
 
 ### Release process
 

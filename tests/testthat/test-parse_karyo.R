@@ -2178,3 +2178,36 @@ test_that("preprocess_karyo: verbose=TRUE produces messages", {
     regexp = "Preprocessing"
   ))
 })
+
+test_that("general_marker fires on a counted marker, not just a bare one", {
+  # The mar_space fix rewrites '+1~4 mar' to '+1~4mar', so the flag has to
+  # match a marker carrying a leading count.
+  expect_equal(pk("47,XX,+mar")$general_marker, 1L)
+  expect_equal(pk("48,XX,+2mar")$general_marker, 1L)
+  expect_equal(pk("47,XX,+1~4mar")$general_marker, 1L)
+  expect_equal(
+    suppressMessages(preprocess_karyo("47,XX,+1~4 mar"))$preprocessed,
+    "47,XX,+1~4mar"
+  )
+})
+
+test_that("general_dmin detects double minutes, with or without a count", {
+  expect_equal(pk("46,XX,dmin")$general_dmin, 1L)
+  expect_equal(pk("46,XY,10~>50dmin")$general_dmin, 1L)
+  expect_equal(pk("46,XX,del(5)(q13)")$general_dmin, 0L)
+  expect_equal(pk("47,XX,+mar")$general_dmin, 0L)
+})
+
+test_that("marker and dmin do not count as structural for monosomal karyotype", {
+  expect_equal(pk("45,XX,-7,+mar")$monosomal_karyotype, 0L)
+  expect_equal(pk("45,XX,-7,dmin")$monosomal_karyotype, 0L)
+  expect_equal(pk("45,XX,-7,del(5)(q13)")$monosomal_karyotype, 1L)
+})
+
+test_that("dmin survives FISH stripping and is then flagged", {
+  pp <- suppressMessages(preprocess_karyo(
+    "46,XY,10~>50dmin.ish del(8)(q24q24)(MYC-),dmin(MYC+)"
+  ))
+  expect_equal(pp$preprocessed, "46,XY,10~>50dmin")
+  expect_equal(suppressMessages(parse_karyo(pp))$general_dmin, 1L)
+})

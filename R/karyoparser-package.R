@@ -111,4 +111,7 @@ utils::globalVariables(c(
   r = "r",
   t = "t"
 )
-.aberr_indicators_bare <- c(mar = "mar")
+# Bare indicators: no parenthesised breakpoint list, and both can carry a
+# leading count ('2mar', '10~>50dmin'), so their flag patterns below must not
+# require a word boundary on the left.
+.aberr_indicators_bare <- c(mar = "mar", dmin = "dmin")
