@@ -11,27 +11,20 @@ turns a
 result into a cytogenetic risk category, under either the IPSS-R
 cytogenetic risk groups or the ELN 2022 risk classification.
 
-## Read this first
-
-**Neither column is a risk score.** Both are the *cytogenetic component*
-of a classification that needs more than a karyotype:
+**Neither column is a complete risk score.** Both are the *cytogenetic
+component* of a classification that needs more than a parsed karyotype:
 
 - **IPSS-R** stratifies on five components – cytogenetics, marrow blast
   percentage, haemoglobin, platelet count, and absolute neutrophil
   count.
   [`assign_risk()`](https://lucalanino.github.io/karyoparser/reference/assign_risk.md)
-  computes the first. An `ipssr_cyto_risk` of `Good` is not an IPSS-R
-  risk group; it is one of five inputs to one.
-- **ELN 2022 is a genetic classification**, not a cytogenetic one.
-  Assigning it properly requires *NPM1*, *FLT3*-ITD, *CEBPA* bZIP,
-  *TP53*, *ASXL1*, *RUNX1* and others. A normal karyotype is
-  intermediate by cytogenetics, but favorable with mutated *NPM1* and no
-  *FLT3*-ITD, or adverse with mutated *TP53*. Molecular findings
-  routinely move a case across categories.
-
-The columns are named `*_cyto_*` for this reason. Treat them as a
-cytogenetics-derived input to a risk assessment, never as the
-assessment.
+  computes only the first. An `ipssr_cyto_risk` of `Good` is not an
+  IPSS-R risk of `Low`.
+- **ELN 2022** also requires *NPM1*, *FLT3*-ITD, *CEBPA* bZIP, *TP53*,
+  *ASXL1*, *RUNX1* and others. A normal karyotype is intermediate by
+  cytogenetics, but favorable with mutated *NPM1* and no *FLT3*-ITD, or
+  adverse with mutated *TP53*. Molecular findings routinely move a case
+  across categories.
 
 ## Quick start
 
@@ -66,12 +59,6 @@ parse_karyo(k) |>
 #> 5 49,XX,+8,+13,+21       Poor                           3 Intermediate
 ```
 
-Note the last two rows. `46,XX,del(5)(q13q33)` is `Good` under IPSS-R
-and `Adverse` under ELN; `49,XX,+8,+13,+21` is `Poor` under IPSS-R
-(three abnormalities) but `Intermediate` under ELN (the hyperdiploid
-carve-out, below). Neither is a bug – see [Where the two schemes
-disagree](#where-the-two-schemes-disagree).
-
 Both risk columns are **ordered factors**, so they sort and compare
 directly:
 
@@ -88,13 +75,10 @@ parsed feature columns stay available alongside the categories.
 
 ## Counting aberrations
 
-Both schemes ask how many abnormalities a karyotype carries. Both use
-`distinct_aberrations` – distinct normalized aberration tokens pooled
-across all clones, which is the same count `complex_karyotype`
-thresholds at 3. Using one count for both means a row can never be
-flagged complex while the risk logic counts two.
+Distinct normalized aberration tokens are pooled across all clones.
 
-Polysomy collapses: `+8,+8` is tetrasomy 8, one abnormality, not two.
+Polysomies are collapses: `+8,+8` is counted as one abnormality, not
+two.
 
 ``` r
 
@@ -145,31 +129,6 @@ parse_karyo(ipssr_examples) |>
 #> 5 43,XX,-5,-7,-18,del(5)(…                    4 Very Poor                      4
 ```
 
-### Where the published table is silent
-
-Two resolutions are applied deliberately. Both are worth confirming
-against the source before you rely on them.
-
-**A double containing both `del(5q)` and `-7`/`del(7q)`** satisfies the
-Good row (“double including del(5q)”) and the Poor row (“double
-including -7/del(7q)”) simultaneously. Poor wins, so the more adverse
-lesion is not masked by its partner:
-
-``` r
-
-parse_karyo("44,XX,del(5)(q13q33),-7") |>
-  assign_risk("ipssr") |>
-  dplyr::select(original_karyotype, ipssr_cyto_risk)
-#> # A tibble: 1 × 2
-#>   original_karyotype      ipssr_cyto_risk
-#>   <chr>                   <ord>          
-#> 1 44,XX,del(5)(q13q33),-7 Poor
-```
-
-**`t(3q)` is read as 3q26 rearrangement**, not any 3q breakpoint, since
-the IPSS-R row reflects *MECOM*/EVI1 biology. `del(3q)` is matched at
-any 3q breakpoint.
-
 ### Karyotypes IPSS-R cannot score
 
 A karyotype with no scoreable aberration token that is nonetheless not
@@ -196,14 +155,11 @@ Evaluated in strict precedence order:
 
 1.  **Favorable** – `t(8;21)`, `inv(16)`, `t(16;16)`. Class-defining, so
     they outrank every adverse criterion below.
-2.  **Intermediate, by carve-out** – `t(9;11)`/*MLLT3::KMT2A*.
+2.  **Intermediate** – `t(9;11)`/*MLLT3::KMT2A*.
 3.  **Adverse** – `t(6;9)`, `t(v;11q23)`, `t(9;22)`, `t(8;16)`,
     `inv(3)(q21q26)`/`t(3;3)(q21;q26)`, `t(3q26;v)`, `-5`/`del(5q)`,
-    `-7`, `-17`/abn(17p), complex karyotype, monosomal karyotype.
+    `-7`, `-17`/`abn(17p)`, `complex karyotype`, `monosomal karyotype`.
 4.  **Intermediate** – anything else, including a normal karyotype.
-
-ELN 2022 has no numeric score, so this scheme adds only a category
-column.
 
 ``` r
 
@@ -228,12 +184,11 @@ parse_karyo(eln_examples) |>
 #> 5 46,XX,i(17)(q10)       Adverse
 ```
 
-### The KMT2A carve-out
+### KMT2A
 
 `t(9;11)` is an 11q23 rearrangement, so it also matches the *adverse*
-`t(v;11q23)`/*KMT2A*-rearranged row. ELN gives `t(9;11)` precedence, so
-the order matters: check it before the adverse rows, or every `t(9;11)`
-comes out adverse.
+`t(v;11q23)`/*KMT2A*-rearranged row. ELN gives `t(9;11)` precedence over
+other concurrent abnormalities.
 
 ``` r
 
@@ -253,8 +208,6 @@ parse_karyo(kmt2a) |>
 #> 1 46,XX,t(9;11)(p21;q23)               1         1 Intermediate     
 #> 2 46,XX,t(11;19)(q23;p13)              0         1 Adverse
 ```
-
-Both rows have `t_v_11q23 = 1`; only the second is adverse.
 
 ### Class-defining lesions outrank adverse criteria
 
@@ -308,70 +261,14 @@ parse_karyo(hd) |>
 ```
 
 Note `complex_karyotype` stays `1` throughout. **The carve-out is
-applied inside the ELN path only**, because it is specific to ELN:
-IPSS-R’s complex rows carry no such exclusion, and folding it into the
-shared column would silently corrupt IPSS-R scoring. A marker chromosome
-counts as a structural abnormality here, which is why the last row is
-adverse.
-
-## Where the two schemes disagree
-
-They are built for different diseases and genuinely differ. Isolated
-`del(5q)` is the clearest case – Good under IPSS-R, adverse under ELN:
-
-``` r
-
-parse_karyo(c("46,XX,del(5)(q13q33)", "47,XX,+8", "46,XX,t(8;21)(q22;q22)")) |>
-  assign_risk("ipssr") |>
-  assign_risk("eln2022") |>
-  dplyr::select(original_karyotype, ipssr_cyto_risk, eln2022_cyto_risk)
-#> # A tibble: 3 × 3
-#>   original_karyotype     ipssr_cyto_risk eln2022_cyto_risk
-#>   <chr>                  <ord>           <ord>            
-#> 1 46,XX,del(5)(q13q33)   Good            Adverse          
-#> 2 47,XX,+8               Intermediate    Intermediate     
-#> 3 46,XX,t(8;21)(q22;q22) Intermediate    Favorable
-```
-
-Across the bundled example dataset:
-
-``` r
-
-parse_karyo(
-  example_karyotypes,
-  karyotype_column = "karyotype",
-  on_issues = "preprocess",
-  verbose = FALSE
-) |>
-  assign_risk("ipssr") |>
-  assign_risk("eln2022") |>
-  dplyr::count(ipssr_cyto_risk, eln2022_cyto_risk)
-#> Chimeric: 3 (on_chimeric = "default").
-#> # A tibble: 11 × 3
-#>    ipssr_cyto_risk eln2022_cyto_risk     n
-#>    <ord>           <ord>             <int>
-#>  1 Very Good       Intermediate          1
-#>  2 Good            Intermediate          7
-#>  3 Good            Adverse               2
-#>  4 Intermediate    Favorable             3
-#>  5 Intermediate    Intermediate         51
-#>  6 Intermediate    Adverse              16
-#>  7 Poor            Favorable             1
-#>  8 Poor            Intermediate          2
-#>  9 Poor            Adverse              12
-#> 10 NA              Intermediate          3
-#> 11 NA              NA                    4
-```
-
-Off-diagonal cells are the schemes disagreeing by design, not errors.
+applied inside the ELN path only** because it is specific to ELN.
+IPSS-R’s complex rows carry no such exclusion.
 
 ## Judgment calls and limits
 
-Beyond the IPSS-R resolutions above, the ELN implementation makes two
-calls worth knowing about:
+The ELN implementation makes two judgement calls:
 
 - **abn(17p)** is read as `-17`, `del(17p)`, `add(17p)` or `i(17q)`.
-  Including `i(17q)` reflects that it entails 17p loss.
 - **Partial 17p loss implied by an unbalanced derivative is not
   counted.** `unbal_partial_loss_*` is documented as separate from
   `del()`/`mono*`, and folding it in here would breach that boundary. If

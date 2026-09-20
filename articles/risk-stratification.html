@@ -66,7 +66,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>Cytogenetic risk stratification</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/lucalanino/karyoparser/blob/v1.0.0/vignettes/risk-stratification.Rmd" class="external-link"><code>vignettes/risk-stratification.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/lucalanino/karyoparser/blob/main/vignettes/risk-stratification.Rmd" class="external-link"><code>vignettes/risk-stratification.Rmd</code></a></small>
       <div class="d-none name"><code>risk-stratification.Rmd</code></div>
     </div>
 
@@ -77,32 +77,24 @@
 <p><code><a href="../reference/assign_risk.html">assign_risk()</a></code> turns a <code><a href="../reference/parse_karyo.html">parse_karyo()</a></code> result
 into a cytogenetic risk category, under either the IPSS-R cytogenetic
 risk groups or the ELN 2022 risk classification.</p>
-<div class="section level2">
-<h2 id="read-this-first">Read this first<a class="anchor" aria-label="anchor" href="#read-this-first"></a>
-</h2>
-<p><strong>Neither column is a risk score.</strong> Both are the
-<em>cytogenetic component</em> of a classification that needs more than
-a karyotype:</p>
+<p><strong>Neither column is a complete risk score.</strong> Both are
+the <em>cytogenetic component</em> of a classification that needs more
+than a parsed karyotype:</p>
 <ul>
 <li>
 <strong>IPSS-R</strong> stratifies on five components –
 cytogenetics, marrow blast percentage, haemoglobin, platelet count, and
-absolute neutrophil count. <code><a href="../reference/assign_risk.html">assign_risk()</a></code> computes the
+absolute neutrophil count. <code><a href="../reference/assign_risk.html">assign_risk()</a></code> computes only the
 first. An <code>ipssr_cyto_risk</code> of <code>Good</code> is not an
-IPSS-R risk group; it is one of five inputs to one.</li>
+IPSS-R risk of <code>Low</code>.</li>
 <li>
-<strong>ELN 2022 is a genetic classification</strong>, not a
-cytogenetic one. Assigning it properly requires <em>NPM1</em>,
+<strong>ELN 2022</strong> also requires <em>NPM1</em>,
 <em>FLT3</em>-ITD, <em>CEBPA</em> bZIP, <em>TP53</em>, <em>ASXL1</em>,
 <em>RUNX1</em> and others. A normal karyotype is intermediate by
 cytogenetics, but favorable with mutated <em>NPM1</em> and no
 <em>FLT3</em>-ITD, or adverse with mutated <em>TP53</em>. Molecular
 findings routinely move a case across categories.</li>
 </ul>
-<p>The columns are named <code>*_cyto_*</code> for this reason. Treat
-them as a cytogenetics-derived input to a risk assessment, never as the
-assessment.</p>
-</div>
 <div class="section level2">
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
@@ -133,12 +125,6 @@ assessment.</p>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> 46,XX,del(5)(q13q33)   Good                           1 Adverse          </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> 45,XY,-7               Poor                           3 Adverse          </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> 49,XX,+8,+13,+21       Poor                           3 Intermediate</span></span></code></pre></div>
-<p>Note the last two rows. <code>46,XX,del(5)(q13q33)</code> is
-<code>Good</code> under IPSS-R and <code>Adverse</code> under ELN;
-<code>49,XX,+8,+13,+21</code> is <code>Poor</code> under IPSS-R (three
-abnormalities) but <code>Intermediate</code> under ELN (the hyperdiploid
-carve-out, below). Neither is a bug – see <a href="#where-the-two-schemes-disagree">Where the two schemes
-disagree</a>.</p>
 <p>Both risk columns are <strong>ordered factors</strong>, so they sort
 and compare directly:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
@@ -152,13 +138,9 @@ alongside the categories.</p>
 <div class="section level2">
 <h2 id="counting-aberrations">Counting aberrations<a class="anchor" aria-label="anchor" href="#counting-aberrations"></a>
 </h2>
-<p>Both schemes ask how many abnormalities a karyotype carries. Both use
-<code>distinct_aberrations</code> – distinct normalized aberration
-tokens pooled across all clones, which is the same count
-<code>complex_karyotype</code> thresholds at 3. Using one count for both
-means a row can never be flagged complex while the risk logic counts
-two.</p>
-<p>Polysomy collapses: <code>+8,+8</code> is tetrasomy 8, one
+<p>Distinct normalized aberration tokens are pooled across all
+clones.</p>
+<p>Polysomies are collapses: <code>+8,+8</code> is counted as one
 abnormality, not two.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/parse_karyo.html">parse_karyo</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"49,XY,+8,+8,+21"</span>, <span class="st">"49,XY,+8,+13,+21"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -246,28 +228,6 @@ including <code>-7</code>/<code>del(7q)</code>, 3 abnormalities</td>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> 46,XX,inv(3)(q21q26)                        1 Poor                           3</span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> 43,XX,-5,-7,-18,del(5)(…                    4 Very Poor                      4</span></span></code></pre></div>
 <div class="section level3">
-<h3 id="where-the-published-table-is-silent">Where the published table is silent<a class="anchor" aria-label="anchor" href="#where-the-published-table-is-silent"></a>
-</h3>
-<p>Two resolutions are applied deliberately. Both are worth confirming
-against the source before you rely on them.</p>
-<p><strong>A double containing both <code>del(5q)</code> and
-<code>-7</code>/<code>del(7q)</code></strong> satisfies the Good row
-(“double including del(5q)”) and the Poor row (“double including
--7/del(7q)”) simultaneously. Poor wins, so the more adverse lesion is
-not masked by its partner:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/parse_karyo.html">parse_karyo</a></span><span class="op">(</span><span class="st">"44,XX,del(5)(q13q33),-7"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="../reference/assign_risk.html">assign_risk</a></span><span class="op">(</span><span class="st">"ipssr"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">original_karyotype</span>, <span class="va">ipssr_cyto_risk</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 2</span></span></span>
-<span><span class="co">#&gt;   original_karyotype      ipssr_cyto_risk</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                   <span style="color: #949494; font-style: italic;">&lt;ord&gt;</span>          </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> 44,XX,del(5)(q13q33),-7 Poor</span></span></code></pre></div>
-<p><strong><code>t(3q)</code> is read as 3q26 rearrangement</strong>,
-not any 3q breakpoint, since the IPSS-R row reflects <em>MECOM</em>/EVI1
-biology. <code>del(3q)</code> is matched at any 3q breakpoint.</p>
-</div>
-<div class="section level3">
 <h3 id="karyotypes-ipss-r-cannot-score">Karyotypes IPSS-R cannot score<a class="anchor" aria-label="anchor" href="#karyotypes-ipss-r-cannot-score"></a>
 </h3>
 <p>A karyotype with no scoreable aberration token that is nonetheless
@@ -275,7 +235,7 @@ not normal returns <code>NA</code> rather than a guess. The usual case
 is <code>45,X</code>, where the loss rides on the sex complement and
 <code>-X</code> cannot be distinguished from <code>-Y</code> – one would
 be Very Good, the other Intermediate:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/parse_karyo.html">parse_karyo</a></span><span class="op">(</span><span class="st">"45,X"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="../reference/assign_risk.html">assign_risk</a></span><span class="op">(</span><span class="st">"ipssr"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">original_karyotype</span>, <span class="va">distinct_aberrations</span>, <span class="va">ipssr_cyto_risk</span><span class="op">)</span></span>
@@ -297,22 +257,20 @@ same way.</p>
 <code>inv(16)</code>, <code>t(16;16)</code>. Class-defining, so they
 outrank every adverse criterion below.</li>
 <li>
-<strong>Intermediate, by carve-out</strong> –
+<strong>Intermediate</strong> –
 <code>t(9;11)</code>/<em>MLLT3::KMT2A</em>.</li>
 <li>
 <strong>Adverse</strong> – <code>t(6;9)</code>,
 <code>t(v;11q23)</code>, <code>t(9;22)</code>, <code>t(8;16)</code>,
 <code>inv(3)(q21q26)</code>/<code>t(3;3)(q21;q26)</code>,
 <code>t(3q26;v)</code>, <code>-5</code>/<code>del(5q)</code>,
-<code>-7</code>, <code>-17</code>/abn(17p), complex karyotype, monosomal
-karyotype.</li>
+<code>-7</code>, <code>-17</code>/<code>abn(17p)</code>,
+<code>complex karyotype</code>, <code>monosomal karyotype</code>.</li>
 <li>
 <strong>Intermediate</strong> – anything else, including a normal
 karyotype.</li>
 </ol>
-<p>ELN 2022 has no numeric score, so this scheme adds only a category
-column.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">eln_examples</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="st">"46,XX,inv(16)(p13q22)"</span>,</span>
 <span>  <span class="st">"46,XX"</span>,</span>
@@ -333,14 +291,13 @@ column.</p>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> 45,XX,-7               Adverse          </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> 46,XX,i(17)(q10)       Adverse</span></span></code></pre></div>
 <div class="section level3">
-<h3 id="the-kmt2a-carve-out">The KMT2A carve-out<a class="anchor" aria-label="anchor" href="#the-kmt2a-carve-out"></a>
+<h3 id="kmt2a">KMT2A<a class="anchor" aria-label="anchor" href="#kmt2a"></a>
 </h3>
 <p><code>t(9;11)</code> is an 11q23 rearrangement, so it also matches
 the <em>adverse</em> <code>t(v;11q23)</code>/<em>KMT2A</em>-rearranged
-row. ELN gives <code>t(9;11)</code> precedence, so the order matters:
-check it before the adverse rows, or every <code>t(9;11)</code> comes
-out adverse.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+row. ELN gives <code>t(9;11)</code> precedence over other concurrent
+abnormalities.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">kmt2a</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"46,XX,t(9;11)(p21;q23)"</span>, <span class="st">"46,XX,t(11;19)(q23;p13)"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/parse_karyo.html">parse_karyo</a></span><span class="op">(</span><span class="va">kmt2a</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -356,8 +313,6 @@ out adverse.</p>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                            <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;ord&gt;</span>            </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> 46,XX,t(9;11)(p21;q23)               1         1 Intermediate     </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> 46,XX,t(11;19)(q23;p13)              0         1 Adverse</span></span></code></pre></div>
-<p>Both rows have <code>t_v_11q23 = 1</code>; only the second is
-adverse.</p>
 </div>
 <div class="section level3">
 <h3 id="class-defining-lesions-outrank-adverse-criteria">Class-defining lesions outrank adverse criteria<a class="anchor" aria-label="anchor" href="#class-defining-lesions-outrank-adverse-criteria"></a>
@@ -365,7 +320,7 @@ adverse.</p>
 <p>A favorable lesion wins even alongside monosomies and a complex
 karyotype – the same logic already applied to
 <code>monosomal_karyotype</code>, which is forced to 0 for CBF-AML:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/parse_karyo.html">parse_karyo</a></span><span class="op">(</span><span class="st">"43,XX,-5,-7,-18,t(8;21)(q22;q22)"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="../reference/assign_risk.html">assign_risk</a></span><span class="op">(</span><span class="st">"eln2022"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span></span>
@@ -385,7 +340,7 @@ karyotype – the same logic already applied to
 <p>ELN’s complex definition excludes hyperdiploid karyotypes with three
 or more trisomies (or polysomies) and no structural abnormality. Adding
 a structural abnormality, or a monosomy, brings complex back:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">hd</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>  <span class="st">"49,XX,+8,+13,+21"</span>,</span>
 <span>  <span class="st">"52,XX,+1,+6,+8,+9,+14,+21"</span>,</span>
@@ -406,69 +361,20 @@ a structural abnormality, or a monosomy, brings complex back:</p>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> 48,XX,+8,+13,-18                              1 Adverse          </span></span>
 <span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> 49,XX,+8,+13,+21,+mar                         1 Adverse</span></span></code></pre></div>
 <p>Note <code>complex_karyotype</code> stays <code>1</code> throughout.
-<strong>The carve-out is applied inside the ELN path only</strong>,
-because it is specific to ELN: IPSS-R’s complex rows carry no such
-exclusion, and folding it into the shared column would silently corrupt
-IPSS-R scoring. A marker chromosome counts as a structural abnormality
-here, which is why the last row is adverse.</p>
+<strong>The carve-out is applied inside the ELN path only</strong>
+because it is specific to ELN. IPSS-R’s complex rows carry no such
+exclusion.</p>
 </div>
-</div>
-<div class="section level2">
-<h2 id="where-the-two-schemes-disagree">Where the two schemes disagree<a class="anchor" aria-label="anchor" href="#where-the-two-schemes-disagree"></a>
-</h2>
-<p>They are built for different diseases and genuinely differ. Isolated
-<code>del(5q)</code> is the clearest case – Good under IPSS-R, adverse
-under ELN:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/parse_karyo.html">parse_karyo</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"46,XX,del(5)(q13q33)"</span>, <span class="st">"47,XX,+8"</span>, <span class="st">"46,XX,t(8;21)(q22;q22)"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="../reference/assign_risk.html">assign_risk</a></span><span class="op">(</span><span class="st">"ipssr"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="../reference/assign_risk.html">assign_risk</a></span><span class="op">(</span><span class="st">"eln2022"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">original_karyotype</span>, <span class="va">ipssr_cyto_risk</span>, <span class="va">eln2022_cyto_risk</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 3</span></span></span>
-<span><span class="co">#&gt;   original_karyotype     ipssr_cyto_risk eln2022_cyto_risk</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                  <span style="color: #949494; font-style: italic;">&lt;ord&gt;</span>           <span style="color: #949494; font-style: italic;">&lt;ord&gt;</span>            </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> 46,XX,del(5)(q13q33)   Good            Adverse          </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> 47,XX,+8               Intermediate    Intermediate     </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> 46,XX,t(8;21)(q22;q22) Intermediate    Favorable</span></span></code></pre></div>
-<p>Across the bundled example dataset:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/parse_karyo.html">parse_karyo</a></span><span class="op">(</span></span>
-<span>  <span class="va">example_karyotypes</span>,</span>
-<span>  karyotype_column <span class="op">=</span> <span class="st">"karyotype"</span>,</span>
-<span>  on_issues <span class="op">=</span> <span class="st">"preprocess"</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="../reference/assign_risk.html">assign_risk</a></span><span class="op">(</span><span class="st">"ipssr"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="../reference/assign_risk.html">assign_risk</a></span><span class="op">(</span><span class="st">"eln2022"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">ipssr_cyto_risk</span>, <span class="va">eln2022_cyto_risk</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Chimeric: 3 (on_chimeric = "default").</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 11 × 3</span></span></span>
-<span><span class="co">#&gt;    ipssr_cyto_risk eln2022_cyto_risk     n</span></span>
-<span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;ord&gt;</span>           <span style="color: #949494; font-style: italic;">&lt;ord&gt;</span>             <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 1</span> Very Good       Intermediate          1</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 2</span> Good            Intermediate          7</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 3</span> Good            Adverse               2</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 4</span> Intermediate    Favorable             3</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 5</span> Intermediate    Intermediate         51</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 6</span> Intermediate    Adverse              16</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 7</span> Poor            Favorable             1</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 8</span> Poor            Intermediate          2</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;"> 9</span> Poor            Adverse              12</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">10</span> <span style="color: #BB0000;">NA</span>              Intermediate          3</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">11</span> <span style="color: #BB0000;">NA</span>              <span style="color: #BB0000;">NA</span>                    4</span></span></code></pre></div>
-<p>Off-diagonal cells are the schemes disagreeing by design, not
-errors.</p>
 </div>
 <div class="section level2">
 <h2 id="judgment-calls-and-limits">Judgment calls and limits<a class="anchor" aria-label="anchor" href="#judgment-calls-and-limits"></a>
 </h2>
-<p>Beyond the IPSS-R resolutions above, the ELN implementation makes two
-calls worth knowing about:</p>
+<p>The ELN implementation makes two judgement calls:</p>
 <ul>
 <li>
 <strong>abn(17p)</strong> is read as <code>-17</code>,
-<code>del(17p)</code>, <code>add(17p)</code> or <code>i(17q)</code>.
-Including <code>i(17q)</code> reflects that it entails 17p loss.</li>
+<code>del(17p)</code>, <code>add(17p)</code> or
+<code>i(17q)</code>.</li>
 <li>
 <strong>Partial 17p loss implied by an unbalanced derivative is not
 counted.</strong> <code>unbal_partial_loss_*</code> is documented as
