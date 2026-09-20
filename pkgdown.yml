@@ -1,0 +1,13 @@
+pandoc: 3.8.3
+pkgdown: 2.2.1
+pkgdown_sha: ~
+articles:
+  chimeric-karyotypes: chimeric-karyotypes.html
+  custom-rules: custom-rules.html
+  data-cleaning: data-cleaning.html
+  karyoparser: karyoparser.html
+  risk-stratification: risk-stratification.html
+last_built: 2026-09-20T18:00Z
+urls:
+  reference: https://lucalanino.github.io/karyoparser/reference
+  article: https://lucalanino.github.io/karyoparser/articles

@@ -1,0 +1,397 @@
+# Cytogenetic risk stratification
+
+``` r
+
+library(karyoparser)
+```
+
+[`assign_risk()`](https://lucalanino.github.io/karyoparser/reference/assign_risk.md)
+turns a
+[`parse_karyo()`](https://lucalanino.github.io/karyoparser/reference/parse_karyo.md)
+result into a cytogenetic risk category, under either the IPSS-R
+cytogenetic risk groups or the ELN 2022 risk classification.
+
+## Read this first
+
+**Neither column is a risk score.** Both are the *cytogenetic component*
+of a classification that needs more than a karyotype:
+
+- **IPSS-R** stratifies on five components – cytogenetics, marrow blast
+  percentage, haemoglobin, platelet count, and absolute neutrophil
+  count.
+  [`assign_risk()`](https://lucalanino.github.io/karyoparser/reference/assign_risk.md)
+  computes the first. An `ipssr_cyto_risk` of `Good` is not an IPSS-R
+  risk group; it is one of five inputs to one.
+- **ELN 2022 is a genetic classification**, not a cytogenetic one.
+  Assigning it properly requires *NPM1*, *FLT3*-ITD, *CEBPA* bZIP,
+  *TP53*, *ASXL1*, *RUNX1* and others. A normal karyotype is
+  intermediate by cytogenetics, but favorable with mutated *NPM1* and no
+  *FLT3*-ITD, or adverse with mutated *TP53*. Molecular findings
+  routinely move a case across categories.
+
+The columns are named `*_cyto_*` for this reason. Treat them as a
+cytogenetics-derived input to a risk assessment, never as the
+assessment.
+
+## Quick start
+
+Apply one scheme per call and chain for both:
+
+``` r
+
+k <- c(
+  "46,XX",
+  "46,XX,t(8;21)(q22;q22)",
+  "46,XX,del(5)(q13q33)",
+  "45,XY,-7",
+  "49,XX,+8,+13,+21"
+)
+
+parse_karyo(k) |>
+  assign_risk("ipssr") |>
+  assign_risk("eln2022") |>
+  dplyr::select(
+    original_karyotype,
+    ipssr_cyto_risk,
+    ipssr_cyto_score,
+    eln2022_cyto_risk
+  )
+#> # A tibble: 5 × 4
+#>   original_karyotype     ipssr_cyto_risk ipssr_cyto_score eln2022_cyto_risk
+#>   <chr>                  <ord>                      <int> <ord>            
+#> 1 46,XX                  Good                           1 Intermediate     
+#> 2 46,XX,t(8;21)(q22;q22) Intermediate                   2 Favorable        
+#> 3 46,XX,del(5)(q13q33)   Good                           1 Adverse          
+#> 4 45,XY,-7               Poor                           3 Adverse          
+#> 5 49,XX,+8,+13,+21       Poor                           3 Intermediate
+```
+
+Note the last two rows. `46,XX,del(5)(q13q33)` is `Good` under IPSS-R
+and `Adverse` under ELN; `49,XX,+8,+13,+21` is `Poor` under IPSS-R
+(three abnormalities) but `Intermediate` under ELN (the hyperdiploid
+carve-out, below). Neither is a bug – see [Where the two schemes
+disagree](#where-the-two-schemes-disagree).
+
+Both risk columns are **ordered factors**, so they sort and compare
+directly:
+
+``` r
+
+r <- assign_risk(parse_karyo(c("46,XX", "45,XY,-7")), "ipssr")
+r$ipssr_cyto_risk[2] > r$ipssr_cyto_risk[1]
+#> [1] TRUE
+```
+
+[`assign_risk()`](https://lucalanino.github.io/karyoparser/reference/assign_risk.md)
+appends to the tibble it is given and changes nothing else, so the
+parsed feature columns stay available alongside the categories.
+
+## Counting aberrations
+
+Both schemes ask how many abnormalities a karyotype carries. Both use
+`distinct_aberrations` – distinct normalized aberration tokens pooled
+across all clones, which is the same count `complex_karyotype`
+thresholds at 3. Using one count for both means a row can never be
+flagged complex while the risk logic counts two.
+
+Polysomy collapses: `+8,+8` is tetrasomy 8, one abnormality, not two.
+
+``` r
+
+parse_karyo(c("49,XY,+8,+8,+21", "49,XY,+8,+13,+21")) |>
+  dplyr::select(original_karyotype, distinct_aberrations, complex_karyotype)
+#> # A tibble: 2 × 3
+#>   original_karyotype distinct_aberrations complex_karyotype
+#>   <chr>                             <int>             <int>
+#> 1 49,XY,+8,+8,+21                       2                 0
+#> 2 49,XY,+8,+13,+21                      3                 1
+```
+
+## IPSS-R cytogenetic risk groups
+
+| Category | Score | Definition |
+|----|----|----|
+| Very Good | 0 | isolated `-Y`, isolated `del(11q)` |
+| Good | 1 | normal, isolated `del(5q)`/`del(12p)`/`del(20q)`, double including `del(5q)` |
+| Intermediate | 2 | `del(7q)`, `+8`, `+19`, `i(17q)`, any other single or double |
+| Poor | 3 | `-7`, `inv(3)`/`t(3q)`/`del(3q)`, double including `-7`/`del(7q)`, 3 abnormalities |
+| Very Poor | 4 | more than 3 abnormalities |
+
+``` r
+
+ipssr_examples <- c(
+  "45,X,-Y",
+  "46,XX,del(5)(q13q33)",
+  "47,XX,+8",
+  "46,XX,inv(3)(q21q26)",
+  "43,XX,-5,-7,-18,del(5)(q13)"
+)
+
+parse_karyo(ipssr_examples) |>
+  assign_risk("ipssr") |>
+  dplyr::select(
+    original_karyotype,
+    distinct_aberrations,
+    ipssr_cyto_risk,
+    ipssr_cyto_score
+  )
+#> # A tibble: 5 × 4
+#>   original_karyotype       distinct_aberrations ipssr_cyto_risk ipssr_cyto_score
+#>   <chr>                                   <int> <ord>                      <int>
+#> 1 45,X,-Y                                     1 Very Good                      0
+#> 2 46,XX,del(5)(q13q33)                        1 Good                           1
+#> 3 47,XX,+8                                    1 Intermediate                   2
+#> 4 46,XX,inv(3)(q21q26)                        1 Poor                           3
+#> 5 43,XX,-5,-7,-18,del(5)(…                    4 Very Poor                      4
+```
+
+### Where the published table is silent
+
+Two resolutions are applied deliberately. Both are worth confirming
+against the source before you rely on them.
+
+**A double containing both `del(5q)` and `-7`/`del(7q)`** satisfies the
+Good row (“double including del(5q)”) and the Poor row (“double
+including -7/del(7q)”) simultaneously. Poor wins, so the more adverse
+lesion is not masked by its partner:
+
+``` r
+
+parse_karyo("44,XX,del(5)(q13q33),-7") |>
+  assign_risk("ipssr") |>
+  dplyr::select(original_karyotype, ipssr_cyto_risk)
+#> # A tibble: 1 × 2
+#>   original_karyotype      ipssr_cyto_risk
+#>   <chr>                   <ord>          
+#> 1 44,XX,del(5)(q13q33),-7 Poor
+```
+
+**`t(3q)` is read as 3q26 rearrangement**, not any 3q breakpoint, since
+the IPSS-R row reflects *MECOM*/EVI1 biology. `del(3q)` is matched at
+any 3q breakpoint.
+
+### Karyotypes IPSS-R cannot score
+
+A karyotype with no scoreable aberration token that is nonetheless not
+normal returns `NA` rather than a guess. The usual case is `45,X`, where
+the loss rides on the sex complement and `-X` cannot be distinguished
+from `-Y` – one would be Very Good, the other Intermediate:
+
+``` r
+
+parse_karyo("45,X") |>
+  assign_risk("ipssr") |>
+  dplyr::select(original_karyotype, distinct_aberrations, ipssr_cyto_risk)
+#> # A tibble: 1 × 3
+#>   original_karyotype distinct_aberrations ipssr_cyto_risk
+#>   <chr>                             <int> <ord>          
+#> 1 45,X                                  0 NA
+```
+
+Rows the parser could not score at all are `NA` in the same way.
+
+## ELN 2022 cytogenetic risk
+
+Evaluated in strict precedence order:
+
+1.  **Favorable** – `t(8;21)`, `inv(16)`, `t(16;16)`. Class-defining, so
+    they outrank every adverse criterion below.
+2.  **Intermediate, by carve-out** – `t(9;11)`/*MLLT3::KMT2A*.
+3.  **Adverse** – `t(6;9)`, `t(v;11q23)`, `t(9;22)`, `t(8;16)`,
+    `inv(3)(q21q26)`/`t(3;3)(q21;q26)`, `t(3q26;v)`, `-5`/`del(5q)`,
+    `-7`, `-17`/abn(17p), complex karyotype, monosomal karyotype.
+4.  **Intermediate** – anything else, including a normal karyotype.
+
+ELN 2022 has no numeric score, so this scheme adds only a category
+column.
+
+``` r
+
+eln_examples <- c(
+  "46,XX,inv(16)(p13q22)",
+  "46,XX",
+  "46,XX,t(9;22)(q34;q11)",
+  "45,XX,-7",
+  "46,XX,i(17)(q10)"
+)
+
+parse_karyo(eln_examples) |>
+  assign_risk("eln2022") |>
+  dplyr::select(original_karyotype, eln2022_cyto_risk)
+#> # A tibble: 5 × 2
+#>   original_karyotype     eln2022_cyto_risk
+#>   <chr>                  <ord>            
+#> 1 46,XX,inv(16)(p13q22)  Favorable        
+#> 2 46,XX                  Intermediate     
+#> 3 46,XX,t(9;22)(q34;q11) Adverse          
+#> 4 45,XX,-7               Adverse          
+#> 5 46,XX,i(17)(q10)       Adverse
+```
+
+### The KMT2A carve-out
+
+`t(9;11)` is an 11q23 rearrangement, so it also matches the *adverse*
+`t(v;11q23)`/*KMT2A*-rearranged row. ELN gives `t(9;11)` precedence, so
+the order matters: check it before the adverse rows, or every `t(9;11)`
+comes out adverse.
+
+``` r
+
+kmt2a <- c("46,XX,t(9;11)(p21;q23)", "46,XX,t(11;19)(q23;p13)")
+
+parse_karyo(kmt2a) |>
+  assign_risk("eln2022") |>
+  dplyr::select(
+    original_karyotype,
+    t_9_11_p21_q23,
+    t_v_11q23,
+    eln2022_cyto_risk
+  )
+#> # A tibble: 2 × 4
+#>   original_karyotype      t_9_11_p21_q23 t_v_11q23 eln2022_cyto_risk
+#>   <chr>                            <int>     <int> <ord>            
+#> 1 46,XX,t(9;11)(p21;q23)               1         1 Intermediate     
+#> 2 46,XX,t(11;19)(q23;p13)              0         1 Adverse
+```
+
+Both rows have `t_v_11q23 = 1`; only the second is adverse.
+
+### Class-defining lesions outrank adverse criteria
+
+A favorable lesion wins even alongside monosomies and a complex
+karyotype – the same logic already applied to `monosomal_karyotype`,
+which is forced to 0 for CBF-AML:
+
+``` r
+
+parse_karyo("43,XX,-5,-7,-18,t(8;21)(q22;q22)") |>
+  assign_risk("eln2022") |>
+  dplyr::select(
+    original_karyotype,
+    complex_karyotype,
+    monosomal_karyotype,
+    eln2022_cyto_risk
+  )
+#> # A tibble: 1 × 4
+#>   original_karyotype     complex_karyotype monosomal_karyotype eln2022_cyto_risk
+#>   <chr>                              <int>               <int> <ord>            
+#> 1 43,XX,-5,-7,-18,t(8;2…                 1                   0 Favorable
+```
+
+### The hyperdiploid carve-out
+
+ELN’s complex definition excludes hyperdiploid karyotypes with three or
+more trisomies (or polysomies) and no structural abnormality. Adding a
+structural abnormality, or a monosomy, brings complex back:
+
+``` r
+
+hd <- c(
+  "49,XX,+8,+13,+21",
+  "52,XX,+1,+6,+8,+9,+14,+21",
+  "49,XX,+8,+13,+21,del(20)(q11)",
+  "48,XX,+8,+13,-18",
+  "49,XX,+8,+13,+21,+mar"
+)
+
+parse_karyo(hd) |>
+  assign_risk("eln2022") |>
+  dplyr::select(original_karyotype, complex_karyotype, eln2022_cyto_risk)
+#> # A tibble: 5 × 3
+#>   original_karyotype            complex_karyotype eln2022_cyto_risk
+#>   <chr>                                     <int> <ord>            
+#> 1 49,XX,+8,+13,+21                              1 Intermediate     
+#> 2 52,XX,+1,+6,+8,+9,+14,+21                     1 Intermediate     
+#> 3 49,XX,+8,+13,+21,del(20)(q11)                 1 Adverse          
+#> 4 48,XX,+8,+13,-18                              1 Adverse          
+#> 5 49,XX,+8,+13,+21,+mar                         1 Adverse
+```
+
+Note `complex_karyotype` stays `1` throughout. **The carve-out is
+applied inside the ELN path only**, because it is specific to ELN:
+IPSS-R’s complex rows carry no such exclusion, and folding it into the
+shared column would silently corrupt IPSS-R scoring. A marker chromosome
+counts as a structural abnormality here, which is why the last row is
+adverse.
+
+## Where the two schemes disagree
+
+They are built for different diseases and genuinely differ. Isolated
+`del(5q)` is the clearest case – Good under IPSS-R, adverse under ELN:
+
+``` r
+
+parse_karyo(c("46,XX,del(5)(q13q33)", "47,XX,+8", "46,XX,t(8;21)(q22;q22)")) |>
+  assign_risk("ipssr") |>
+  assign_risk("eln2022") |>
+  dplyr::select(original_karyotype, ipssr_cyto_risk, eln2022_cyto_risk)
+#> # A tibble: 3 × 3
+#>   original_karyotype     ipssr_cyto_risk eln2022_cyto_risk
+#>   <chr>                  <ord>           <ord>            
+#> 1 46,XX,del(5)(q13q33)   Good            Adverse          
+#> 2 47,XX,+8               Intermediate    Intermediate     
+#> 3 46,XX,t(8;21)(q22;q22) Intermediate    Favorable
+```
+
+Across the bundled example dataset:
+
+``` r
+
+parse_karyo(
+  example_karyotypes,
+  karyotype_column = "karyotype",
+  on_issues = "preprocess",
+  verbose = FALSE
+) |>
+  assign_risk("ipssr") |>
+  assign_risk("eln2022") |>
+  dplyr::count(ipssr_cyto_risk, eln2022_cyto_risk)
+#> Chimeric: 3 (on_chimeric = "default").
+#> # A tibble: 11 × 3
+#>    ipssr_cyto_risk eln2022_cyto_risk     n
+#>    <ord>           <ord>             <int>
+#>  1 Very Good       Intermediate          1
+#>  2 Good            Intermediate          7
+#>  3 Good            Adverse               2
+#>  4 Intermediate    Favorable             3
+#>  5 Intermediate    Intermediate         51
+#>  6 Intermediate    Adverse              16
+#>  7 Poor            Favorable             1
+#>  8 Poor            Intermediate          2
+#>  9 Poor            Adverse              12
+#> 10 NA              Intermediate          3
+#> 11 NA              NA                    4
+```
+
+Off-diagonal cells are the schemes disagreeing by design, not errors.
+
+## Judgment calls and limits
+
+Beyond the IPSS-R resolutions above, the ELN implementation makes two
+calls worth knowing about:
+
+- **abn(17p)** is read as `-17`, `del(17p)`, `add(17p)` or `i(17q)`.
+  Including `i(17q)` reflects that it entails 17p loss.
+- **Partial 17p loss implied by an unbalanced derivative is not
+  counted.** `unbal_partial_loss_*` is documented as separate from
+  `del()`/`mono*`, and folding it in here would breach that boundary. If
+  you want those rows treated as abn(17p), combine
+  `unbal_partial_loss_17p` yourself.
+
+Two further limits apply to both schemes:
+
+- **Custom rule tables.** Risk assignment reads specific
+  \[myeloid_rules\] flags. Passing a different `rules` table, or
+  narrowing `columns` so those flags are dropped, makes
+  [`assign_risk()`](https://lucalanino.github.io/karyoparser/reference/assign_risk.md)
+  error rather than return a wrong category.
+- **Multi-clone karyotypes** are scored on aberrations pooled across all
+  clones, consistent with `complex_karyotype`. Neither published scheme
+  prescribes a clone-selection policy.
+
+## Next steps
+
+- [`vignette("karyoparser")`](https://lucalanino.github.io/karyoparser/articles/karyoparser.md)
+  – the full output column reference.
+- [`vignette("custom-rules")`](https://lucalanino.github.io/karyoparser/articles/custom-rules.md)
+  – writing rule tables and restricting output with `columns`.
