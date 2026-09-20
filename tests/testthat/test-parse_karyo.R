@@ -82,12 +82,12 @@ test_that("autosomal mono + general_translocation -> monosomal", {
   expect_equal(r$monosomal_karyotype, 1L)
 })
 
-test_that("derivative_chromosome detected", {
+test_that("general_derivative detected", {
   r <- pk("46,XX,der(1)t(2;3)(p11;q22)")
   expect_equal(r$general_derivative, 1L)
 })
 
-test_that("+der() detected as derivative_chromosome", {
+test_that("+der() detected as general_derivative", {
   r <- pk("47,XX,+der(21)")
   expect_equal(r$general_derivative, 1L)
 })
@@ -98,26 +98,26 @@ test_that("autosomal mono + +der() -> monosomal", {
   expect_equal(r$monosomal_karyotype, 1L)
 })
 
-test_that("derivative_chromosome: autosomal mono + der() -> monosomal", {
+test_that("general_derivative: autosomal mono + der() -> monosomal", {
   r <- pk("45,XX,-7,der(1)t(2;3)(p11;q22)")
   expect_equal(r$general_derivative, 1L)
   expect_equal(r$monosomal_karyotype, 1L)
 })
 
-test_that("derivative_chromosome: co-fires with specific rule for same token", {
+test_that("general_derivative: co-fires with specific rule for same token", {
   r <- pk("46,XX,der(5)t(5;8)(q11;q11)")
   expect_equal(r$t_5q, 1L)
   expect_equal(r$general_derivative, 1L)
 })
 
-test_that("derivative_chromosome: CBF-AML der co-fires but monosomal is overridden", {
+test_that("general_derivative: CBF-AML der co-fires but monosomal is overridden", {
   r <- pk("45,XX,-7,der(8)t(8;21)(q22;q22)")
   expect_equal(r$t_8_21_q22_q22, 1L)
   expect_equal(r$general_derivative, 1L)
   expect_equal(r$monosomal_karyotype, 0L)
 })
 
-test_that("ider() detected as derivative_chromosome", {
+test_that("ider() detected as general_derivative", {
   r <- pk("46,XX,ider(1)(q10)t(1;4)(p22;q11)")
   expect_equal(r$general_derivative, 1L)
 })

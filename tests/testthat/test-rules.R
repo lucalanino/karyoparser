@@ -449,7 +449,7 @@ test_that("t(v;11p15) and general_translocation co-fire", {
   expect_equal(r$general_translocation, 1L)
 })
 
-test_that("der with embedded del(5q): both del(5q) and derivative_chromosome fire", {
+test_that("der with embedded del(5q): both del(5q) and general_derivative fire", {
   r <- pk("46,XX,der(5)del(5)(q11q34)")
   expect_equal(r$del_5q, 1L)
   expect_equal(r$general_derivative, 1L)
@@ -461,20 +461,20 @@ test_that("der of other chrom with embedded del(5q): both fire", {
   expect_equal(r$general_derivative, 1L)
 })
 
-test_that("der with embedded ins and del: insertion, del(5q), and derivative_chromosome all fire", {
+test_that("der with embedded ins and del: insertion, del(5q), and general_derivative all fire", {
   r <- pk("46,XX,der(5)ins(5;17)(p11;??)del(5)(q11)")
   expect_equal(r$general_insertion, 1L)
   expect_equal(r$del_5q, 1L)
   expect_equal(r$general_derivative, 1L)
 })
 
-test_that("der with unspecific embedded del: general_deletion and derivative_chromosome fire", {
+test_that("der with unspecific embedded del: general_deletion and general_derivative fire", {
   r <- pk("46,XX,der(9)del(9)(p11)")
   expect_equal(r$general_deletion, 1L)
   expect_equal(r$general_derivative, 1L)
 })
 
-test_that("der(8)t(8;21) with monosomy: t(8;21) and derivative_chromosome fire, monosomal overridden to 0", {
+test_that("der(8)t(8;21) with monosomy: t(8;21) and general_derivative fire, monosomal overridden to 0", {
   r <- pk("45,XX,-7,der(8)t(8;21)(q22;q22)")
   expect_equal(r$t_8_21_q22_q22, 1L)
   expect_equal(r$general_derivative, 1L)

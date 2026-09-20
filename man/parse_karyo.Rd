@@ -151,7 +151,7 @@ when the criteria are met.
 a bare \code{t(...)} token, or a reciprocal der pair where both partner
 chromosomes appear as centromere donors (e.g.
 \verb{der(5)t(5;17)...,der(17)t(5;17)...}). Independent of
-\code{derivative_chromosome}. A row may be both balanced and unbalanced.
+\code{general_derivative}. A row may be both balanced and unbalanced.
 \item unbalanced_translocation: 1 if the row carries an unbalanced
 translocation -- a lone der whose reciprocal set is incomplete (e.g.
 \verb{der(a)t(a;b)} or a lone \verb{der(a)t(a;b;c)} three-way der) or a whole-arm

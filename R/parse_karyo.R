@@ -127,7 +127,7 @@
 #'     a bare `t(...)` token, or a reciprocal der pair where both partner
 #'     chromosomes appear as centromere donors (e.g.
 #'     `der(5)t(5;17)...,der(17)t(5;17)...`). Independent of
-#'     `derivative_chromosome`. A row may be both balanced and unbalanced.
+#'     `general_derivative`. A row may be both balanced and unbalanced.
 #'   - unbalanced_translocation: 1 if the row carries an unbalanced
 #'     translocation -- a lone der whose reciprocal set is incomplete (e.g.
 #'     `der(a)t(a;b)` or a lone `der(a)t(a;b;c)` three-way der) or a whole-arm
