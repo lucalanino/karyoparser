@@ -479,3 +479,24 @@ test_that("midstring_linewrap: not triggered by trailing narrative with uppercas
     "46,XX[20]"
   )
 })
+
+test_that("non-Latin trailing narrative is reported, not silently stripped", {
+  # trailing_narrative's detect requires [A-Z][a-z]-shaped text, so a CJK-only
+  # suffix never matches it. Because fixes are gated on their own detect, the
+  # row is left intact and caught by stray_non_ascii instead of being quietly
+  # truncated.
+  k <- "46,XX,del(5)(q13q33)[20] \u6b63\u5e38\u6838\u578b"
+  expect_equal(has_issue(k, "trailing_narrative"), 0L)
+  expect_equal(has_issue(k, "stray_non_ascii"), 1L)
+
+  ck <- check_karyo(k, verbose = FALSE)
+  expect_equal(ck$unfixable, 1L)
+  expect_true(is.na(preprocess_karyo(k, verbose = FALSE)$preprocessed))
+
+  latin <- "46,XX,del(5)(q13q33)[20] Normal result"
+  expect_equal(has_issue(latin, "trailing_narrative"), 1L)
+  expect_equal(
+    preprocess_karyo(latin, verbose = FALSE)$preprocessed,
+    "46,XX,del(5)(q13q33)[20]"
+  )
+})

@@ -5,7 +5,7 @@ test_that("check_karyo: clean input returns one row per string, all zeros", {
   expect_equal(result$unfixable, c(0L, 0L))
 })
 
-test_that("check_karyo: column schema — fixable/unfixable first, then sorted unfixable issue cols", {
+test_that("check_karyo: column schema -- fixable/unfixable first, then sorted unfixable issue cols", {
   result <- suppressMessages(check_karyo("46,XX"))
   unfixable_cols <- sort(setdiff(
     karyoparser:::.all_issue_types,
