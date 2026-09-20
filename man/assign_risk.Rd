@@ -4,24 +4,33 @@
 \alias{assign_risk}
 \title{Assign Cytogenetic Risk Categories}
 \usage{
-assign_risk(parsed, scheme = c("ipssr"))
+assign_risk(parsed, scheme = c("ipssr", "eln2022"))
 }
 \arguments{
 \item{parsed}{A tibble returned by \code{\link[=parse_karyo]{parse_karyo()}}. Must carry the default
 \link{myeloid_rules} flags; if \code{columns} was used to narrow the output, the
 classes the scheme needs must still be present.}
 
-\item{scheme}{Character string naming the risk scheme. Currently only
-\code{"ipssr"} (IPSS-R cytogenetic risk group).}
+\item{scheme}{Character string naming the risk scheme: \code{"ipssr"} (default,
+IPSS-R cytogenetic risk group) or \code{"eln2022"} (ELN 2022 cytogenetic risk
+category). One per call.}
 }
 \value{
-\code{parsed} with two columns appended:
+\code{parsed} with the scheme's columns appended.
+
+For \code{"ipssr"}:
 \itemize{
 \item \code{ipssr_cyto_risk}: ordered factor, \verb{Very Good} < \code{Good} <
 \code{Intermediate} < \code{Poor} < \verb{Very Poor}; \code{NA} for rows that cannot be
 scored
 \item \code{ipssr_cyto_score}: integer 0-4 matching the category, \code{NA} alongside
 an \code{NA} category
+}
+
+For \code{"eln2022"}:
+\itemize{
+\item \code{eln2022_cyto_risk}: ordered factor, \code{Favorable} < \code{Intermediate} <
+\code{Adverse}; \code{NA} for rows the parser could not score
 }
 }
 \description{
@@ -30,12 +39,18 @@ Interpretation only -- no parsing or cleaning happens here; the function
 reads columns \code{\link[=parse_karyo]{parse_karyo()}} already produced.
 }
 \details{
-\strong{This is the cytogenetic component only, not a complete risk score.}
+\strong{This is the cytogenetic component only, never a complete risk score.}
 IPSS-R stratifies on five components -- cytogenetics, marrow blast
 percentage, haemoglobin, platelet count, and absolute neutrophil count --
-of which this function computes the first. A row's \code{ipssr_cyto_risk} is
-therefore not an IPSS-R risk group, and must be combined with the four
-haematological components before it means anything clinically.
+of which this computes the first. ELN 2022 is a \emph{genetic} classification:
+assigning it properly needs \emph{NPM1}, \emph{FLT3}-ITD, \emph{CEBPA} bZIP, \emph{TP53},
+\emph{ASXL1}, \emph{RUNX1} and others, none of which a karyotype carries. A normal
+karyotype is intermediate cytogenetically but favorable with mutated
+\emph{NPM1} and no \emph{FLT3}-ITD, or adverse with mutated \emph{TP53}. Treat both
+columns as one input to a risk assessment, not as the assessment.
+
+Apply one scheme per call; chain for both:
+\code{assign_risk(x, "ipssr") |> assign_risk("eln2022")}.
 }
 \section{Counting aberrations}{
 
@@ -74,10 +89,67 @@ normal -- \verb{45,X}, where the loss rides on the sex complement and \code{-X}
 cannot be distinguished from \code{-Y} -- returns \code{NA} rather than guessing.
 }
 
+\section{ELN 2022 categories}{
+
+The cytogenetic rows of the ELN 2022 risk classification, evaluated in
+strict precedence order:
+\enumerate{
+\item \strong{Favorable} -- \verb{t(8;21)(q22;q22)}/\emph{RUNX1::RUNX1T1},
+\code{inv(16)(p13q22)} or \verb{t(16;16)(p13;q22)}/\emph{CBFB::MYH11}. These are
+class-defining, so they win over every adverse criterion below,
+mirroring the CBF-AML override already applied to
+\code{monosomal_karyotype}.
+\item \strong{Intermediate, by carve-out} -- \verb{t(9;11)(p21;q23)}/\emph{MLLT3::KMT2A}.
+Checked before the adverse rows because a \verb{t(9;11)} also satisfies the
+adverse \verb{t(v;11q23)}/\emph{KMT2A}-rearranged row; ELN gives \verb{t(9;11)}
+precedence, so it must be resolved first or every \verb{t(9;11)} would be
+miscalled adverse.
+\item \strong{Adverse} -- \verb{t(6;9)}/\emph{DEK::NUP214}; \verb{t(v;11q23)}/\emph{KMT2A}-rearranged;
+\verb{t(9;22)}/\emph{BCR::ABL1}; \verb{t(8;16)}/\emph{KAT6A::CREBBP}; \code{inv(3)(q21q26)} or
+\verb{t(3;3)(q21;q26)}; \verb{t(3q26;v)}/\emph{MECOM}-rearranged; \code{-5} or \verb{del(5q)};
+\code{-7}; \code{-17}/abn(17p); complex karyotype; monosomal karyotype.
+\item \strong{Intermediate} -- anything else, including a normal karyotype.
+}
+
+\verb{t(6;9)} and \verb{t(9;22)} are matched at both canonical and non-canonical
+breakpoints, since ELN names the fusion rather than the breakpoint. This
+matters: ELN writes \verb{t(6;9)(p23.3;q34.1)}, which is a \emph{non}-canonical
+spelling for \link{myeloid_rules} and would otherwise be missed. \code{inv(3)} and
+\verb{t(3;3)} are matched only at the canonical \code{q21q26}, because the
+non-canonical variants are not the \emph{GATA2}/\emph{MECOM} lesion.
+
+\strong{Complex} uses the ELN definition, not the scheme-neutral
+\code{complex_karyotype} column: three or more distinct aberrations, excluding
+hyperdiploid karyotypes with three or more trisomies (or polysomies) and
+no structural abnormality. The "in the absence of a class-defining
+recurring genetic abnormality" clause falls out of the precedence order --
+favorable lesions and \verb{t(9;11)} are resolved before complex is considered.
+\code{complex_karyotype} itself is deliberately left alone, since IPSS-R's
+complex rows carry no such exclusion.
+
+Two judgment calls, both worth confirming against the source:
+\itemize{
+\item \strong{abn(17p)} is read as \code{-17}, \verb{del(17p)}, \verb{add(17p)} or \verb{i(17q)}.
+Including \verb{i(17q)} reflects that it entails 17p loss.
+\item \strong{Partial 17p loss implied by an unbalanced derivative is \emph{not}
+counted}, because \verb{unbal_partial_loss_*} is documented as separate from
+\code{del()}/\verb{mono*} and folding it in here would breach that boundary. If
+you want those rows treated as abn(17p), combine
+\code{unbal_partial_loss_17p} yourself.
+}
+
+ELN 2022 has no numeric score, so \code{scheme = "eln2022"} adds only a
+category column.
+}
+
 \examples{
 parsed <- parse_karyo(c("46,XX", "46,XX,del(5)(q13q33)", "45,XY,-7"))
 risk <- assign_risk(parsed, scheme = "ipssr")
 risk[, c("original_karyotype", "ipssr_cyto_risk", "ipssr_cyto_score")]
+
+# Both schemes, chained
+both <- assign_risk(parsed, "ipssr") |> assign_risk("eln2022")
+both[, c("original_karyotype", "ipssr_cyto_risk", "eln2022_cyto_risk")]
 
 }
 \seealso{

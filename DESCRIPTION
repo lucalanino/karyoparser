@@ -1,6 +1,6 @@
 Package: karyoparser
 Title: Parse ISCN Karyotype Strings
-Version: 0.32.0
+Version: 0.33.0
 Authors@R:
     person("Luca", "Lanino", role = c("aut", "cre"),
            email = "lucalanino@gmail.com",

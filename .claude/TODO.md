@@ -10,20 +10,6 @@
 
 ### Risk stratification
 
-- **[P2] ELN 2022 cytogenetic risk (`assign_risk(scheme = "eln2022")`)**: IPSS-R
-  shipped first; ELN follows on the same API. Specifics to get right:
-  - **Complex uses the ELN carve-out, not the generic `complex_karyotype`**:
-    excludes hyperdiploid karyotypes with 3+ trisomies/polysomies and no
-    structural abnormality. `complex_karyotype` stays scheme-neutral because
-    IPSS-R has no such exclusion.
-  - **KMT2A carve-out**: `t(9;11)(p21;q23)` is Intermediate and takes
-    precedence over the rarer adverse lesions; all *other* KMT2A/11q23
-    rearrangements (`t_v_11q23`) are Adverse. Order these so t(9;11) wins.
-  - **Class-defining favorable lesions override adverse-complex**, mirroring
-    the CBF-AML override already applied to `monosomal_karyotype`.
-  - Name it `eln2022_cyto_risk`: ELN 2022 is a *genetic* classification
-    needing NPM1/FLT3-ITD/CEBPA/TP53/ASXL1/RUNX1 etc. Cytogenetics alone
-    cannot assign a true ELN risk group.
 - **[P3] Risk vignette**: fold both schemes into one article once ELN lands,
   leading with the "cytogenetic component only" caveat.
 
