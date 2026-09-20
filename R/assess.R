@@ -399,11 +399,12 @@ validate_karyotypes <- function(karyotypes) {
     )
   }
 
-  # Priority chain: each check below only claims rows still `remaining`, so a
-  # row is reported under (at most) the first category that matches it, same
-  # as the `next`-chained early exits this replaces. `remaining & <NA-capable
-  # expr>` is always FALSE (never NA) for rows already excluded, since `&`
-  # short-circuits to FALSE on a FALSE left side.
+  # Priority chain: each check in this chain only claims rows still
+  # `remaining`, so a row is reported under (at most) the first category that
+  # matches it, same as the `next`-chained early exits this replaces. (The
+  # per-clone sub-checks further down are only partly chained -- see there.)
+  # `remaining & <NA-capable expr>` is always FALSE (never NA) for rows
+  # already excluded, since `&` short-circuits to FALSE on a FALSE left side.
   remaining <- rep(TRUE, n)
 
   is_na <- is.na(karyotypes)
@@ -526,6 +527,10 @@ validate_karyotypes <- function(karyotypes) {
       length(tokens_list)
     )
 
+    # Only the first two sub-checks are mutually exclusive. `no_sex_complement`
+    # does not clear `sub_remaining`, and `invalid_idem`/`unparseable_bracket`
+    # test `rem_idx` directly, so a row can be reported under several of them
+    # (e.g. "46,idem,+8" fires `no_sex_complement` and `invalid_idem`).
     sub_remaining <- rep(TRUE, length(rem_idx))
 
     hit <- sub_remaining & has_const_sex

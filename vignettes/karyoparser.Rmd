@@ -71,7 +71,7 @@ so you can trace a saved result back to whatever version produced it.
 
 ## A first pass, with `example_karyotypes`
 
-`example_karyotypes` ships with the package -- 100 synthetic ISCN strings
+`example_karyotypes` ships with the package -- 101 synthetic ISCN strings
 covering one example per `myeloid_rules` flag, general structural
 aberrations, aneuploidy-only cases, balanced/unbalanced translocations,
 complex and monosomal karyotypes, chimeric/multi-clone cases, and a batch of
@@ -155,7 +155,7 @@ status columns are always included regardless.
 | Metadata | `original_karyotype`, `preprocessed_karyotype` | character | Raw input; cleaned/normalized string that was parsed (NA for unfixable rows) |
 | Classification | `normal_karyotype` | integer 0/1 | 1 if `46,XX` or `46,XY` exactly |
 | Classification | `complex_karyotype` | integer 0/1 | 1 if >= 3 distinct aberrations across clones |
-| Classification | `monosomal_karyotype` | integer 0/1 | 1 if >= 2 autosomal monosomies, or >= 1 autosomal monosomy + >= 1 structural aberration (any `general_*` flag except `general_marker`). Sex-chromosome monosomies never count. Forced to 0 for CBF-AML rows -- `t(8;21)(q22;q22)`, `inv(16)(p13q22)`, `t(16;16)(p13;q22)` -- even when the criteria are met |
+| Classification | `monosomal_karyotype` | integer 0/1 | 1 if >= 2 autosomal monosomies, or >= 1 autosomal monosomy + >= 1 structural aberration (any `general_*` flag except `general_marker` and `general_dmin`). Sex-chromosome monosomies never count. Forced to 0 for CBF-AML rows -- `t(8;21)(q22;q22)`, `inv(16)(p13q22)`, `t(16;16)(p13;q22)` -- even when the criteria are met |
 | Rule flags | *(one per `myeloid_rules` entry)* | integer 0/1 | Specific lesions -- see Aberration flags below |
 | General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_dmin`, `general_derivative`, `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Universal structural-aberration detections, incl. translocation balance |
 | Aneuploidy | `mono1`--`mono22`, `monoX`, `monoY`; `tris1`--`tris22`, `trisX`, `trisY` | integer 0/1 | Whole-chromosome loss/gain from `-`/`+` tokens |

@@ -130,7 +130,8 @@ ignore more small clones (\code{5} is a common cytogenetics convention), or
 set \code{0} to consider every clone that has a count.}
 }
 \value{
-A tibble with columns:
+A tibble with the columns below, grouped by topic rather than
+listed in output order:
 \itemize{
 \item original_karyotype: Input karyotype string (always the raw input)
 \item preprocessed_karyotype: \code{normalize_iscn()} output of the
@@ -157,9 +158,10 @@ tokens pooled across all clones, excluding sex complements,
 \item complex_karyotype: 1 if >=3 unique aberrations, else 0
 \item monosomal_karyotype: 1 if the row has two or more autosomal
 monosomies, or one autosomal monosomy plus at least one structural
-aberration (any \verb{general_*} flag except \code{general_marker} -- a lone
-marker does not count). Two carve-outs: sex-chromosome monosomies
-(\code{monoX}/\code{monoY}) never count toward either criterion, and a
+aberration (any \verb{general_*} flag except \code{general_marker} and
+\code{general_dmin} -- a lone marker or double minute does not count).
+Two carve-outs: sex-chromosome monosomies (\code{monoX}/\code{monoY}) never
+count toward either criterion, and a
 CBF-AML row (\verb{t(8;21)(q22;q22)}, \code{inv(16)(p13q22)}, or
 \verb{t(16;16)(p13;q22)}) is forced to 0 per clinical guidelines even
 when the criteria are met.
@@ -176,10 +178,11 @@ keeps \code{t_9_22_q34_q11 = 1}). A der is balanced instead only when the
 full reciprocal set is present (every partner appears as a der).
 \item unbal_partial_loss_\if{html}{\out{<arm>}}: one column per chromosome arm
 (\code{unbal_partial_loss_1p}, \code{unbal_partial_loss_1q}, ...,
-\code{unbal_partial_loss_22q}, \code{unbal_partial_loss_Xp}, \code{unbal_partial_loss_Xq},
-\code{unbal_partial_loss_Yp}, \code{unbal_partial_loss_Yq}), set to 1 when an
-unbalanced der translocation implies partial loss of that arm. Kept
-SEPARATE from \code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q loss does not
+\code{unbal_partial_loss_22q}, \code{unbal_partial_loss_Xp},
+\code{unbal_partial_loss_Xq}, \code{unbal_partial_loss_Yp},
+\code{unbal_partial_loss_Yq}), set to 1 when an unbalanced der
+translocation implies partial loss of that arm. Kept SEPARATE from
+\code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q loss does not
 set \code{del_5q}. Derivation needs explicit breakpoints and is limited to
 simple single-junction two-partner \verb{der(a)t(a;b)}; multi-junction chains
 and three-way \verb{t(a;b;c)} derivatives are flagged unbalanced but derive no

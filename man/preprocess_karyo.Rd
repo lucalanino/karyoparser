@@ -22,8 +22,8 @@ upstream is propagated automatically. When a plain data frame is supplied,
 name the karyotype column with \code{karyotype_column}.}
 
 \item{karyotype_column}{Character. Name of the karyotype column.
-\strong{Required} when \code{x} is a plain data frame -- columns are never guessed.
-Ignored for character vector or \code{karyo_check} input.}
+\strong{Required} when \code{karyotypes} is a plain data frame -- columns are
+never guessed. Ignored for character vector or \code{karyo_check} input.}
 
 \item{id_column}{Character. Name of the id column. Optional: \code{NULL}
 (default) means the data has no identifier, and one is never inferred.

@@ -107,7 +107,8 @@
 #'   ignore more small clones (`5` is a common cytogenetics convention), or
 #'   set `0` to consider every clone that has a count.
 #'
-#' @return A tibble with columns:
+#' @return A tibble with the columns below, grouped by topic rather than
+#'   listed in output order:
 #'   - original_karyotype: Input karyotype string (always the raw input)
 #'   - preprocessed_karyotype: `normalize_iscn()` output of the
 #'     karyotype string, consistent across all `on_issues` modes. In
@@ -133,9 +134,10 @@
 #'   - complex_karyotype: 1 if >=3 unique aberrations, else 0
 #'   - monosomal_karyotype: 1 if the row has two or more autosomal
 #'     monosomies, or one autosomal monosomy plus at least one structural
-#'     aberration (any `general_*` flag except `general_marker` -- a lone
-#'     marker does not count). Two carve-outs: sex-chromosome monosomies
-#'     (`monoX`/`monoY`) never count toward either criterion, and a
+#'     aberration (any `general_*` flag except `general_marker` and
+#'     `general_dmin` -- a lone marker or double minute does not count).
+#'     Two carve-outs: sex-chromosome monosomies (`monoX`/`monoY`) never
+#'     count toward either criterion, and a
 #'     CBF-AML row (`t(8;21)(q22;q22)`, `inv(16)(p13q22)`, or
 #'     `t(16;16)(p13;q22)`) is forced to 0 per clinical guidelines even
 #'     when the criteria are met.
@@ -152,10 +154,11 @@
 #'     full reciprocal set is present (every partner appears as a der).
 #'   - unbal_partial_loss_<arm>: one column per chromosome arm
 #'     (`unbal_partial_loss_1p`, `unbal_partial_loss_1q`, ...,
-#'     `unbal_partial_loss_22q`, `unbal_partial_loss_Xp`, `unbal_partial_loss_Xq`,
-#'     `unbal_partial_loss_Yp`, `unbal_partial_loss_Yq`), set to 1 when an
-#'     unbalanced der translocation implies partial loss of that arm. Kept
-#'     SEPARATE from `del(...)`/`mono*` -- an unbalanced-derived 5q loss does not
+#'     `unbal_partial_loss_22q`, `unbal_partial_loss_Xp`,
+#'     `unbal_partial_loss_Xq`, `unbal_partial_loss_Yp`,
+#'     `unbal_partial_loss_Yq`), set to 1 when an unbalanced der
+#'     translocation implies partial loss of that arm. Kept SEPARATE from
+#'     `del(...)`/`mono*` -- an unbalanced-derived 5q loss does not
 #'     set `del_5q`. Derivation needs explicit breakpoints and is limited to
 #'     simple single-junction two-partner `der(a)t(a;b)`; multi-junction chains
 #'     and three-way `t(a;b;c)` derivatives are flagged unbalanced but derive no
@@ -219,7 +222,7 @@ parse_karyo <- function(
     )
   }
 
-  # Validate rules early (needed for empty result structure) ------------------
+  # Validate rules early (needed for empty result structure) ----
   # `rules` may be a single karyo_rules object, or a list of karyo_rules
   # objects to combine (e.g. list(myeloid_rules, lymphoid_rules)). Excluding
   # data frames here matters because a data.frame is itself a list -- without
@@ -260,7 +263,7 @@ parse_karyo <- function(
   # Adding a feature in .column_catalog() flows to all three automatically.
   catalog <- .column_catalog(rules)
 
-  # ---- Output-column filtering (width knob) ----------------------------------
+  # Output-column filtering (width knob) ----
   # `columns` selects which output-column classes to keep, using the `class`
   # field from .column_catalog(). "meta" and "status" (row identity plus
   # error/chimeric bookkeeping) are always kept regardless of `columns` --
@@ -305,7 +308,7 @@ parse_karyo <- function(
     out
   }
 
-  # ---- Input routing: extract raw_vec, original_vec, id info ----------------
+  # Input routing: extract raw_vec, original_vec, id info ----
   is_preprocessed <- is.data.frame(karyotypes) &&
     inherits(karyotypes, "karyo_preprocessed")
 
@@ -601,7 +604,7 @@ parse_karyo <- function(
       }
     }
 
-    # Single informational message for chimeric rows (replaces the old warning).
+    # Single informational message for chimeric rows.
     n_chimeric <- length(chimeric_all_indices)
     if (n_chimeric > 0) {
       message(sprintf(
@@ -618,14 +621,14 @@ parse_karyo <- function(
     chimeric_clone_vec <- character(0)
   }
 
-  # Ingest --------------------------------------------------------------------
+  # Ingest ----
   input_df <- tibble::tibble(
     .pk_row_id = seq_along(raw_vec),
     original_karyotype = original_vec,
     preprocessed_karyotype = raw_vec
   )
 
-  # Apply issue-row filtering -------------------------------------------------
+  # Apply issue-row filtering ----
   if (length(issue_row_indices) > 0) {
     issue_rows_df <- input_df |>
       dplyr::filter(.pk_row_id %in% issue_row_indices)
@@ -635,7 +638,7 @@ parse_karyo <- function(
     issue_rows_df <- input_df[0, ]
   }
 
-  # Check for empty input -----------------------------------------------------
+  # Check for empty input ----
   if (nrow(input_df) == 0) {
     if (nrow(issue_rows_df) > 0) {
       out <- blank_rows(
@@ -672,7 +675,7 @@ parse_karyo <- function(
     return(empty_result())
   }
 
-  # ---- Deduplication ---------------------------------------------------------
+  # Deduplication ----
   n_total <- nrow(input_df)
   unique_karyotypes <- unique(input_df$preprocessed_karyotype)
   n_unique <- length(unique_karyotypes)
@@ -700,7 +703,7 @@ parse_karyo <- function(
     )
   }
 
-  # ---- Parsing pipeline -------------------------------------------------------
+  # Parsing pipeline ----
   sample_meta <- build_sample_meta(dedup_df, min_metaphases = min_metaphases)
   tokens <- build_clone_tokens(sample_meta)
   flags <- match_rules(tokens, rules, rule_flag_names)
@@ -712,7 +715,7 @@ parse_karyo <- function(
   balance_flags <- classify_translocation_balance(tokens, der_translocations)
   unbal_partial_loss <- derive_unbalanced_loss(der_translocations)
 
-  # ---- Assembly --------------------------------------------------------------
+  # Assembly ----
   all_flags <- dedup_df |>
     dplyr::select(.pk_row_id) |>
     dplyr::left_join(flags, by = ".pk_row_id") |>
@@ -723,10 +726,10 @@ parse_karyo <- function(
   # A row has a structural aberration (for monosomal-karyotype) if any general
   # structural flag fires. The general_* detections cover every structural
   # category universally (translocation, deletion, inversion, addition,
-  # dicentric, isodicentric, isochromosome, ring, insertion, duplication,
-  # triplication, derivative), so "is there a structural aberration?" no longer
-  # depends on per-rule annotation. The lone clinical exception, CBF-AML, is
-  # applied as an explicit override below.
+  # dicentric, isodicentric, pseudodicentric, isochromosome, ring, insertion,
+  # duplication, triplication, derivative), so "is there a structural
+  # aberration?" no longer depends on per-rule annotation. The lone clinical
+  # exception, CBF-AML, is applied as an explicit override below.
   structural_flags <- .general_flags_for_monosomal
 
   autosomal_mono_cols <- paste0("mono", as.character(1:22))
@@ -824,7 +827,7 @@ parse_karyo <- function(
 
   keep_cols <- intersect(all_output_cols, names(result))
 
-  # ---- Join back to original rows if deduped ---------------------------------
+  # Join back to original rows if deduped ----
   if (deduped) {
     parsed_unique <- result[, keep_cols]
     valid_out <- input_df |>
@@ -840,7 +843,7 @@ parse_karyo <- function(
     )
   }
 
-  # Recombine with issue rows --------------------------------------------------
+  # Recombine with issue rows ----
   if (nrow(issue_rows_df) > 0) {
     br <- blank_rows(
       issue_rows_df$original_karyotype,
@@ -854,7 +857,7 @@ parse_karyo <- function(
     out <- valid_out
   }
 
-  # Error flag columns ---------------------------------------------------------
+  # Error flag columns ----
   out$fixable_error <- as.integer(
     out$.pk_row_id %in%
       fixable_row_indices &
@@ -864,7 +867,7 @@ parse_karyo <- function(
   out$chimeric_karyotype <- as.integer(out$.pk_row_id %in% chimeric_all_indices)
   out$chimeric_clone <- chimeric_clone_vec[out$.pk_row_id]
 
-  # Attach ID column if available ---------------------------------------------
+  # Attach ID column if available ----
   if (!is.null(id_values)) {
     out[[id_col_name]] <- id_values[out$.pk_row_id]
     out <- out |> dplyr::relocate(dplyr::all_of(id_col_name), .before = 1)

@@ -22,8 +22,8 @@
 #'   upstream is propagated automatically. When a plain data frame is supplied,
 #'   name the karyotype column with `karyotype_column`.
 #' @param karyotype_column Character. Name of the karyotype column.
-#'   **Required** when `x` is a plain data frame -- columns are never guessed.
-#'   Ignored for character vector or `karyo_check` input.
+#'   **Required** when `karyotypes` is a plain data frame -- columns are
+#'   never guessed. Ignored for character vector or `karyo_check` input.
 #' @param id_column Character. Name of the id column. Optional: `NULL`
 #'   (default) means the data has no identifier, and one is never inferred.
 #'   Ignored for character vector or `karyo_check` input, where the id is
