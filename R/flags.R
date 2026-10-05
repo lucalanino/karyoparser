@@ -2,25 +2,14 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   mono_cols <- paste0("mono", chroms)
   tris_cols <- paste0("tris", chroms)
 
-  aneuploidy_tbl <- tokens_tbl |>
-    dplyr::filter(aberr_raw != "") |>
-    dplyr::transmute(
-      .pk_row_id,
-      sign = dplyr::case_when(
-        stringr::str_detect(aberr_raw, "^-") ~ "-",
-        stringr::str_detect(aberr_raw, "^\\+") ~ "+",
-        TRUE ~ ""
-      ),
-      chrom = stringr::str_extract(aberr_raw, "(?<=^[-+])[0-9XY]+"),
-      is_mono_tri = sign %in% c("-", "+") & !is.na(chrom),
-      prefix = dplyr::case_when(
-        sign == "-" ~ "mono",
-        sign == "+" ~ "tris",
-        TRUE ~ NA_character_
-      )
-    ) |>
-    dplyr::filter(is_mono_tri) |>
-    dplyr::mutate(flag = paste0(prefix, chrom), value = 1L) |>
+  m <- stringr::str_match(tokens_tbl$aberr_raw, .aneuploidy_re)
+  hit <- !is.na(m[, 1])
+
+  aneuploidy_tbl <- tibble::tibble(
+    .pk_row_id = tokens_tbl$.pk_row_id[hit],
+    flag = paste0(ifelse(m[hit, 2] == "-", "mono", "tris"), m[hit, 3]),
+    value = 1L
+  ) |>
     dplyr::distinct(.pk_row_id, flag, .keep_all = TRUE) |>
     dplyr::select(.pk_row_id, flag, value) |>
     tidyr::pivot_wider(names_from = flag, values_from = value, values_fill = 0L)
@@ -39,7 +28,15 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   general_isodicentric = paste0(.aberr_indicators_paren[["idic"]], "\\("),
   general_isochromosome = paste0(.aberr_indicators_paren[["i"]], "\\("),
   general_pseudodicentric = paste0(.aberr_indicators_paren[["psu_dic"]], "\\("),
-  general_ring = paste0("\\b", .aberr_indicators_paren[["r"]], "\\("),
+  # Either a ring with breakpoints ('r(7)') or an unidentified one ('+1~3r').
+  general_ring = paste0(
+    "\\b",
+    .aberr_indicators_paren[["r"]],
+    "\\(|",
+    .unidentified_count_re,
+    .aberr_indicators_paren[["r"]],
+    "\\d*\\??$"
+  ),
   general_insertion = paste0(.aberr_indicators_paren[["ins"]], "\\("),
   general_duplication = paste0(.aberr_indicators_paren[["dup"]], "\\("),
   general_triplication = paste0(.aberr_indicators_paren[["trp"]], "\\("),
@@ -53,10 +50,11 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   general_deletion = paste0(.aberr_indicators_paren[["del"]], "\\("),
   # A leading count makes the left \\b vanish ('+2mar'), so anchor on "not
   # preceded by a letter", which still rejects word tails like 'marker'.
+  # Markers may be numbered ('+mar1').
   general_marker = paste0(
     "(?<![A-Za-z])",
     .aberr_indicators_bare[["mar"]],
-    "\\b"
+    "\\d*\\b"
   ),
   general_dmin = paste0(
     "(?<![A-Za-z])",

@@ -123,7 +123,9 @@
 #'   - One column per aberration flag (0/1 binary); rule-based columns are
 #'     named after a sanitized `flag_name` (see `rules` above)
 #'   - monoX, monoY, mono1-22: Monosomy flags for each chromosome
-#'   - trisX, trisY, tris1-22: Trisomy flags for each chromosome
+#'   - trisX, trisY, tris1-22: Trisomy flags for each chromosome. Mono/tris
+#'     flags are set only by a whole gain/loss token (`+8`, `-7`, `-Xx2`);
+#'     constitutional (`+21c`) and uncertain (`+?8`) gains are not counted
 #'   - normal_karyotype: 1 if 46,XX or 46,XY, else 0
 #'   - total_metaphases: Count from bracket notation
 #'   - comma_count_aberrations: Number of comma-separated aberrations

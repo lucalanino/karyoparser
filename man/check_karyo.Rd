@@ -64,7 +64,7 @@ Unfixable issue types (always returned as NA by \code{parse_karyo()}):
 \code{updated_iscn}, \code{unbalanced_parentheses}, \code{unbalanced_brackets},
 \code{no_sex_complement}, \code{single_token}, \code{constitutional_sex_complement},
 \code{mosaic_karyotype}, \code{invalid_idem}, \code{unparseable_bracket},
-\code{stray_non_ascii}.
+\code{unrecognized_gain_loss}, \code{stray_non_ascii}.
 
 See \code{vignette("data-cleaning")} for what each issue type means, worked
 examples, and how to resolve the unfixable ones.

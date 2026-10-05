@@ -60,7 +60,7 @@ a column:
   `mosaic_karyotype`, `multiple_chimeric_separator`, `no_chromosome_count`,
   `no_sex_complement`, `single_token`, `stray_non_ascii`,
   `unbalanced_brackets`, `unbalanced_parentheses`, `unparseable_bracket`,
-  `updated_iscn`.
+  `unrecognized_gain_loss`, `updated_iscn`.
 
 ## Unfixable issues: what to do
 
@@ -77,6 +77,7 @@ constructs the package deliberately doesn't handle.
 | `invalid_idem` | `idem` appears in the first clone | `idem` means "same as the previous clone", but there is no previous clone here. Check whether an earlier clone was dropped from the string. |
 | `unbalanced_parentheses` / `unbalanced_brackets` | Mismatched `(`/`)` or `[`/`]` counts | Usually a truncation or copy-paste error. Inspect the original source record. |
 | `unparseable_bracket` | Bracket content isn't a valid metaphase count (`[n]`, `[cpN]`, `[n~m]`) | Look for stray text inside the brackets, e.g. a note or annotation that ended up bracketed. |
+| `unrecognized_gain_loss` | A `+`/`-` token that is neither a whole-chromosome gain/loss (`+8`, `-Xx2`), an unidentified ring/marker/double minute (`+1~3r`, `+2mar`), nor a structural aberration (`+der(1)...`), e.g. `+8q` or `+23` | Monosomy/trisomy flags only fire on whole tokens, so an unforeseen shape would otherwise be silently skipped. Correct the token in the source record. |
 | `multiple_chimeric_separator` | Two or more `//` separators | The parser can't auto-resolve more than one chimeric boundary. Decide manually which clone population to keep. |
 | `updated_iscn` | Contains an `"Updated ISCN"` marker | The string may have been superseded by a later correction. Check the source record for the corrected karyotype. |
 | `constitutional_sex_complement` | Sex complement has a `c` suffix, e.g. `47,XXYc` | Out of scope by design, not a data-quality issue -- see [Out-of-scope constructs](#out-of-scope-constructs-take-precedence) below. |

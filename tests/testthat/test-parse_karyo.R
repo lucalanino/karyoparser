@@ -14,6 +14,25 @@ test_that("-X and +Y detected", {
   expect_equal(r$trisY, 1L)
 })
 
+test_that("copy multiplier counts as monosomy/trisomy", {
+  r <- pk("45,-Xx2,t(7;15)(p13;q11.2),-9")
+  expect_equal(r$monoX, 1L)
+  expect_equal(r$mono9, 1L)
+})
+
+test_that("counted rings, markers and dmin do not trigger tris/mono", {
+  r <- pk(c("47,XX,+2mar", "48,XX,+1~4mar", "47,XX,+2dmin", "47,XX,+1~3r"))
+  expect_equal(r$tris1, c(0L, 0L, 0L, 0L))
+  expect_equal(r$tris2, c(0L, 0L, 0L, 0L))
+})
+
+test_that("constitutional and uncertain gains do not trigger tris", {
+  r <- pk(c("47,XY,+21c", "47,XY,+?8"))
+  expect_equal(r$tris21, c(0L, 0L))
+  expect_equal(r$tris8, c(0L, 0L))
+  expect_equal(r$unfixable_error, c(0L, 0L))
+})
+
 test_that("del(7) does NOT trigger mono7", {
   r <- pk("46,XY,del(7)(q22)")
   expect_equal(r$mono7, 0L)
@@ -2189,6 +2208,15 @@ test_that("general_marker fires on a counted marker, not just a bare one", {
     suppressMessages(preprocess_karyo("47,XX,+1~4 mar"))$preprocessed,
     "47,XX,+1~4mar"
   )
+})
+
+test_that("general_marker fires on a numbered marker", {
+  expect_equal(pk("48,XX,+mar1,+mar2")$general_marker, 1L)
+})
+
+test_that("general_ring fires on unidentified rings, with or without a count", {
+  r <- pk(c("47,XX,+r", "48,XX,+1~3r", "47,XX,+r(7)(p22q36)", "47,XX,+8"))
+  expect_equal(r$general_ring, c(1L, 1L, 1L, 0L))
 })
 
 test_that("general_dmin detects double minutes, with or without a count", {

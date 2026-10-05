@@ -147,7 +147,9 @@ clone in the row qualifies, which can happen even though
 \item One column per aberration flag (0/1 binary); rule-based columns are
 named after a sanitized \code{flag_name} (see \code{rules} above)
 \item monoX, monoY, mono1-22: Monosomy flags for each chromosome
-\item trisX, trisY, tris1-22: Trisomy flags for each chromosome
+\item trisX, trisY, tris1-22: Trisomy flags for each chromosome. Mono/tris
+flags are set only by a whole gain/loss token (\code{+8}, \code{-7}, \code{-Xx2});
+constitutional (\verb{+21c}) and uncertain (\code{+?8}) gains are not counted
 \item normal_karyotype: 1 if 46,XX or 46,XY, else 0
 \item total_metaphases: Count from bracket notation
 \item comma_count_aberrations: Number of comma-separated aberrations

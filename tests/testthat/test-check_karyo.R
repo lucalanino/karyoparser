@@ -130,6 +130,29 @@ test_that("check_karyo detects unparseable_bracket for non-numeric bracket conte
   expect_equal(result$unfixable, 1L)
 })
 
+test_that("check_karyo detects unrecognized_gain_loss in any clone", {
+  result <- suppressMessages(check_karyo(c(
+    "47,XY,+8q[10]",
+    "46,XY[5]/47,XY,+23[5]",
+    "47,XY,+8[10]"
+  )))
+  expect_equal(result$unrecognized_gain_loss, c(1L, 1L, 0L))
+  expect_equal(result$unfixable, c(1L, 1L, 0L))
+})
+
+test_that("unrecognized_gain_loss accepts every recognized +/- token shape", {
+  result <- suppressMessages(check_karyo(paste0(
+    "49,XX,",
+    c(
+      "+8,-Xx2,+21c,+?8",
+      "+1~3r,+r,-1mar,+mar1,+2dmin",
+      "+der(1)t(1;3)(p36;q21),+i(17)(q10),+r(7)(p22q36)"
+    ),
+    "[10]"
+  )))
+  expect_equal(result$unrecognized_gain_loss, c(0L, 0L, 0L))
+})
+
 test_that("XXYY and XXXY are valid sex complements (no no_sex_complement fired)", {
   expect_equal(
     suppressMessages(check_karyo("48,XXYY,+1[10]"))$no_sex_complement,

@@ -276,7 +276,8 @@ empty_issues_tibble <- function() {
   "constitutional_sex_complement",
   "mosaic_karyotype",
   "invalid_idem",
-  "unparseable_bracket"
+  "unparseable_bracket",
+  "unrecognized_gain_loss"
 )
 
 # Single ordered walk: each pattern detects against the state left by every
@@ -535,6 +536,29 @@ validate_karyotypes <- function(karyotypes) {
       disp[idx],
       "invalid_idem",
       "idem found in clone 1 (nothing to inherit from)"
+    )
+
+    # All clones, not just the first: a gain/loss token of unforeseen shape
+    # would otherwise just fail .aneuploidy_re and drop out silently.
+    all_tokens_list <- stringr::str_split(
+      stringr::str_replace_all(kk, "\\[[^\\]]+\\]", ""),
+      "[,/]"
+    )
+    flat_all <- stringr::str_trim(unlist(all_tokens_list))
+    flat_all_row <- rem_idx[rep(seq_along(rem_idx), lengths(all_tokens_list))]
+    recognized <- Reduce(
+      `|`,
+      lapply(.recognized_gain_loss_re, \(re) stringr::str_detect(flat_all, re))
+    )
+    unrecognized <- stringr::str_detect(flat_all, "^\\??[+-]") & !recognized
+    add_batch(
+      flat_all_row[unrecognized],
+      disp[flat_all_row[unrecognized]],
+      "unrecognized_gain_loss",
+      sprintf(
+        "Cannot classify '%s' as a gain/loss token",
+        flat_all[unrecognized]
+      )
     )
 
     brackets_list <- stringr::str_extract_all(kk, "\\[[^\\]]+\\]")
