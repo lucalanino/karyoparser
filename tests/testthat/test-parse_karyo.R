@@ -550,6 +550,26 @@ test_that("full pipeline: composite karyotype with metaphases", {
   expect_equal(r$tris8, 1L)
 })
 
+test_that("rules fire on ';' between single-chromosome breakpoints", {
+  x <- c(
+    "46,XX,inv(16)(p13.1;q22)",
+    "46,XX,inv(3)(q21.3;q26.2)",
+    "46,XX,t(16;16)(p13.1;q22)"
+  )
+  r <- pk(x)
+  expect_equal(r$inv_16_p13q22, c(1L, 0L, 0L))
+  expect_equal(r$inv_3_q21q26, c(0L, 1L, 0L))
+  expect_equal(r$t_16_16_p13_q22, c(0L, 0L, 1L))
+  expect_equal(r$preprocessed_karyotype, x)
+})
+
+test_that("rules fire on an uncertain breakpoint", {
+  r <- pk(c("46,XX,del(5)(?q13q31)", "46,XX,t(3;7)(?q26;q21)"))
+  expect_equal(r$del_5q, c(1L, 0L))
+  expect_equal(r$t_3q26_v, c(0L, 1L))
+  expect_equal(r$preprocessed_karyotype[1], "46,XX,del(5)(?q13q31)")
+})
+
 test_that("full pipeline: hyperdiploid karyotype", {
   r <- pk("51,XY,+8,+11,+13,+19,+21")
   expect_equal(r$chromosome_count, 51L)
@@ -846,6 +866,7 @@ test_that(".dirty_patterns contains all expected keys", {
       "html_entities",
       "leading_dot",
       "case_notation",
+      "iso_indicator",
       "count_sex_separator",
       "fish_notation",
       "trailing_narrative",

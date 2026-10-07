@@ -178,6 +178,17 @@ empty_issues_tibble <- function() {
     ),
     detail = "Non-canonical letter case: lowercase sex chromosome (e.g. '46,xy', '-y', 't(x;5)') or uppercase ISCN keyword (e.g. 'Del(5)', 'MAR', '(Q13Q33)')"
   ),
+  iso_indicator = list(
+    detect = "(?<![a-z])iso\\((?=(?:\\d{1,2}|X|Y)[)pq])",
+    use_trimmed = FALSE,
+    fix = list(
+      list(
+        pattern = "(?<![a-z])iso\\((?=(?:\\d{1,2}|X|Y)[)pq])",
+        replacement = "i("
+      )
+    ),
+    detail = "Non-ISCN 'iso' isochromosome indicator (e.g. 'iso(17q)' should be 'i(17q)')"
+  ),
   # Runs after leading_dot; repairs a missing/dotted count-sex separator, e.g.
   # '46XY,...' or '45.XY,...' -> '46,XY,...'. The lookahead includes +/- so a
   # count glued to a sex complement that is also glued to the first aberration

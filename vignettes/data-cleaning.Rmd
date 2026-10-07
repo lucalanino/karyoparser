@@ -48,7 +48,8 @@ a column:
   `(Q13Q33)`; a lowercase `x` copy multiplier like `der(1)x2` is left alone),
   `chimeric_separator`, `count_sex_separator` (e.g. `46XY` or
   `45.XY` missing the comma before the sex complement), `embedded_newline`,
-  `fish_notation`, `fullwidth_punctuation` (fullwidth brackets, tilde,
+  `fish_notation`, `iso_indicator` (non-ISCN `iso(17q)` written for
+  `i(17q)`), `fullwidth_punctuation` (fullwidth brackets, tilde,
   parentheses, comma, semicolon, or equals sign standing in for their ASCII
   equivalents), `html_entities`, `leading_dot`, `mar_space`,
   `midstring_linewrap`, `missing_sex_comma` (e.g. `46,XX der(...)` or
@@ -143,18 +144,19 @@ fixes in a fixed order, then a final `normalize_iscn()` pass:
 8. Canonicalize letter case: uppercase sex chromosomes (`46,xy` -> `46,XY`,
    `-y` -> `-Y`), lowercase ISCN keywords (`Del(5)(Q13Q33)` ->
    `del(5)(q13q33)`)
-9. Insert missing/dotted separator between chromosome count and sex
+9. Rewrite the non-ISCN `iso(` isochromosome indicator to `i(`
+10. Insert missing/dotted separator between chromosome count and sex
    complement (e.g. `46XY` or `45.XY` -> `46,XY`/`45,XY`)
-10. Strip FISH/`nuc ish` annotation (suffix or mid-clone before metaphase count)
-11. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`;
+11. Strip FISH/`nuc ish` annotation (suffix or mid-clone before metaphase count)
+12. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`;
     a trailing `<AML>`-style annotation
-12. Collapse mid-string line-wrap artifacts (`, .der(...)` or `,.der(...)`
+13. Collapse mid-string line-wrap artifacts (`, .der(...)` or `,.der(...)`
     -> `,der(...)`)
-13. Insert missing comma after sex chromosome complement
-14. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
-15. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
+14. Insert missing comma after sex chromosome complement
+15. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
+16. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
     parenthesized
-16. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+17. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
     idem/sl/cp normalization
 
 (`zero_host_chimera` and chimeric clone selection happen alongside this

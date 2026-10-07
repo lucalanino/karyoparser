@@ -11,6 +11,12 @@
   (`+r`, `+1~3r`), and `general_marker` detects numbered markers (`+mar1`).
 * `inc` (incomplete karyotype) no longer counts toward
   `comma_count_aberrations` or `distinct_aberrations`.
+* Rules and `general_*` patterns now fire on two common non-standard
+  breakpoint forms: a `;` between the breakpoints of a single-chromosome
+  rearrangement (`inv(16)(p13.1;q22)` sets `inv_16_p13q22`,
+  `inv(3)(q21;q26)` sets `inv_3_q21q26`) and an uncertain breakpoint
+  (`del(5)(?q13q31)` sets `del_5q`). Only matching is affected; the reported
+  karyotype strings are unchanged.
 
 ## New features
 
@@ -33,3 +39,5 @@
 * `preprocess_karyo()` now strips a trailing angle-bracket annotation
   (`<AML>`) as `trailing_narrative`, and removes the dot of a `,.add(...)`
   token as `midstring_linewrap`.
+* New fixable issue, `iso_indicator`: the non-ISCN `iso(` isochromosome
+  indicator is rewritten to `i(` (`iso(17q)` -> `i(17q)`, setting `i_17q`).

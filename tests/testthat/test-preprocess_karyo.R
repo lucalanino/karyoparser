@@ -274,6 +274,17 @@ test_that("preprocess_karyo: ncSCA token stripped (parenthesized, chimeric host 
   expect_equal(result$status, "fixed")
 })
 
+test_that("iso_indicator: 'iso(' rewritten to 'i(' and flagged", {
+  x <- c("47,XX,iso(17q),+19[5]", "46,XY,iso(8)(q10)[8]")
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c("47,XX,i(17q),+19[5]", "46,XY,i(8)(q10)[8]")
+  )
+  expect_equal(result$status, c("fixed", "fixed"))
+  expect_equal(parse_karyo(result)$i_17q, c(1L, 0L))
+})
+
 test_that("preprocess_karyo: strips leading dot before digit", {
   result <- suppressMessages(preprocess_karyo(c(".46,XX", "..47,XY,+21")))
   expect_equal(result$preprocessed, c("46,XX", "47,XY,+21"))

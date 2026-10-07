@@ -77,7 +77,7 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
 )
 
 compute_general_flags <- function(tokens_tbl) {
-  match_text <- strip_bands(tokens_tbl$aberr_raw)
+  match_text <- rule_match_text(tokens_tbl$aberr_raw)
   ids <- tokens_tbl$.pk_row_id
   out <- tibble::tibble(.pk_row_id = unique(ids))
   for (nm in names(.general_flag_patterns)) {

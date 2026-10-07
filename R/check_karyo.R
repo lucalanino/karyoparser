@@ -13,9 +13,10 @@
 #' Fixable issue types (resolvable by `parse_karyo()` under `on_issues =
 #' "preprocess"`): `unicode_notation`, `non_ascii_homoglyph`,
 #' `fullwidth_punctuation`, `embedded_newline`, `html_entities`,
-#' `leading_dot`, `case_notation`, `count_sex_separator`, `fish_notation`,
-#' `trailing_narrative`, `midstring_linewrap`, `missing_sex_comma`,
-#' `mar_space`, `non_clonal_sca`, `chimeric_separator`, `zero_host_chimera`.
+#' `leading_dot`, `case_notation`, `iso_indicator`, `count_sex_separator`,
+#' `fish_notation`, `trailing_narrative`, `midstring_linewrap`,
+#' `missing_sex_comma`, `mar_space`, `non_clonal_sca`, `chimeric_separator`,
+#' `zero_host_chimera`.
 #'
 #' Unfixable issue types (always returned as NA by `parse_karyo()`):
 #' `multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
