@@ -15,7 +15,8 @@
 #' `fullwidth_punctuation`, `embedded_newline`, `html_entities`,
 #' `leading_dot`, `case_notation`, `iso_indicator`, `count_sex_separator`,
 #' `fish_notation`, `trailing_narrative`, `midstring_linewrap`,
-#' `missing_sex_comma`, `mar_space`, `non_clonal_sca`, `chimeric_separator`,
+#' `missing_sex_comma`, `mar_space`, `non_clonal_sca`, `paren_comma`,
+#' `colon_separator`, `dot_separator`, `chimeric_separator`,
 #' `zero_host_chimera`.
 #'
 #' Unfixable issue types (always returned as NA by `parse_karyo()`):

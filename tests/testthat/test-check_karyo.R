@@ -156,7 +156,7 @@ test_that("unrecognized_gain_loss accepts every recognized +/- token shape", {
 test_that("check_karyo detects unrecognized_token in any clone", {
   result <- suppressMessages(check_karyo(c(
     "46,XY,del(5)(q13q33),asxl1mutation[10]",
-    "46,XY,del(5)(q11,q33)[10]",
+    "46,XY,del(5)(q13q33),5q31[10]",
     "46,XY[5]/47,XY,+8,nl[5]",
     "46,XY,del(5)(q13q33),10[10]",
     "46,XY,dic(5;17)(q11;p11)order(5)t(5;17)(q13;q11)[10]"

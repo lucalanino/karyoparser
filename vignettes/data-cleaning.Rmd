@@ -48,11 +48,13 @@ a column:
   `(Q13Q33)`; a lowercase `x` copy multiplier like `der(1)x2` is left alone),
   `chimeric_separator`, `count_sex_separator` (e.g. `46XY` or
   `45.XY` missing the comma before the sex complement), `embedded_newline`,
-  `fish_notation`, `iso_indicator` (non-ISCN `iso(17q)` written for
+  `colon_separator` (`t(5:17)(q13:q11)`), `dot_separator`
+  (`del(5)(q13q33).-7`), `fish_notation`, `iso_indicator` (non-ISCN `iso(17q)` written for
   `i(17q)`), `fullwidth_punctuation` (fullwidth brackets, tilde,
   parentheses, comma, semicolon, or equals sign standing in for their ASCII
   equivalents), `html_entities`, `leading_dot`, `mar_space`,
-  `midstring_linewrap`, `missing_sex_comma` (e.g. `46,XX der(...)` or
+  `midstring_linewrap`, `paren_comma` (`del(5)(q11,q33)`),
+  `missing_sex_comma` (e.g. `46,XX der(...)` or
   `46,XY+8` missing the comma after the sex complement -- a letter-glued form
   like `46,XYdel(5q)` is auto-fixed when the glued token is a recognized
   aberration indicator, otherwise it's detected but comes back `NA`),
@@ -156,7 +158,11 @@ fixes in a fixed order, then a final `normalize_iscn()` pass:
 15. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
 16. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
     parenthesized
-17. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+17. Repair separators: a comma inside parentheses -> `;`
+    (`del(5)(q11,q33)`); a colon used for `;` (`t(5:17)(q13:q11)`), leaving
+    the detailed ISCN system (`::`, `->`) alone; a dot used for `,` between
+    tokens (`del(5)(q13q33).-7`, `45.idem`)
+18. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
     idem/sl/cp normalization
 
 (`zero_host_chimera` and chimeric clone selection happen alongside this

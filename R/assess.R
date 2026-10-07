@@ -59,6 +59,25 @@ empty_issues_tibble <- function() {
   heteromorphism = "^\\d{1,2}[pq](?:h|s|stk)[+-]?$"
 )
 
+# One parenthesized group containing `sep`, skipping groups written in the
+# detailed ISCN system, where ':' and '::' are legitimate.
+.paren_group_with <- function(sep) {
+  paste0(
+    "\\((?![^()]*(?:::|->|pter|qter|\u2192))[^()]*",
+    sep,
+    "[^()]*\\)"
+  )
+}
+
+# A '.' standing in for ',' between tokens: after ')', after a whole-chromosome
+# gain/loss, or between a clone count and idem/sl/sdl. A band decimal
+# ('q11.2') is digit-dot-digit inside parentheses and never matches.
+.dot_separator_re <- paste0(
+  "(?<=\\))\\.(?=[+?a-z-])(?!ish\\b|nuc\\b)",
+  "|(?<=(?:^|,)\\??[+-](?:\\d{1,2}|X|Y))\\.(?=[+?a-z-])",
+  "|(?<=(?:^|/)\\d{1,3}(?:~\\d{1,3})?)\\.(?=idem|sl|sdl)"
+)
+
 # Case canonicalization for case_notation. Each regex only matches a known
 # ISCN element in its own context, so canonical strings never match and free
 # text (e.g. 'Normal', which trailing_narrative relies on) is left alone. A
@@ -355,6 +374,36 @@ empty_issues_tibble <- function() {
       list(pattern = "(?i)ncSCA(?:\\[[^\\]]*\\])?", replacement = "")
     ),
     detail = "Non-clonal single-cell abnormality ('ncSCA' token); stripped, remaining clone parsed"
+  ),
+  # The three separator fixes run after fish_notation and trailing_narrative,
+  # which rely on '.' and own FISH probe lists such as '(D7S486,CEP7)'.
+  paren_comma = list(
+    detect = .paren_group_with(","),
+    use_trimmed = FALSE,
+    fix = list(
+      list(
+        pattern = .paren_group_with(","),
+        replacement = \(m) gsub(",", ";", m, fixed = TRUE)
+      )
+    ),
+    detail = "Comma inside parentheses (e.g. 'del(5)(q11,q33)' or 'der(1;7)(q10,p10)'); replaced with ';'"
+  ),
+  colon_separator = list(
+    detect = .paren_group_with(":"),
+    use_trimmed = FALSE,
+    fix = list(
+      list(
+        pattern = .paren_group_with(":"),
+        replacement = \(m) gsub(":", ";", m, fixed = TRUE)
+      )
+    ),
+    detail = "Colon used for ';' inside parentheses (e.g. 't(5:17)(q13:q11)'); groups in the detailed ISCN system ('::', '->', 'pter') are left alone"
+  ),
+  dot_separator = list(
+    detect = .dot_separator_re,
+    use_trimmed = FALSE,
+    fix = list(list(pattern = .dot_separator_re, replacement = ",")),
+    detail = "Dot used as a token separator (e.g. 'del(5)(q13q33).-7', '-17.add(21)', '45.idem'); replaced with ','"
   ),
   # Last, so it only sees what survives every earlier fix and does not fire
   # on non-ASCII that trailing_narrative already discarded.

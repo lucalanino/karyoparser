@@ -285,6 +285,50 @@ test_that("iso_indicator: 'iso(' rewritten to 'i(' and flagged", {
   expect_equal(parse_karyo(result)$i_17q, c(1L, 0L))
 })
 
+test_that("paren_comma: comma inside parentheses replaced with ';'", {
+  x <- c("46,XY,del(5)(q11,q33)[10]", "46,XY,+1,der(1;7)(q10,p10)[6]")
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c("46,XY,del(5)(q11;q33)[10]", "46,XY,+1,der(1;7)(q10;p10)[6]")
+  )
+  expect_equal(parse_karyo(result)$del_5q, c(1L, 0L))
+})
+
+test_that("colon_separator: ':' replaced with ';' outside the detailed system", {
+  result <- preprocess_karyo(c(
+    "46,XY,t(2:11)(p21:q23)",
+    "46,XX,t(2;5)(2pter->2q21::5q31->5qter)"
+  ))
+  expect_equal(
+    result$preprocessed,
+    c("46,XY,t(2;11)(p21;q23)", "46,XX,t(2;5)(2pter->2q21::5q31->5qter)")
+  )
+  expect_equal(result$status, c("fixed", "clean"))
+  expect_equal(parse_karyo(result[1, ])$t_v_11q23, 1L)
+})
+
+test_that("dot_separator: '.' between tokens replaced with ','", {
+  x <- c(
+    "46,XY,del(5)(q13q33).-7",
+    "45,XY,-17.add(21)(q22)",
+    "46,XY,del(5)(q13)[10]/45.idem,-7[5]",
+    "46,XY,del(20)(q11.2)"
+  )
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c(
+      "46,XY,del(5)(q13q33),-7",
+      "45,XY,-17,add(21)(q22)",
+      "46,XY,del(5)(q13)[10]/45,idem,-7[5]",
+      "46,XY,del(20)(q11.2)"
+    )
+  )
+  expect_equal(result$status, c("fixed", "fixed", "fixed", "clean"))
+  expect_equal(parse_karyo(result[1, ])$mono7, 1L)
+})
+
 test_that("preprocess_karyo: strips leading dot before digit", {
   result <- suppressMessages(preprocess_karyo(c(".46,XX", "..47,XY,+21")))
   expect_equal(result$preprocessed, c("46,XX", "47,XY,+21"))

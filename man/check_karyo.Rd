@@ -57,7 +57,8 @@ Fixable issue types (resolvable by \code{parse_karyo()} under \code{on_issues = 
 \code{fullwidth_punctuation}, \code{embedded_newline}, \code{html_entities},
 \code{leading_dot}, \code{case_notation}, \code{iso_indicator}, \code{count_sex_separator},
 \code{fish_notation}, \code{trailing_narrative}, \code{midstring_linewrap},
-\code{missing_sex_comma}, \code{mar_space}, \code{non_clonal_sca}, \code{chimeric_separator},
+\code{missing_sex_comma}, \code{mar_space}, \code{non_clonal_sca}, \code{paren_comma},
+\code{colon_separator}, \code{dot_separator}, \code{chimeric_separator},
 \code{zero_host_chimera}.
 
 Unfixable issue types (always returned as NA by \code{parse_karyo()}):

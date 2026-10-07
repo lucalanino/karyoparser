@@ -41,3 +41,8 @@
   token as `midstring_linewrap`.
 * New fixable issue, `iso_indicator`: the non-ISCN `iso(` isochromosome
   indicator is rewritten to `i(` (`iso(17q)` -> `i(17q)`, setting `i_17q`).
+* New fixable issues for wrong separators: `paren_comma` (a comma inside
+  parentheses, `del(5)(q11,q33)`), `colon_separator` (`t(5:17)(q13:q11)`;
+  groups in the detailed ISCN system are left alone) and `dot_separator`
+  (`del(5)(q13q33).-7`, `45.idem`). These were previously split into
+  fragments, read with too few flags, or silently dropped a token.
