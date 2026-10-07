@@ -5,7 +5,7 @@ test_that("check_karyo: clean input returns one row per string, all zeros", {
   expect_equal(result$unfixable, c(0L, 0L))
 })
 
-test_that("check_karyo: column schema -- fixable/unfixable first, then sorted unfixable issue cols", {
+test_that("check_karyo: column schema -- fixable/unfixable/reason first, then sorted unfixable issue cols", {
   result <- suppressMessages(check_karyo("46,XX"))
   unfixable_cols <- sort(setdiff(
     karyoparser:::.all_issue_types,
@@ -15,9 +15,32 @@ test_that("check_karyo: column schema -- fixable/unfixable first, then sorted un
     "karyotype",
     "fixable",
     "unfixable",
+    "unfixable_reason",
     unfixable_cols
   )
   expect_named(result, expected_cols)
+})
+
+test_that("check_karyo: unfixable_reason names the offending token", {
+  result <- check_karyo(c(
+    "46,XX,t(3;21)(q26;q22)[23+6]",
+    "88,XX,idem*2[2]",
+    "45,XY,+dert(3;17)(q26;q12),+marl1[17]",
+    "46,XX,del(5)(q13q33)[10]"
+  ))
+  expect_equal(
+    result$unfixable_reason,
+    c(
+      "unparseable_bracket: Cannot parse '[23+6]' as metaphase count",
+      "unrecognized_token: Cannot classify 'idem*2' as an ISCN token",
+      paste0(
+        "unrecognized_gain_loss: Cannot classify '+marl1' as a gain/loss ",
+        "token; unrecognized_token: Cannot classify '+dert(3;17)(q26;q12)' ",
+        "as an ISCN token"
+      ),
+      NA
+    )
+  )
 })
 
 test_that("check_karyo: empty/NA detected as unfixable", {

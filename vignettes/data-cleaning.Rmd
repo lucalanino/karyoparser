@@ -36,7 +36,9 @@ ck <- check_karyo(example_karyotypes, karyotype_column = "karyotype")
 names(ck)
 ```
 
-Columns after `karyotype`/`fixable`/`unfixable` are one 0/1 flag per
+`unfixable_reason` spells out why a row is unfixable, naming the offending
+token where there is one (e.g. `unrecognized_token: Cannot classify
+'idem*2' as an ISCN token`). The columns after it are one 0/1 flag per
 *unfixable* issue type (alphabetical). Fixable issue types don't get their own
 columns -- `preprocess_karyo()` resolves them automatically, so a row is
 simply flagged `fixable`, without needing to know which specific fixable

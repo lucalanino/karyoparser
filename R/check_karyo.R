@@ -48,8 +48,9 @@
 #' @return A `karyo_check` tibble with `length(karyotypes)` rows (or
 #'   `nrow(karyotypes)` when input is a data frame). Columns: optional id column
 #'   (first, when given), `karyotype` (full input string), `fixable`,
-#'   `unfixable`, then one integer column per unfixable issue type
-#'   (alphabetical). The tibble can be passed directly to
+#'   `unfixable`, `unfixable_reason` (each unfixable issue with the offending
+#'   token or detail, `;`-separated; `NA` when the row has none), then one
+#'   integer column per unfixable issue type (alphabetical). The tibble can be passed directly to
 #'   `preprocess_karyo()`, which will reuse the cached assessment and
 #'   propagate the id column without re-scanning.
 #' @seealso [preprocess_karyo()], `vignette("data-cleaning")`
@@ -93,6 +94,7 @@ check_karyo <- function(
     "karyotype",
     "fixable",
     "unfixable",
+    "unfixable_reason",
     unfixable_issue_cols
   )
 
@@ -101,6 +103,7 @@ check_karyo <- function(
     for (nm in c("fixable", "unfixable", unfixable_issue_cols)) {
       out[[nm]] <- integer()
     }
+    out$unfixable_reason <- character()
     out <- out[, all_cols]
     if (!is.null(id_col_name)) {
       out[[id_col_name]] <- character()
@@ -137,6 +140,17 @@ check_karyo <- function(
       !seq_len(n) %in% assessment$unfixable_row_indices
   )
   out$unfixable <- as.integer(seq_len(n) %in% assessment$unfixable_row_indices)
+  # The 0/1 columns say which check failed; this names the offending token.
+  unfix_long <- long[long$issue_type %in% unfixable_issue_cols, ]
+  out$unfixable_reason <- NA_character_
+  if (nrow(unfix_long) > 0L) {
+    reasons <- tapply(
+      paste0(unfix_long$issue_type, ": ", unfix_long$issue_detail),
+      unfix_long$row_index,
+      \(d) paste(unique(d), collapse = "; ")
+    )
+    out$unfixable_reason[as.integer(names(reasons))] <- unname(reasons)
+  }
   out <- out[, all_cols]
 
   if (isTRUE(verbose)) {

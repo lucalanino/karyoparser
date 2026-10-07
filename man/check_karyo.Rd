@@ -36,8 +36,9 @@ per-unfixable-issue-type breakdown. Default \code{FALSE}.}
 A \code{karyo_check} tibble with \code{length(karyotypes)} rows (or
 \code{nrow(karyotypes)} when input is a data frame). Columns: optional id column
 (first, when given), \code{karyotype} (full input string), \code{fixable},
-\code{unfixable}, then one integer column per unfixable issue type
-(alphabetical). The tibble can be passed directly to
+\code{unfixable}, \code{unfixable_reason} (each unfixable issue with the offending
+token or detail, \verb{;}-separated; \code{NA} when the row has none), then one
+integer column per unfixable issue type (alphabetical). The tibble can be passed directly to
 \code{preprocess_karyo()}, which will reuse the cached assessment and
 propagate the id column without re-scanning.
 }

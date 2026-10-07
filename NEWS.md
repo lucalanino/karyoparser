@@ -51,3 +51,7 @@
   (`-7+mar` -> `-7,+mar`). `paren_comma` reads a comma between band digits
   as a decimal comma (`q11,2` -> `q11.2`), and an unidentified marker, ring or
   double minute may now carry a copy multiplier (`+mar1x2`).
+* `check_karyo()` gains an `unfixable_reason` column that names the
+  offending token for each unfixable row (e.g. `unparseable_bracket: Cannot
+  parse '[23+6]' as metaphase count`), so the reason is visible without
+  inspecting internals.
