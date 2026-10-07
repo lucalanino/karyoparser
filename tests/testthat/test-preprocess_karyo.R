@@ -225,7 +225,7 @@ test_that("preprocess_karyo: decodes HTML lt/gt entities", {
     suppressMessages(preprocess_karyo(
       "46,XX,t(9;22)(q34;q11) &lt;AML&gt;"
     ))$preprocessed,
-    "46,XX,t(9;22)(q34;q11)<AML>"
+    "46,XX,t(9;22)(q34;q11)"
   )
 })
 
@@ -300,9 +300,12 @@ test_that("preprocess_karyo: idempotent on preprocessed column", {
   expect_equal(once$preprocessed, twice$preprocessed)
 })
 
-test_that("preprocess_karyo: does not corrupt mid-string .add() tokens", {
+test_that("preprocess_karyo: strips the dot of a mid-string ',.add()' token", {
   x <- "46,XX,.add(1)(q21)"
-  expect_equal(suppressMessages(preprocess_karyo(x))$preprocessed, x)
+  expect_equal(
+    suppressMessages(preprocess_karyo(x))$preprocessed,
+    "46,XX,add(1)(q21)"
+  )
 })
 
 test_that("preprocess_karyo: handles empty vector", {

@@ -685,6 +685,12 @@ test_that("comma_count_aberrations for simple karyotype", {
   expect_equal(r$comma_count_aberrations, 0L)
 })
 
+test_that("inc is not counted as an aberration", {
+  r <- pk("45,XX,-7,del(5)(q13q33),inc[10]")
+  expect_equal(r$comma_count_aberrations, 2L)
+  expect_equal(r$distinct_aberrations, 2L)
+})
+
 test_that("min_metaphases: default 2 keeps a 3-metaphase clone", {
   expect_equal(pk("25,X[3]/46,XX[10]")$chromosome_count, 25L)
 })

@@ -22,7 +22,7 @@
 #' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
 #' `no_sex_complement`, `single_token`, `constitutional_sex_complement`,
 #' `mosaic_karyotype`, `invalid_idem`, `unparseable_bracket`,
-#' `unrecognized_gain_loss`, `stray_non_ascii`.
+#' `unrecognized_gain_loss`, `unrecognized_token`, `stray_non_ascii`.
 #'
 #' See `vignette("data-cleaning")` for what each issue type means, worked
 #' examples, and how to resolve the unfixable ones.

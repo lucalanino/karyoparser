@@ -153,6 +153,38 @@ test_that("unrecognized_gain_loss accepts every recognized +/- token shape", {
   expect_equal(result$unrecognized_gain_loss, c(0L, 0L, 0L))
 })
 
+test_that("check_karyo detects unrecognized_token in any clone", {
+  result <- suppressMessages(check_karyo(c(
+    "46,XY,del(5)(q13q33),asxl1mutation[10]",
+    "46,XY,del(5)(q11,q33)[10]",
+    "46,XY[5]/47,XY,+8,nl[5]",
+    "46,XY,del(5)(q13q33),10[10]",
+    "46,XY,dic(5;17)(q11;p11)order(5)t(5;17)(q13;q11)[10]"
+  )))
+  expect_equal(result$unrecognized_token, rep(1L, 5))
+  expect_equal(result$unfixable, rep(1L, 5))
+})
+
+test_that("unrecognized_token accepts every recognized ISCN token shape", {
+  result <- suppressMessages(check_karyo(paste0(
+    "47,XX,",
+    c(
+      "der(7)t(2;7)(q13;q11)del(7)(q31),der(1;7)(q10;p10),ider(20)(q10)",
+      "psu dic(15;22),idic(X)(q13),del(5)(?q13q31),i(17)(q10)x2,t(9;22)c",
+      "hsr(11)(q22),fra(16)(q22),9qh+,10~>50dmin,+mar1,inc",
+      "+8[5]/48,XX,idem,+21[3]/47,XX,sl,del(7)(q22)[2]/48,XX,sdl1,+9"
+    ),
+    "[10]"
+  )))
+  expect_equal(result$unrecognized_token, rep(0L, 4))
+})
+
+test_that("unrecognized_token does not double-report a gain/loss token", {
+  result <- suppressMessages(check_karyo("47,XY,+8q[10]"))
+  expect_equal(result$unrecognized_gain_loss, 1L)
+  expect_equal(result$unrecognized_token, 0L)
+})
+
 test_that("XXYY and XXXY are valid sex complements (no no_sex_complement fired)", {
   expect_equal(
     suppressMessages(check_karyo("48,XXYY,+1[10]"))$no_sex_complement,

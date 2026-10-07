@@ -99,7 +99,8 @@ compute_comma_counts <- function(tokens_tbl) {
     dplyr::filter(!is.na(clone_id)) |>
     dplyr::group_by(.pk_row_id, clone_id) |>
     dplyr::summarise(
-      tokens_nonempty = sum(aberr_raw != ""),
+      # 'inc' marks an incomplete karyotype, not an aberration.
+      tokens_nonempty = sum(!aberr_raw %in% c("", "inc")),
       first_token = dplyr::first(aberr_raw[aberr_raw != ""]),
       first_is_sex = !is.na(first_token) &
         stringr::str_detect(first_token, sex_first_regex),
@@ -142,7 +143,7 @@ compute_unique_counts <- function(tokens_tbl) {
   tokens_tbl |>
     dplyr::filter(
       !(aberr_norm %in%
-        c("", "chromosome_count_range", "idem", "sl", .sex_complements))
+        c("", "chromosome_count_range", "idem", "sl", "inc", .sex_complements))
     ) |>
     dplyr::group_by(.pk_row_id) |>
     dplyr::summarise(

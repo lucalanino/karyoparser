@@ -26,6 +26,39 @@ empty_issues_tibble <- function() {
   collapse = "|"
 )
 
+# Every recognized shape of an aberration token (anything after the count and
+# sex complement). Checks token structure only -- indicator, paren groups,
+# suffixes -- never band contents. ISCN indicators with no flag of their own
+# ('hsr', 'fra', ...) are accepted so valid ISCN is never rejected.
+.iscn_extra_indicators <- c(
+  "hsr",
+  "fra",
+  "tas",
+  "rob",
+  "trc",
+  "qdp",
+  "tan",
+  "rcp",
+  "rec",
+  "neo",
+  "upd"
+)
+.recognized_token_re <- c(
+  structural = paste0(
+    "^\\??[+-]?\\??(?:(?:",
+    .aberr_alt,
+    "|",
+    paste(.iscn_extra_indicators, collapse = "|"),
+    ")(?:\\([^()]*\\))+)+(?:x\\d+(?:~\\d+)?|c|\\?)*(?: cp)?$"
+  ),
+  .recognized_gain_loss_re["aneuploidy"],
+  # As in .unidentified_count_re, plus an open-ended range ('10~>50dmin').
+  unidentified = "^[+-]?\\??(?:\\d+(?:[~-]>?\\d+)?|>\\d+)?(?:r|mar|dmin)\\d*\\??$",
+  inherited = "^(?:idem|sl|sdl\\d*)$",
+  incomplete = "^inc$",
+  heteromorphism = "^\\d{1,2}[pq](?:h|s|stk)[+-]?$"
+)
+
 # Case canonicalization for case_notation. Each regex only matches a known
 # ISCN element in its own context, so canonical strings never match and free
 # text (e.g. 'Normal', which trailing_narrative relies on) is left alone. A
@@ -193,10 +226,14 @@ empty_issues_tibble <- function() {
       "\\s+\\.\\s*[A-Z]",
       "\\)\\s+[A-Z][a-z]",
       # Narrative after a count+sex normal karyotype with no bracket/paren.
-      paste0("^\\d+(?:~\\d+)?,(?:", .sex_alt, ")\\s+[A-Z][a-z]")
+      paste0("^\\d+(?:~\\d+)?,(?:", .sex_alt, ")\\s+[A-Z][a-z]"),
+      # Angle-bracket annotation at the end, e.g. '<AML>'. Ploidy ('<4n>')
+      # starts with a digit and never matches.
+      "<[A-Za-z][^<>]*>\\s*$"
     ),
     use_trimmed = FALSE,
     fix = list(
+      list(pattern = "\\s*<[A-Za-z][^<>]*>\\s*$", replacement = ""),
       # Strip everything after the last count bracket ([n]/[cpN]/[n~m]).
       list(
         pattern = "^(.*\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]).*$",
@@ -231,15 +268,15 @@ empty_issues_tibble <- function() {
     detail = "Trailing narrative text after last metaphase-count bracket, closing parenthesis, or count+sex normal karyotype"
   ),
   midstring_linewrap = list(
-    detect = ",\\s+\\.[a-z(+]",
+    detect = ",\\s*\\.[a-z(+]",
     use_trimmed = FALSE,
     fix = list(
       list(
-        pattern = ",\\s+\\.?(?=[a-z(+])",
+        pattern = ",\\s+\\.?(?=[a-z(+])|,\\.(?=[a-z(+])",
         replacement = ","
       )
     ),
-    detail = "Mid-string line-wrap artifact (e.g. ', .der(...)' or bare ', +8' without dot)"
+    detail = "Mid-string line-wrap artifact (e.g. ', .der(...)', ',.add(...)' or bare ', +8' without dot)"
   ),
   missing_sex_comma = list(
     detect = c(
@@ -339,7 +376,8 @@ empty_issues_tibble <- function() {
   "mosaic_karyotype",
   "invalid_idem",
   "unparseable_bracket",
-  "unrecognized_gain_loss"
+  "unrecognized_gain_loss",
+  "unrecognized_token"
 )
 
 # Single ordered walk: each pattern detects against the state left by every
@@ -621,6 +659,41 @@ validate_karyotypes <- function(karyotypes) {
         "Cannot classify '%s' as a gain/loss token",
         flat_all[unrecognized]
       )
+    )
+
+    # Any other aberration token of no recognized ISCN shape (free text,
+    # fragments of a comma inside parentheses) would otherwise be counted as
+    # an aberration. Gain/loss tokens already reported above are skipped.
+    clones <- stringr::str_split(
+      stringr::str_replace_all(kk, "\\[[^\\]]+\\]", ""),
+      "/"
+    )
+    clone_row <- rem_idx[rep(seq_along(rem_idx), lengths(clones))]
+    clone_tokens <- stringr::str_split(unlist(clones), ",")
+    tok <- stringr::str_trim(unlist(clone_tokens))
+    tok_row <- clone_row[rep(seq_along(clone_tokens), lengths(clone_tokens))]
+    tok_pos <- sequence(lengths(clone_tokens))
+    sex_slot <- tok_pos == 2L &
+      stringr::str_detect(tok, paste0("^(?:", .sex_alt, ")c?\\??$"))
+    gain_loss_reported <- stringr::str_detect(tok, "^\\??[+-]") &
+      !Reduce(
+        `|`,
+        lapply(.recognized_gain_loss_re, \(re) stringr::str_detect(tok, re))
+      )
+    token_ok <- Reduce(
+      `|`,
+      lapply(.recognized_token_re, \(re) stringr::str_detect(tok, re))
+    )
+    unrecognized <- tok_pos > 1L &
+      tok != "" &
+      !sex_slot &
+      !gain_loss_reported &
+      !token_ok
+    add_batch(
+      tok_row[unrecognized],
+      disp[tok_row[unrecognized]],
+      "unrecognized_token",
+      sprintf("Cannot classify '%s' as an ISCN token", tok[unrecognized])
     )
 
     brackets_list <- stringr::str_extract_all(kk, "\\[[^\\]]+\\]")

@@ -9,6 +9,8 @@
   longer set a trisomy flag.
 * `general_ring` now detects unidentified rings with or without a count
   (`+r`, `+1~3r`), and `general_marker` detects numbered markers (`+mar1`).
+* `inc` (incomplete karyotype) no longer counts toward
+  `comma_count_aberrations` or `distinct_aberrations`.
 
 ## New features
 
@@ -23,3 +25,11 @@
   parsed; under the default `on_issues = "stop"`, `parse_karyo()` directs them
   to `preprocess_karyo()`. The lowercase `x` copy multiplier (`der(1)x2`) is
   left untouched.
+* `check_karyo()` reports a new unfixable issue, `unrecognized_token`, for any
+  aberration token with no recognized ISCN shape (free text, bare numbers,
+  fragments of a comma inside parentheses). Such tokens were previously
+  counted as aberrations and could set `complex_karyotype`. Only token
+  structure is checked, never band contents.
+* `preprocess_karyo()` now strips a trailing angle-bracket annotation
+  (`<AML>`) as `trailing_narrative`, and removes the dot of a `,.add(...)`
+  token as `midstring_linewrap`.
