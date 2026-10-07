@@ -58,8 +58,8 @@ Fixable issue types (resolvable by \code{parse_karyo()} under \code{on_issues = 
 \code{leading_dot}, \code{case_notation}, \code{iso_indicator}, \code{count_sex_separator},
 \code{fish_notation}, \code{trailing_narrative}, \code{midstring_linewrap},
 \code{missing_sex_comma}, \code{mar_space}, \code{non_clonal_sca}, \code{paren_comma},
-\code{colon_separator}, \code{dot_separator}, \code{chimeric_separator},
-\code{zero_host_chimera}.
+\code{colon_separator}, \code{dot_separator}, \code{underscore_prefix}, \code{star_multiplier},
+\code{gain_loss_comma}, \code{chimeric_separator}, \code{zero_host_chimera}.
 
 Unfixable issue types (always returned as NA by \code{parse_karyo()}):
 \code{multiple_chimeric_separator}, \code{empty}, \code{no_chromosome_count},

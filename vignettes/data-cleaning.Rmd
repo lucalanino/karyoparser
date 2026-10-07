@@ -53,7 +53,10 @@ a column:
   `i(17q)`), `fullwidth_punctuation` (fullwidth brackets, tilde,
   parentheses, comma, semicolon, or equals sign standing in for their ASCII
   equivalents), `html_entities`, `leading_dot`, `mar_space`,
-  `midstring_linewrap`, `paren_comma` (`del(5)(q11,q33)`),
+  `midstring_linewrap`, `paren_comma` (`del(5)(q11,q33)`; a decimal comma
+  `q11,2` becomes `q11.2`), `gain_loss_comma` (`-7+mar`),
+  `star_multiplier` (`+mar*2` for `+marx2`), `underscore_prefix`
+  (`46,_XY,_del(5)...`),
   `missing_sex_comma` (e.g. `46,XX der(...)` or
   `46,XY+8` missing the comma after the sex complement -- a letter-glued form
   like `46,XYdel(5q)` is auto-fixed when the glued token is a recognized
@@ -143,26 +146,28 @@ fixes in a fixed order, then a final `normalize_iscn()` pass:
 5. Collapse embedded newlines/tabs to spaces
 6. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
 7. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
-8. Canonicalize letter case: uppercase sex chromosomes (`46,xy` -> `46,XY`,
+8. Strip underscore token prefixes (`46,_XY,_-7` -> `46,XY,-7`)
+9. Canonicalize letter case: uppercase sex chromosomes (`46,xy` -> `46,XY`,
    `-y` -> `-Y`), lowercase ISCN keywords (`Del(5)(Q13Q33)` ->
    `del(5)(q13q33)`)
-9. Rewrite the non-ISCN `iso(` isochromosome indicator to `i(`
-10. Insert missing/dotted separator between chromosome count and sex
+10. Rewrite the non-ISCN `iso(` isochromosome indicator to `i(`
+11. Insert missing/dotted separator between chromosome count and sex
    complement (e.g. `46XY` or `45.XY` -> `46,XY`/`45,XY`)
-11. Strip FISH/`nuc ish` annotation (suffix or mid-clone before metaphase count)
-12. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`;
+12. Strip FISH/`nuc ish` annotation (suffix or mid-clone before metaphase count)
+13. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`;
     a trailing `<AML>`-style annotation
-13. Collapse mid-string line-wrap artifacts (`, .der(...)` or `,.der(...)`
+14. Collapse mid-string line-wrap artifacts (`, .der(...)` or `,.der(...)`
     -> `,der(...)`)
-14. Insert missing comma after sex chromosome complement
-15. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
-16. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
+15. Insert missing comma after sex chromosome complement
+16. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
+17. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
     parenthesized
-17. Repair separators: a comma inside parentheses -> `;`
+18. Repair separators: a comma inside parentheses -> `;`
     (`del(5)(q11,q33)`); a colon used for `;` (`t(5:17)(q13:q11)`), leaving
     the detailed ISCN system (`::`, `->`) alone; a dot used for `,` between
-    tokens (`del(5)(q13q33).-7`, `45.idem`)
-18. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+    tokens (`del(5)(q13q33).-7`, `45.idem`); `*N` -> `xN`; a missing comma
+    before a `+`/`-` token (`-7+mar` -> `-7,+mar`)
+19. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
     idem/sl/cp normalization
 
 (`zero_host_chimera` and chimeric clone selection happen alongside this

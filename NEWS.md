@@ -46,3 +46,8 @@
   groups in the detailed ISCN system are left alone) and `dot_separator`
   (`del(5)(q13q33).-7`, `45.idem`). These were previously split into
   fragments, read with too few flags, or silently dropped a token.
+* More fixable issues: `underscore_prefix` (`46,_XY,_del(5)...`),
+  `star_multiplier` (`+mar*2` -> `+marx2`) and `gain_loss_comma`
+  (`-7+mar` -> `-7,+mar`). `paren_comma` reads a comma between band digits
+  as a decimal comma (`q11,2` -> `q11.2`), and an unidentified marker, ring or
+  double minute may now carry a copy multiplier (`+mar1x2`).

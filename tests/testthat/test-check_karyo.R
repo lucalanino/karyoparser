@@ -145,7 +145,7 @@ test_that("unrecognized_gain_loss accepts every recognized +/- token shape", {
     "49,XX,",
     c(
       "+8,-Xx2,+21c,+?8",
-      "+1~3r,+r,-1mar,+mar1,+2dmin",
+      "+1~3r,+r,-1mar,+mar1,+2dmin,+mar1x2",
       "+der(1)t(1;3)(p36;q21),+i(17)(q10),+r(7)(p22q36)"
     ),
     "[10]"

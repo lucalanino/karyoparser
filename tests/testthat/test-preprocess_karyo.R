@@ -308,6 +308,55 @@ test_that("colon_separator: ':' replaced with ';' outside the detailed system", 
   expect_equal(parse_karyo(result[1, ])$t_v_11q23, 1L)
 })
 
+test_that("paren_comma: comma between band digits read as a decimal comma", {
+  expect_equal(
+    preprocess_karyo("46,XY,del(17)(p11,2,p13)")$preprocessed,
+    "46,XY,del(17)(p11.2;p13)"
+  )
+})
+
+test_that("underscore_prefix: underscore token prefixes stripped", {
+  result <- preprocess_karyo("46,_xy,_del(5)(q14q34),_-7,_t(5;_12)(q14;q14)")
+  expect_equal(result$preprocessed, "46,XY,del(5)(q14q34),-7,t(5;12)(q14;q14)")
+  expect_equal(result$status, "fixed")
+})
+
+test_that("star_multiplier: '*N' replaced with 'xN', idem*2 left unfixable", {
+  result <- preprocess_karyo(c(
+    "46,XX,del(5)(q13q31)*2,+mar*2,+mar1*2",
+    "92,XXYY,-4*2[1]",
+    "47,XX,idem*2"
+  ))
+  expect_equal(
+    result$preprocessed,
+    c("46,XX,del(5)(q13q31)x2,+marx2,+mar1x2", "92,XXYY,-4x2[1]", NA)
+  )
+  expect_equal(result$status, c("fixed", "fixed", "unfixable"))
+  expect_equal(parse_karyo(result[1, ])$general_marker, 1L)
+})
+
+test_that("gain_loss_comma: missing comma before a '+'/'-' token inserted", {
+  x <- c(
+    "46,XY,-7+mar[2]",
+    "45,XY,-18+der(3;18)(q10;q10)",
+    "46,XY,del(5)(q13q33)-7",
+    "47,XY,+2-4mar",
+    "46~48,XY,del(5)(q23-31q33)"
+  )
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c(
+      "46,XY,-7,+mar[2]",
+      "45,XY,-18,+der(3;18)(q10;q10)",
+      "46,XY,del(5)(q13q33),-7",
+      "47,XY,+2-4mar",
+      "46~48,XY,del(5)(q23-31q33)"
+    )
+  )
+  expect_equal(result$status, c("fixed", "fixed", "fixed", "clean", "clean"))
+})
+
 test_that("dot_separator: '.' between tokens replaced with ','", {
   x <- c(
     "46,XY,del(5)(q13q33).-7",

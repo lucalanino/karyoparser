@@ -35,7 +35,7 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
     "\\(|",
     .unidentified_count_re,
     .aberr_indicators_paren[["r"]],
-    "\\d*\\??$"
+    "\\d*(?:x\\d+)?\\??$"
   ),
   general_insertion = paste0(.aberr_indicators_paren[["ins"]], "\\("),
   general_duplication = paste0(.aberr_indicators_paren[["dup"]], "\\("),
@@ -50,16 +50,16 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   general_deletion = paste0(.aberr_indicators_paren[["del"]], "\\("),
   # A leading count makes the left \\b vanish ('+2mar'), so anchor on "not
   # preceded by a letter", which still rejects word tails like 'marker'.
-  # Markers may be numbered ('+mar1').
+  # Markers may be numbered ('+mar1') and carry a copy multiplier ('+mar1x2').
   general_marker = paste0(
     "(?<![A-Za-z])",
     .aberr_indicators_bare[["mar"]],
-    "\\d*\\b"
+    "\\d*(?:x\\d+)?\\b"
   ),
   general_dmin = paste0(
     "(?<![A-Za-z])",
     .aberr_indicators_bare[["dmin"]],
-    "\\b"
+    "(?:x\\d+)?\\b"
   ),
   general_derivative = paste0(
     "^\\+?i?",

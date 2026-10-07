@@ -53,7 +53,7 @@ empty_issues_tibble <- function() {
   ),
   .recognized_gain_loss_re["aneuploidy"],
   # As in .unidentified_count_re, plus an open-ended range ('10~>50dmin').
-  unidentified = "^[+-]?\\??(?:\\d+(?:[~-]>?\\d+)?|>\\d+)?(?:r|mar|dmin)\\d*\\??$",
+  unidentified = "^[+-]?\\??(?:\\d+(?:[~-]>?\\d+)?|>\\d+)?(?:r|mar|dmin)\\d*(?:x\\d+)?\\??$",
   inherited = "^(?:idem|sl|sdl\\d*)$",
   incomplete = "^inc$",
   heteromorphism = "^\\d{1,2}[pq](?:h|s|stk)[+-]?$"
@@ -76,6 +76,18 @@ empty_issues_tibble <- function() {
   "(?<=\\))\\.(?=[+?a-z-])(?!ish\\b|nuc\\b)",
   "|(?<=(?:^|,)\\??[+-](?:\\d{1,2}|X|Y))\\.(?=[+?a-z-])",
   "|(?<=(?:^|/)\\d{1,3}(?:~\\d{1,3})?)\\.(?=idem|sl|sdl)"
+)
+
+# '*N' after a token that can carry a copy multiplier. 'idem*2' is left alone:
+# it reads as a doubled clone, not a multiplier.
+.star_multiplier_re <- "(?<=\\)|\\d|\\?|mar|dmin)\\*(?=\\d)"
+
+# Zero-width position between a whole gain/loss or a closing ')' and a glued
+# '+'/'-' token ('-7+mar'). A marker count range ('+2-4mar') is not split.
+.gain_loss_comma_re <- paste0(
+  "(?<=(?:^|,)\\??[+-]\\??(?:\\d{1,2}|X|Y)c?|\\))",
+  "(?=[+-]\\??(?:\\d{1,2}|X|Y|mar|r|dmin|[a-z]+\\())",
+  "(?![+-]\\??\\d+(?:[~-]\\d+)?(?:mar|r|dmin))"
 )
 
 # Case canonicalization for case_notation. Each regex only matches a known
@@ -185,6 +197,13 @@ empty_issues_tibble <- function() {
       list(pattern = "^[.\\s]*[.]\\s*(?=\\d)", replacement = "")
     ),
     detail = "String starts with dot(s) (and any stray whitespace) before chromosome count"
+  ),
+  # Before case_notation, which expects the sex complement right after ','.
+  underscore_prefix = list(
+    detect = "(?<=[,(;])_+",
+    use_trimmed = FALSE,
+    fix = list(list(pattern = "(?<=[,(;])_+", replacement = "")),
+    detail = "Underscore token prefix, likely an export artifact (e.g. '46,_XY,_del(5)(q13q33)'); stripped"
   ),
   # Runs before count_sex_separator and missing_sex_comma, whose regexes
   # expect canonical case ('46xy' -> '46XY' -> '46,XY').
@@ -383,10 +402,14 @@ empty_issues_tibble <- function() {
     fix = list(
       list(
         pattern = .paren_group_with(","),
-        replacement = \(m) gsub(",", ";", m, fixed = TRUE)
+        # A comma between band digits is a decimal comma ('q11,2' = 'q11.2').
+        replacement = function(m) {
+          m <- gsub("(?<=[pq]\\d)(\\d?),(?=\\d)", "\\1.", m, perl = TRUE)
+          gsub(",", ";", m, fixed = TRUE)
+        }
       )
     ),
-    detail = "Comma inside parentheses (e.g. 'del(5)(q11,q33)' or 'der(1;7)(q10,p10)'); replaced with ';'"
+    detail = "Comma inside parentheses (e.g. 'del(5)(q11,q33)' or 'der(1;7)(q10,p10)'); replaced with ';', or with '.' as a decimal comma ('q11,2')"
   ),
   colon_separator = list(
     detect = .paren_group_with(":"),
@@ -404,6 +427,18 @@ empty_issues_tibble <- function() {
     use_trimmed = FALSE,
     fix = list(list(pattern = .dot_separator_re, replacement = ",")),
     detail = "Dot used as a token separator (e.g. 'del(5)(q13q33).-7', '-17.add(21)', '45.idem'); replaced with ','"
+  ),
+  star_multiplier = list(
+    detect = .star_multiplier_re,
+    use_trimmed = FALSE,
+    fix = list(list(pattern = .star_multiplier_re, replacement = "x")),
+    detail = "'*N' written for the ISCN copy multiplier 'xN' (e.g. '+mar*2', 'del(5)(q13q31)*2'); replaced with 'x'"
+  ),
+  gain_loss_comma = list(
+    detect = .gain_loss_comma_re,
+    use_trimmed = FALSE,
+    fix = list(list(pattern = .gain_loss_comma_re, replacement = ",")),
+    detail = "Missing comma before a '+'/'-' token (e.g. '-7+mar' should be '-7,+mar'); inserted"
   ),
   # Last, so it only sees what survives every earlier fix and does not fire
   # on non-ASCII that trailing_narrative already discarded.
