@@ -839,6 +839,7 @@ test_that(".dirty_patterns contains all expected keys", {
       "embedded_newline",
       "html_entities",
       "leading_dot",
+      "case_notation",
       "count_sex_separator",
       "fish_notation",
       "trailing_narrative",

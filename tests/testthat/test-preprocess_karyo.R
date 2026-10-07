@@ -39,6 +39,77 @@ test_that("idem and sl case normalization via preprocess_karyo", {
   expect_equal(r$comma_count_aberrations, 2L)
 })
 
+test_that("case_notation: lowercase sex chromosomes uppercased", {
+  x <- c(
+    "46,xy,del(5)(q13q33)",
+    "46xy[20]",
+    "46-48,xy,+8[12]",
+    "45,x,-y[10]/46,xy[10]",
+    "46,xx,t(x;5)(p11;q13)",
+    "46,xy,del(xq)",
+    "46,Xy,-7"
+  )
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c(
+      "46,XY,del(5)(q13q33)",
+      "46,XY[20]",
+      "46~48,XY,+8[12]",
+      "45,X,-Y[10]/46,XY[10]",
+      "46,XX,t(X;5)(p11;q13)",
+      "46,XY,del(Xq)",
+      "46,XY,-7"
+    )
+  )
+  expect_equal(unique(result$status), "fixed")
+  expect_equal(has_issue(x, "case_notation"), rep(1L, length(x)))
+})
+
+test_that("case_notation: uppercase ISCN keywords lowercased", {
+  x <- c(
+    "46,XY,Del(5)(Q13Q33)",
+    "46,XY,T(8;21)(Q22;Q22)",
+    "47,XY,+MAR[CP20]",
+    "46,XY,I(17)(Q10)",
+    "46,XY,del(5Q)"
+  )
+  expect_equal(
+    preprocess_karyo(x)$preprocessed,
+    c(
+      "46,XY,del(5)(q13q33)",
+      "46,XY,t(8;21)(q22;q22)",
+      "47,XY,+mar[cp20]",
+      "46,XY,i(17)(q10)",
+      "46,XY,del(5q)"
+    )
+  )
+  r <- parse_karyo("46,xy,Del(5)(q15q33)", on_issues = "preprocess")
+  expect_equal(r$del_5q, 1L)
+})
+
+test_that("case_notation: canonical strings and lowercase multiplier untouched", {
+  x <- c(
+    "47,XX,+Xx2",
+    "46,XY,der(21)t(19;21)(p12;q22)x2",
+    "46,XX,del(X)(q13)",
+    "46,XY,PSU DIC(15;22)",
+    "46,XX,del(5)(q13)[10]/46,IDEM,+8[5]"
+  )
+  expect_equal(has_issue(x, "case_notation"), rep(0L, length(x)))
+  expect_equal(
+    preprocess_karyo("46,xy,der(21)t(19;21)(p12;q22)x2")$preprocessed,
+    "46,XY,der(21)t(19;21)(p12;q22)x2"
+  )
+})
+
+test_that("case_notation: capitalised narrative still stripped", {
+  expect_equal(
+    preprocess_karyo("46,xy[20] Normal male")$preprocessed,
+    "46,XY[20]"
+  )
+})
+
 test_that("duplicate commas and leading/trailing delimiters: normalize_iscn in preprocess", {
   result <- suppressMessages(preprocess_karyo(",46,,XX,"))
   expect_equal(result$preprocessed, "46,XX")

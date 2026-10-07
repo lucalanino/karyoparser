@@ -26,6 +26,57 @@ empty_issues_tibble <- function() {
   collapse = "|"
 )
 
+# Case canonicalization for case_notation. Each regex only matches a known
+# ISCN element in its own context, so canonical strings never match and free
+# text (e.g. 'Normal', which trailing_narrative relies on) is left alone. A
+# lowercase 'x' after ')', a digit or a chromosome is the copy multiplier
+# ('der(1)x2', '+Xx2') and must stay lowercase.
+# 'psu dic', 'idem' and 'sl' are left to normalize_iscn(), which already folds
+# their case silently; reporting them here would turn clean rows into fixable.
+.case_ind_alt <- paste(
+  setdiff(strsplit(.aberr_alt, "|", fixed = TRUE)[[1]], "psu dic"),
+  collapse = "|"
+)
+.case_kw_alt <- paste(
+  c(.case_ind_alt, .aberr_indicators_bare, "sdl", "cp"),
+  collapse = "|"
+)
+.case_upper_re <- c(
+  # Sex complement right after the count: '46,xy', '46xy', '46-48,xx'.
+  sex = paste0(
+    "(?<=(?:^|/)\\d{1,3}(?:[~-]\\d{1,3})?(?:<\\dn>)?[.,]?)",
+    "(?=[XY]{0,4}[xy])(?i:[xy]{1,5})",
+    "(?=c?\\??(?:[,\\[/+\\s-]|$)|(?:",
+    .aberr_alt,
+    ")\\(|mar\\b)"
+  ),
+  # Whole-chromosome gain/loss: '-y', '+x', '+xx2'.
+  gain_loss = "(?<=(?:^|[,\\s])\\??[+-]\\??)[xy](?=c?\\??(?:x\\d|[,\\[/]|$))",
+  # Chromosome list in parentheses: 't(x;5)', 'der(x)', 'del(xq)'.
+  paren = "(?<=[(;])[xy](?=[;)]|(?i:[pq])(?:\\d|[;)?]))"
+)
+.case_lower_re <- c(
+  # Aberration indicator or keyword: 'Del(', 'T(', 'MAR', 'SDL1', '[CP20]'.
+  # The negative lookahead skips forms that are already lowercase.
+  keyword = paste0(
+    "(?<![A-Za-z])(?<!(?i:psu) )(?!(?:",
+    .case_kw_alt,
+    ")(?![a-z]))(?i:",
+    paste0("(?:", .case_ind_alt, ")(?=\\()"),
+    "|(?:",
+    paste(.aberr_indicators_bare, collapse = "|"),
+    ")(?![A-Za-z])",
+    "|sdl(?=\\d*(?:[,/\\[]|$))",
+    "|(?<=\\[)cp(?=\\d)",
+    ")"
+  ),
+  # Arm letter in a band list: 'del(5)(Q13Q33)', 't(8;21)(Q22;Q22)'.
+  band_arm = "(?<=\\)\\(|\\)\\([^()]{0,60}[\\d;?.~-])[PQ](?=[\\d?;)]|ter|TER)",
+  band_ter = "(?<=[pq])TER(?=[;)~-])",
+  # Arm shorthand: 'del(5Q)', 'i(17Q)'.
+  arm_short = "(?<=[(;](?:\\d{1,2}|[XY]))[PQ](?=[);])"
+)
+
 # detect/fix/detail entries; empty fix list means detected-only (unfixable).
 .dirty_patterns <- list(
   # Non-overlapping, so all entries collapse into one named-vector fix step.
@@ -82,6 +133,17 @@ empty_issues_tibble <- function() {
       list(pattern = "^[.\\s]*[.]\\s*(?=\\d)", replacement = "")
     ),
     detail = "String starts with dot(s) (and any stray whitespace) before chromosome count"
+  ),
+  # Runs before count_sex_separator and missing_sex_comma, whose regexes
+  # expect canonical case ('46xy' -> '46XY' -> '46,XY').
+  case_notation = list(
+    detect = c(.case_upper_re, .case_lower_re),
+    use_trimmed = FALSE,
+    fix = c(
+      lapply(.case_upper_re, \(re) list(pattern = re, replacement = toupper)),
+      lapply(.case_lower_re, \(re) list(pattern = re, replacement = tolower))
+    ),
+    detail = "Non-canonical letter case: lowercase sex chromosome (e.g. '46,xy', '-y', 't(x;5)') or uppercase ISCN keyword (e.g. 'Del(5)', 'MAR', '(Q13Q33)')"
   ),
   # Runs after leading_dot; repairs a missing/dotted count-sex separator, e.g.
   # '46XY,...' or '45.XY,...' -> '46,XY,...'. The lookahead includes +/- so a

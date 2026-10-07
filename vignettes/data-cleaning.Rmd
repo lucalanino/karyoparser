@@ -43,7 +43,10 @@ simply flagged `fixable`, without needing to know which specific fixable
 pattern fired. The full catalog of issue types, whether or not they surface as
 a column:
 
-- **Fixable**: `chimeric_separator`, `count_sex_separator` (e.g. `46XY` or
+- **Fixable**: `case_notation` (a lowercase sex chromosome such as `46,xy`,
+  `-y` or `t(x;5)`, or an uppercase ISCN keyword such as `Del(5)`, `MAR` or
+  `(Q13Q33)`; a lowercase `x` copy multiplier like `der(1)x2` is left alone),
+  `chimeric_separator`, `count_sex_separator` (e.g. `46XY` or
   `45.XY` missing the comma before the sex complement), `embedded_newline`,
   `fish_notation`, `fullwidth_punctuation` (fullwidth brackets, tilde,
   parentheses, comma, semicolon, or equals sign standing in for their ASCII
@@ -136,16 +139,19 @@ fixes in a fixed order, then a final `normalize_iscn()` pass:
 5. Collapse embedded newlines/tabs to spaces
 6. Decode HTML entities (`&lt;` -> `<`, `&gt;` -> `>`, `&amp;` -> `&`)
 7. Strip leading dot(s) before a digit (e.g. `.46,XX` -> `46,XX`)
-8. Insert missing/dotted separator between chromosome count and sex
+8. Canonicalize letter case: uppercase sex chromosomes (`46,xy` -> `46,XY`,
+   `-y` -> `-Y`), lowercase ISCN keywords (`Del(5)(Q13Q33)` ->
+   `del(5)(q13q33)`)
+9. Insert missing/dotted separator between chromosome count and sex
    complement (e.g. `46XY` or `45.XY` -> `46,XY`/`45,XY`)
-9. Strip FISH/`nuc ish` annotation (suffix or mid-clone before metaphase count)
-10. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
-11. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
-12. Insert missing comma after sex chromosome complement
-13. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
-14. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
+10. Strip FISH/`nuc ish` annotation (suffix or mid-clone before metaphase count)
+11. Strip trailing narrative: `] .text` -> `]`; `) Capital text` -> `)`
+12. Collapse mid-string line-wrap artifacts (`, .der(...)` -> `,der(...)`)
+13. Insert missing comma after sex chromosome complement
+14. Remove space between count and `mar` token (`+1~4 mar` -> `+1~4mar`)
+15. Strip non-clonal single-cell abnormality (`ncSCA`) tokens, standalone or
     parenthesized
-15. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+16. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
     idem/sl/cp normalization
 
 (`zero_host_chimera` and chimeric clone selection happen alongside this

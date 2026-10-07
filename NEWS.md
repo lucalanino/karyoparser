@@ -16,3 +16,10 @@
   `+`/`-` tokens of no recognized shape (e.g. `+8q`, `+23`) in any clone, so
   they are surfaced instead of silently skipped. `parse_karyo()` returns `NA`
   for these rows.
+* New fixable issue, `case_notation`: `preprocess_karyo()` now canonicalizes
+  letter case, uppercasing sex chromosomes (`46,xy` -> `46,XY`, `-y`,
+  `t(x;5)`) and lowercasing ISCN keywords (`Del(5)(Q13Q33)`, `MAR`, `[CP20]`).
+  Lowercase karyotypes, previously unfixable and returned as `NA`, are now
+  parsed; under the default `on_issues = "stop"`, `parse_karyo()` directs them
+  to `preprocess_karyo()`. The lowercase `x` copy multiplier (`der(1)x2`) is
+  left untouched.

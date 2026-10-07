@@ -55,7 +55,7 @@ count summary and a per-unfixable-issue-type breakdown.
 \details{
 Fixable issue types (resolvable by \code{parse_karyo()} under \code{on_issues = "preprocess"}): \code{unicode_notation}, \code{non_ascii_homoglyph},
 \code{fullwidth_punctuation}, \code{embedded_newline}, \code{html_entities},
-\code{leading_dot}, \code{count_sex_separator}, \code{fish_notation},
+\code{leading_dot}, \code{case_notation}, \code{count_sex_separator}, \code{fish_notation},
 \code{trailing_narrative}, \code{midstring_linewrap}, \code{missing_sex_comma},
 \code{mar_space}, \code{non_clonal_sca}, \code{chimeric_separator}, \code{zero_host_chimera}.
 
