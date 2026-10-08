@@ -209,12 +209,12 @@ regardless.
 | Classification | `monosomal_karyotype` | integer 0/1 | 1 if \>= 2 autosomal monosomies, or \>= 1 autosomal monosomy + \>= 1 structural aberration (any `general_*` flag except `general_marker` and `general_dmin`). Sex-chromosome monosomies never count. Forced to 0 for CBF-AML rows – `t(8;21)(q22;q22)`, `inv(16)(p13q22)`, `t(16;16)(p13;q22)` – even when the criteria are met |
 | Rule flags | *(one per `myeloid_rules` entry)* | integer 0/1 | Specific lesions – see Aberration flags below |
 | General flags | `general_translocation`, `general_deletion`, `general_inversion`, `general_addition`, `general_dicentric`, `general_isodicentric`, `general_pseudodicentric`, `general_isochromosome`, `general_ring`, `general_insertion`, `general_duplication`, `general_triplication`, `general_marker`, `general_dmin`, `general_derivative`, `balanced_translocation`, `unbalanced_translocation` | integer 0/1 | Universal structural-aberration detections, incl. translocation balance |
-| Aneuploidy | `mono1`–`mono22`, `monoX`, `monoY`; `tris1`–`tris22`, `trisX`, `trisY` | integer 0/1 | Whole-chromosome loss/gain from `-`/`+` tokens |
+| Aneuploidy | `mono1`–`mono22`, `monoX`, `monoY`; `tris1`–`tris22`, `trisX`, `trisY` | integer 0/1 | Whole-chromosome loss/gain from whole `-`/`+` tokens (`-7`, `+8`, `-Xx2`). Constitutional (`+21c`) and uncertain (`+?8`) gains are not counted |
 | Summary | `comma_count_aberrations` | integer | Aberration count (max across clones; idem-expanded) |
 | Summary | `distinct_aberrations` | integer | Distinct aberration tokens pooled across clones; the count `complex_karyotype` thresholds at 3 |
 | Summary | `chromosome_count` | integer | Count from the most abnormal clone that clears `min_metaphases` (see below); NA if none does |
 | Summary | `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |
-| Derived loss | `unbal_partial_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation |
+| Derived loss | `unbal_partial_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation: the der chromosome’s own arm beyond its breakpoint (`der(1)t(1;3)(p22;q13)` -\> `1p`). The partner contributes a gain, which is not flagged. |
 | Status | `fixable_error`, `unfixable_error` | integer 0/1 | Row had a fixable / unfixable issue (unfixable rows are all NA) |
 | Status | `chimeric_karyotype` | integer 0/1 | 1 if input contained a `//` chimeric separator |
 | Status | `chimeric_clone` | character | Which clone was parsed for a chimeric row (`"host"`, `"donor"`, or NA) – see [`vignette("chimeric-karyotypes")`](https://lucalanino.github.io/karyoparser/articles/chimeric-karyotypes.md) |
@@ -270,7 +270,8 @@ up several flags at once. They come from three sources:
   ring, insertion, duplication, triplication, marker, double minutes,
   derivative). Always on, regardless of which rule set you pass.
 - **Aneuploidy flags** (`mono*`/`tris*`) – whole-chromosome loss/gain
-  from `-`/`+` tokens.
+  from whole `-`/`+` tokens, so a counted ring or marker (`+1~3r`,
+  `+2mar`) is never read as a trisomy.
 
 Since flags don’t compete, a token can trip **all** its matches at once.
 `t(9;11)(p21;q23)` sets the specific `t_9_11_p21_q23`, the family flag

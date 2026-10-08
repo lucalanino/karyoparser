@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">karyoparser</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.0.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,6 +45,7 @@
     <li><a class="dropdown-item" href="../articles/custom-rules.html">Writing custom rule tables</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -93,50 +94,70 @@ unfixable rows always come out <code>NA</code>, no matter which
 <code class="sourceCode R"><span><span class="va">ck</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/check_karyo.html">check_karyo</a></span><span class="op">(</span><span class="va">example_karyotypes</span>, karyotype_column <span class="op">=</span> <span class="st">"karyotype"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">ck</span><span class="op">)</span></span>
 <span><span class="co">#&gt;  [1] "karyotype"                     "fixable"                      </span></span>
-<span><span class="co">#&gt;  [3] "unfixable"                     "constitutional_sex_complement"</span></span>
-<span><span class="co">#&gt;  [5] "empty"                         "invalid_idem"                 </span></span>
-<span><span class="co">#&gt;  [7] "mosaic_karyotype"              "multiple_chimeric_separator"  </span></span>
-<span><span class="co">#&gt;  [9] "no_chromosome_count"           "no_sex_complement"            </span></span>
-<span><span class="co">#&gt; [11] "single_token"                  "stray_non_ascii"              </span></span>
-<span><span class="co">#&gt; [13] "unbalanced_brackets"           "unbalanced_parentheses"       </span></span>
-<span><span class="co">#&gt; [15] "unparseable_bracket"           "updated_iscn"</span></span></code></pre></div>
-<p>Columns after
-<code>karyotype</code>/<code>fixable</code>/<code>unfixable</code> are
-one 0/1 flag per <em>unfixable</em> issue type (alphabetical). Fixable
-issue types don’t get their own columns –
+<span><span class="co">#&gt;  [3] "unfixable"                     "unfixable_reason"             </span></span>
+<span><span class="co">#&gt;  [5] "chimeric_no_count"             "constitutional_sex_complement"</span></span>
+<span><span class="co">#&gt;  [7] "empty"                         "invalid_breakpoint"           </span></span>
+<span><span class="co">#&gt;  [9] "invalid_idem"                  "mosaic_karyotype"             </span></span>
+<span><span class="co">#&gt; [11] "multiple_chimeric_separator"   "no_chromosome_count"          </span></span>
+<span><span class="co">#&gt; [13] "no_sex_complement"             "single_token"                 </span></span>
+<span><span class="co">#&gt; [15] "stray_non_ascii"               "unbalanced_brackets"          </span></span>
+<span><span class="co">#&gt; [17] "unbalanced_parentheses"        "unparseable_bracket"          </span></span>
+<span><span class="co">#&gt; [19] "unrecognized_gain_loss"        "unrecognized_token"           </span></span>
+<span><span class="co">#&gt; [21] "updated_iscn"</span></span></code></pre></div>
+<p><code>unfixable_reason</code> spells out why a row is unfixable,
+naming the offending token where there is one
+(e.g. <code>unrecognized_token: Cannot classify 'idem*2' as an ISCN token</code>).
+The columns after it are one 0/1 flag per <em>unfixable</em> issue type
+(alphabetical). Fixable issue types don’t get their own columns –
 <code><a href="../reference/preprocess_karyo.html">preprocess_karyo()</a></code> resolves them automatically, so a row is
 simply flagged <code>fixable</code>, without needing to know which
 specific fixable pattern fired. The full catalog of issue types, whether
 or not they surface as a column:</p>
 <ul>
 <li>
-<strong>Fixable</strong>: <code>chimeric_separator</code>,
+<strong>Fixable</strong>: <code>breakpoint_semicolon</code>
+(<code>t(9;16)(q34p13)</code> for <code>t(9;16)(q34;p13)</code>),
+<code>case_notation</code> (a lowercase sex chromosome such as
+<code>46,xy</code>, <code>-y</code> or <code>t(x;5)</code>, or an
+uppercase ISCN keyword such as <code>Del(5)</code>, <code>MAR</code> or
+<code>(Q13Q33)</code>; a lowercase <code>x</code> copy multiplier like
+<code>der(1)x2</code> is left alone), <code>chimeric_separator</code>,
+<code>colon_separator</code> (<code>t(5:17)(q13:q11)</code>),
 <code>count_sex_separator</code> (e.g. <code>46XY</code> or
 <code>45.XY</code> missing the comma before the sex complement),
+<code>dot_separator</code> (<code>del(5)(q13q33).-7</code>),
 <code>embedded_newline</code>, <code>fish_notation</code>,
 <code>fullwidth_punctuation</code> (fullwidth brackets, tilde,
 parentheses, comma, semicolon, or equals sign standing in for their
-ASCII equivalents), <code>html_entities</code>,
+ASCII equivalents), <code>gain_loss_comma</code> (<code>-7+mar</code>),
+<code>html_entities</code>, <code>iso_indicator</code> (non-ISCN
+<code>iso(17q)</code> written for <code>i(17q)</code>),
 <code>leading_dot</code>, <code>mar_space</code>,
-<code>midstring_linewrap</code>, <code>missing_sex_comma</code>
-(e.g. <code>46,XX der(...)</code> or <code>46,XY+8</code> missing the
-comma after the sex complement – a letter-glued form like
+<code>midstring_linewrap</code>, <code>missing_sex_comma</code> (e.g.
+<code>46,XX der(...)</code> or <code>46,XY+8</code> missing the comma
+after the sex complement – a letter-glued form like
 <code>46,XYdel(5q)</code> is auto-fixed when the glued token is a
 recognized aberration indicator, otherwise it’s detected but comes back
 <code>NA</code>), <code>non_ascii_homoglyph</code> (a Greek Chi/Upsilon
 standing in for Latin <code>X</code>/<code>Y</code> in the sex
 complement), <code>non_clonal_sca</code> (an <code>ncSCA</code> token,
-standalone or parenthesized), <code>trailing_narrative</code>,
-<code>unicode_notation</code>, <code>zero_host_chimera</code>.</li>
+standalone or parenthesized), <code>paren_comma</code>
+(<code>del(5)(q11,q33)</code>; a decimal comma <code>q11,2</code>
+becomes <code>q11.2</code>), <code>star_multiplier</code>
+(<code>+mar*2</code> for <code>+marx2</code>),
+<code>trailing_narrative</code>, <code>underscore_prefix</code>
+(<code>46,_XY,_del(5)...</code>), <code>unicode_notation</code>,
+<code>zero_host_chimera</code>.</li>
 <li>
-<strong>Unfixable</strong>:
+<strong>Unfixable</strong>: <code>chimeric_no_count</code>,
 <code>constitutional_sex_complement</code>, <code>empty</code>,
-<code>invalid_idem</code>, <code>mosaic_karyotype</code>,
-<code>multiple_chimeric_separator</code>,
+<code>invalid_breakpoint</code>, <code>invalid_idem</code>,
+<code>mosaic_karyotype</code>, <code>multiple_chimeric_separator</code>,
 <code>no_chromosome_count</code>, <code>no_sex_complement</code>,
 <code>single_token</code>, <code>stray_non_ascii</code>,
 <code>unbalanced_brackets</code>, <code>unbalanced_parentheses</code>,
-<code>unparseable_bracket</code>, <code>updated_iscn</code>.</li>
+<code>unparseable_bracket</code>, <code>unrecognized_gain_loss</code>,
+<code>unrecognized_token</code>, <code>updated_iscn</code>.</li>
 </ul>
 </div>
 <div class="section level2">
@@ -167,7 +188,8 @@ values before parsing, or filter them out upstream.</td>
 </tr>
 <tr class="even">
 <td><code>no_chromosome_count</code></td>
-<td>String doesn’t start with a digit</td>
+<td>String, or any later clone, doesn’t start with a chromosome count
+(e.g. <code>46,XY[20]/text:46,idem,...</code>)</td>
 <td>Check whether a leading chromosome count was stripped upstream
 (e.g. spreadsheet auto-formatting), or whether the string is karyotype
 notation at all.</td>
@@ -220,10 +242,55 @@ source record.</td>
 that ended up bracketed.</td>
 </tr>
 <tr class="even">
+<td><code>unrecognized_gain_loss</code></td>
+<td>A <code>+</code>/<code>-</code> token that is neither a
+whole-chromosome gain/loss (<code>+8</code>, <code>-Xx2</code>), an
+unidentified ring/marker/double minute (<code>+1~3r</code>,
+<code>+2mar</code>), nor a structural aberration
+(<code>+der(1)...</code>), e.g. <code>+8q</code> or
+<code>+23</code>
+</td>
+<td>Monosomy/trisomy flags only fire on whole tokens, so an unforeseen
+shape would otherwise be silently skipped. Correct the token in the
+source record.</td>
+</tr>
+<tr class="odd">
+<td><code>unrecognized_token</code></td>
+<td>Any other aberration token with no recognized ISCN shape, e.g. free
+text, a bare number (<code>46,XY,8,del(5)(q13q33)[20]</code>), or an
+indicator with no breakpoints (<code>47,XY,+8,del[20]</code>)</td>
+<td>Unrecognized tokens would otherwise be counted as aberrations and
+inflate <code>complex_karyotype</code>. Only token structure is checked
+(indicator, parenthesized groups, suffixes), never band contents.
+Correct the token in the source record.</td>
+</tr>
+<tr class="even">
+<td><code>invalid_breakpoint</code></td>
+<td>A recognized token whose parentheses hold an impossible chromosome
+(<code>der(+)</code>, <code>inv(1198q15q22)</code>) or breakpoint: an
+empty entry (<code>()</code>, <code>(p35;;p24)</code>), a band without
+an arm (<code>(q12;21)</code>), or a breakpoint count that doesn’t match
+the chromosomes (<code>t(5;2)(q11)</code>)</td>
+<td>ISCN uncertainty (<code>?</code>, <code>q1?</code>),
+<code>pter</code>/<code>qter</code>/<code>cen</code>, <code>or</code>
+alternatives and uncertain ranges (<code>q13-14</code>,
+<code>q33~34</code>) are accepted. Correct the breakpoints in the source
+record.</td>
+</tr>
+<tr class="odd">
 <td><code>multiple_chimeric_separator</code></td>
 <td>Two or more <code>//</code> separators</td>
 <td>The parser can’t auto-resolve more than one chimeric boundary.
 Decide manually which clone population to keep.</td>
+</tr>
+<tr class="even">
+<td><code>chimeric_no_count</code></td>
+<td>A <code>//</code> not followed by a chromosome count,
+e.g. <code>46,XX[10]//XY[5]</code>
+</td>
+<td>Every population after <code>//</code> needs its own ploidy. A
+missing count is never guessed to be a <code>/</code> typo; check the
+source record.</td>
 </tr>
 <tr class="odd">
 <td><code>updated_iscn</code></td>
@@ -325,21 +392,40 @@ comma, semicolon, equals sign) with their ASCII equivalents</li>
 -&gt; <code>&amp;</code>)</li>
 <li>Strip leading dot(s) before a digit (e.g. <code>.46,XX</code> -&gt;
 <code>46,XX</code>)</li>
+<li>Strip underscore token prefixes (<code>46,_XY,_-7</code> -&gt;
+<code>46,XY,-7</code>)</li>
+<li>Canonicalize letter case: uppercase sex chromosomes
+(<code>46,xy</code> -&gt; <code>46,XY</code>, <code>-y</code> -&gt;
+<code>-Y</code>), lowercase ISCN keywords (<code>Del(5)(Q13Q33)</code>
+-&gt; <code>del(5)(q13q33)</code>)</li>
+<li>Rewrite the non-ISCN <code>iso(</code> isochromosome indicator to
+<code>i(</code>
+</li>
 <li>Insert missing/dotted separator between chromosome count and sex
 complement (e.g. <code>46XY</code> or <code>45.XY</code> -&gt;
 <code>46,XY</code>/<code>45,XY</code>)</li>
 <li>Strip FISH/<code>nuc ish</code> annotation (suffix or mid-clone
 before metaphase count)</li>
 <li>Strip trailing narrative: <code>] .text</code> -&gt; <code>]</code>;
-<code>) Capital text</code> -&gt; <code>)</code>
-</li>
-<li>Collapse mid-string line-wrap artifacts (<code>, .der(...)</code>
--&gt; <code>,der(...)</code>)</li>
+<code>) Capital text</code> -&gt; <code>)</code>; a trailing
+<code>&lt;AML&gt;</code>-style annotation</li>
+<li>Collapse mid-string line-wrap artifacts (<code>, .der(...)</code> or
+<code>,.der(...)</code> -&gt; <code>,der(...)</code>)</li>
 <li>Insert missing comma after sex chromosome complement</li>
 <li>Remove space between count and <code>mar</code> token
 (<code>+1~4 mar</code> -&gt; <code>+1~4mar</code>)</li>
 <li>Strip non-clonal single-cell abnormality (<code>ncSCA</code>)
 tokens, standalone or parenthesized</li>
+<li>Repair separators: a comma inside parentheses -&gt; <code>;</code>
+(<code>del(5)(q11,q33)</code>); a colon used for <code>;</code>
+(<code>t(5:17)(q13:q11)</code>), leaving the detailed ISCN system
+(<code>::</code>, <code>-&gt;</code>) alone; a missing <code>;</code>
+between two chromosomes’ breakpoints (<code>t(9;16)(q34p13)</code> -&gt;
+<code>t(9;16)(q34;p13)</code>); a dot used for <code>,</code> between
+tokens (<code>del(5)(q13q33).-7</code>, <code>45.idem</code>);
+<code>*N</code> -&gt; <code>xN</code>; a missing comma before a
+<code>+</code>/<code>-</code> token (<code>-7+mar</code> -&gt;
+<code>-7,+mar</code>)</li>
 <li>
 <code>normalize_iscn()</code>: whitespace collapsing, delimiter
 tightening, idem/sl/cp normalization</li>
@@ -358,11 +444,11 @@ alongside this pipeline but are covered separately in
 <span><span class="co">#&gt;   Fixed:      2</span></span>
 <span><span class="co">#&gt;   Clean:      1</span></span>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 3 × 3</span></span></span>
-<span><span class="co">#&gt;   original                               preprocessed                     status</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                  <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                            <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> .46,XX,del(5)(q13)[10]                 46,XX,del(5)(q13)[10]            fixed </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> 46,XX,t(9;22)(q34;q11)[15] &amp;lt;AML&amp;gt; 46,XX,t(9;22)(q34;q11)[15] &lt;AML&gt; fixed </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> 46,XX[cp 20]                           46,XX[cp20]                      clean</span></span></code></pre></div>
+<span><span class="co">#&gt;   original                               preprocessed               status</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                                  <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>                      <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> .46,XX,del(5)(q13)[10]                 46,XX,del(5)(q13)[10]      fixed </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> 46,XX,t(9;22)(q34;q11)[15] &amp;lt;AML&amp;gt; 46,XX,t(9;22)(q34;q11)[15] fixed </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> 46,XX[cp 20]                           46,XX[cp20]                clean</span></span></code></pre></div>
 <p><code><a href="../reference/preprocess_karyo.html">preprocess_karyo()</a></code> accepts a <code>karyo_check</code>
 object directly (as returned by <code><a href="../reference/check_karyo.html">check_karyo()</a></code>), reusing its
 cached assessment instead of re-scanning:</p>

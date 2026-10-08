@@ -29,41 +29,58 @@ matter which `on_issues` mode you use.
 ck <- check_karyo(example_karyotypes, karyotype_column = "karyotype")
 names(ck)
 #>  [1] "karyotype"                     "fixable"                      
-#>  [3] "unfixable"                     "constitutional_sex_complement"
-#>  [5] "empty"                         "invalid_idem"                 
-#>  [7] "mosaic_karyotype"              "multiple_chimeric_separator"  
-#>  [9] "no_chromosome_count"           "no_sex_complement"            
-#> [11] "single_token"                  "stray_non_ascii"              
-#> [13] "unbalanced_brackets"           "unbalanced_parentheses"       
-#> [15] "unparseable_bracket"           "updated_iscn"
+#>  [3] "unfixable"                     "unfixable_reason"             
+#>  [5] "chimeric_no_count"             "constitutional_sex_complement"
+#>  [7] "empty"                         "invalid_breakpoint"           
+#>  [9] "invalid_idem"                  "mosaic_karyotype"             
+#> [11] "multiple_chimeric_separator"   "no_chromosome_count"          
+#> [13] "no_sex_complement"             "single_token"                 
+#> [15] "stray_non_ascii"               "unbalanced_brackets"          
+#> [17] "unbalanced_parentheses"        "unparseable_bracket"          
+#> [19] "unrecognized_gain_loss"        "unrecognized_token"           
+#> [21] "updated_iscn"
 ```
 
-Columns after `karyotype`/`fixable`/`unfixable` are one 0/1 flag per
-*unfixable* issue type (alphabetical). Fixable issue types don’t get
-their own columns –
+`unfixable_reason` spells out why a row is unfixable, naming the
+offending token where there is one
+(e.g. `unrecognized_token: Cannot classify 'idem*2' as an ISCN token`).
+The columns after it are one 0/1 flag per *unfixable* issue type
+(alphabetical). Fixable issue types don’t get their own columns –
 [`preprocess_karyo()`](https://lucalanino.github.io/karyoparser/reference/preprocess_karyo.md)
 resolves them automatically, so a row is simply flagged `fixable`,
 without needing to know which specific fixable pattern fired. The full
 catalog of issue types, whether or not they surface as a column:
 
-- **Fixable**: `chimeric_separator`, `count_sex_separator` (e.g. `46XY`
-  or `45.XY` missing the comma before the sex complement),
-  `embedded_newline`, `fish_notation`, `fullwidth_punctuation`
-  (fullwidth brackets, tilde, parentheses, comma, semicolon, or equals
-  sign standing in for their ASCII equivalents), `html_entities`,
+- **Fixable**: `breakpoint_semicolon` (`t(9;16)(q34p13)` for
+  `t(9;16)(q34;p13)`), `case_notation` (a lowercase sex chromosome such
+  as `46,xy`, `-y` or `t(x;5)`, or an uppercase ISCN keyword such as
+  `Del(5)`, `MAR` or `(Q13Q33)`; a lowercase `x` copy multiplier like
+  `der(1)x2` is left alone), `chimeric_separator`, `colon_separator`
+  (`t(5:17)(q13:q11)`), `count_sex_separator` (e.g. `46XY` or `45.XY`
+  missing the comma before the sex complement), `dot_separator`
+  (`del(5)(q13q33).-7`), `embedded_newline`, `fish_notation`,
+  `fullwidth_punctuation` (fullwidth brackets, tilde, parentheses,
+  comma, semicolon, or equals sign standing in for their ASCII
+  equivalents), `gain_loss_comma` (`-7+mar`), `html_entities`,
+  `iso_indicator` (non-ISCN `iso(17q)` written for `i(17q)`),
   `leading_dot`, `mar_space`, `midstring_linewrap`, `missing_sex_comma`
-  (e.g. `46,XX der(...)` or `46,XY+8` missing the comma after the sex
+  (e.g. `46,XX der(...)` or `46,XY+8` missing the comma after the sex
   complement – a letter-glued form like `46,XYdel(5q)` is auto-fixed
   when the glued token is a recognized aberration indicator, otherwise
   it’s detected but comes back `NA`), `non_ascii_homoglyph` (a Greek
   Chi/Upsilon standing in for Latin `X`/`Y` in the sex complement),
   `non_clonal_sca` (an `ncSCA` token, standalone or parenthesized),
-  `trailing_narrative`, `unicode_notation`, `zero_host_chimera`.
-- **Unfixable**: `constitutional_sex_complement`, `empty`,
-  `invalid_idem`, `mosaic_karyotype`, `multiple_chimeric_separator`,
-  `no_chromosome_count`, `no_sex_complement`, `single_token`,
-  `stray_non_ascii`, `unbalanced_brackets`, `unbalanced_parentheses`,
-  `unparseable_bracket`, `updated_iscn`.
+  `paren_comma` (`del(5)(q11,q33)`; a decimal comma `q11,2` becomes
+  `q11.2`), `star_multiplier` (`+mar*2` for `+marx2`),
+  `trailing_narrative`, `underscore_prefix` (`46,_XY,_del(5)...`),
+  `unicode_notation`, `zero_host_chimera`.
+- **Unfixable**: `chimeric_no_count`, `constitutional_sex_complement`,
+  `empty`, `invalid_breakpoint`, `invalid_idem`, `mosaic_karyotype`,
+  `multiple_chimeric_separator`, `no_chromosome_count`,
+  `no_sex_complement`, `single_token`, `stray_non_ascii`,
+  `unbalanced_brackets`, `unbalanced_parentheses`,
+  `unparseable_bracket`, `unrecognized_gain_loss`, `unrecognized_token`,
+  `updated_iscn`.
 
 ## Unfixable issues: what to do
 
@@ -74,13 +91,17 @@ are constructs the package deliberately doesn’t handle.
 | Issue type | What it usually means | What to do |
 |----|----|----|
 | `empty` | Input was `NA` or `""` | Confirm the source column doesn’t have missing/blank karyotype values before parsing, or filter them out upstream. |
-| `no_chromosome_count` | String doesn’t start with a digit | Check whether a leading chromosome count was stripped upstream (e.g. spreadsheet auto-formatting), or whether the string is karyotype notation at all. |
+| `no_chromosome_count` | String, or any later clone, doesn’t start with a chromosome count (e.g. `46,XY[20]/text:46,idem,...`) | Check whether a leading chromosome count was stripped upstream (e.g. spreadsheet auto-formatting), or whether the string is karyotype notation at all. |
 | `no_sex_complement` | First clone has no sex chromosome complement (`XX`/`XY`/etc.) | Check whether the string was truncated before the complement, uses non-standard complement notation, or (if `missing_sex_comma` is also flagged) has the complement glued directly to an unrecognized or garbled aberration token with no comma, e.g. `47,XY(inv)(9)`. A glued *recognized* aberration indicator, e.g. `46,XYdel(5q)`, is auto-fixed and won’t reach this check. |
 | `single_token` | Bare comma-less string, e.g. `"8"` | Ambiguous between a chromosome count and an abnormality whose leading `+`/`-` sign was stripped – a common artifact of opening ISCN strings in Excel. Check the original cell format/source. |
 | `invalid_idem` | `idem` appears in the first clone | `idem` means “same as the previous clone”, but there is no previous clone here. Check whether an earlier clone was dropped from the string. |
 | `unbalanced_parentheses` / `unbalanced_brackets` | Mismatched `(`/`)` or `[`/`]` counts | Usually a truncation or copy-paste error. Inspect the original source record. |
 | `unparseable_bracket` | Bracket content isn’t a valid metaphase count (`[n]`, `[cpN]`, `[n~m]`) | Look for stray text inside the brackets, e.g. a note or annotation that ended up bracketed. |
+| `unrecognized_gain_loss` | A `+`/`-` token that is neither a whole-chromosome gain/loss (`+8`, `-Xx2`), an unidentified ring/marker/double minute (`+1~3r`, `+2mar`), nor a structural aberration (`+der(1)...`), e.g. `+8q` or `+23` | Monosomy/trisomy flags only fire on whole tokens, so an unforeseen shape would otherwise be silently skipped. Correct the token in the source record. |
+| `unrecognized_token` | Any other aberration token with no recognized ISCN shape, e.g. free text, a bare number (`46,XY,8,del(5)(q13q33)[20]`), or an indicator with no breakpoints (`47,XY,+8,del[20]`) | Unrecognized tokens would otherwise be counted as aberrations and inflate `complex_karyotype`. Only token structure is checked (indicator, parenthesized groups, suffixes), never band contents. Correct the token in the source record. |
+| `invalid_breakpoint` | A recognized token whose parentheses hold an impossible chromosome (`der(+)`, `inv(1198q15q22)`) or breakpoint: an empty entry (`()`, `(p35;;p24)`), a band without an arm (`(q12;21)`), or a breakpoint count that doesn’t match the chromosomes (`t(5;2)(q11)`) | ISCN uncertainty (`?`, `q1?`), `pter`/`qter`/`cen`, `or` alternatives and uncertain ranges (`q13-14`, `q33~34`) are accepted. Correct the breakpoints in the source record. |
 | `multiple_chimeric_separator` | Two or more `//` separators | The parser can’t auto-resolve more than one chimeric boundary. Decide manually which clone population to keep. |
+| `chimeric_no_count` | A `//` not followed by a chromosome count, e.g. `46,XX[10]//XY[5]` | Every population after `//` needs its own ploidy. A missing count is never guessed to be a `/` typo; check the source record. |
 | `updated_iscn` | Contains an `"Updated ISCN"` marker | The string may have been superseded by a later correction. Check the source record for the corrected karyotype. |
 | `constitutional_sex_complement` | Sex complement has a `c` suffix, e.g. `47,XXYc` | Out of scope by design, not a data-quality issue – see [Out-of-scope constructs](#out-of-scope-constructs-take-precedence) below. |
 | `mosaic_karyotype` | Leading `mos` prefix | Out of scope by design, not a data-quality issue – see [Out-of-scope constructs](#out-of-scope-constructs-take-precedence) below. |
@@ -156,20 +177,32 @@ order, then a final `normalize_iscn()` pass:
 6.  Decode HTML entities (`&lt;` -\> `<`, `&gt;` -\> `>`, `&amp;` -\>
     `&`)
 7.  Strip leading dot(s) before a digit (e.g. `.46,XX` -\> `46,XX`)
-8.  Insert missing/dotted separator between chromosome count and sex
+8.  Strip underscore token prefixes (`46,_XY,_-7` -\> `46,XY,-7`)
+9.  Canonicalize letter case: uppercase sex chromosomes (`46,xy` -\>
+    `46,XY`, `-y` -\> `-Y`), lowercase ISCN keywords (`Del(5)(Q13Q33)`
+    -\> `del(5)(q13q33)`)
+10. Rewrite the non-ISCN `iso(` isochromosome indicator to `i(`
+11. Insert missing/dotted separator between chromosome count and sex
     complement (e.g. `46XY` or `45.XY` -\> `46,XY`/`45,XY`)
-9.  Strip FISH/`nuc ish` annotation (suffix or mid-clone before
+12. Strip FISH/`nuc ish` annotation (suffix or mid-clone before
     metaphase count)
-10. Strip trailing narrative: `] .text` -\> `]`; `) Capital text` -\>
-    `)`
-11. Collapse mid-string line-wrap artifacts (`, .der(...)` -\>
-    `,der(...)`)
-12. Insert missing comma after sex chromosome complement
-13. Remove space between count and `mar` token (`+1~4 mar` -\>
+13. Strip trailing narrative: `] .text` -\> `]`; `) Capital text` -\>
+    `)`; a trailing `<AML>`-style annotation
+14. Collapse mid-string line-wrap artifacts (`, .der(...)` or
+    `,.der(...)` -\> `,der(...)`)
+15. Insert missing comma after sex chromosome complement
+16. Remove space between count and `mar` token (`+1~4 mar` -\>
     `+1~4mar`)
-14. Strip non-clonal single-cell abnormality (`ncSCA`) tokens,
+17. Strip non-clonal single-cell abnormality (`ncSCA`) tokens,
     standalone or parenthesized
-15. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
+18. Repair separators: a comma inside parentheses -\> `;`
+    (`del(5)(q11,q33)`); a colon used for `;` (`t(5:17)(q13:q11)`),
+    leaving the detailed ISCN system (`::`, `->`) alone; a missing `;`
+    between two chromosomes’ breakpoints (`t(9;16)(q34p13)` -\>
+    `t(9;16)(q34;p13)`); a dot used for `,` between tokens
+    (`del(5)(q13q33).-7`, `45.idem`); `*N` -\> `xN`; a missing comma
+    before a `+`/`-` token (`-7+mar` -\> `-7,+mar`)
+19. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
     idem/sl/cp normalization
 
 (`zero_host_chimera` and chimeric clone selection happen alongside this
@@ -188,11 +221,11 @@ preprocess_karyo(messy, verbose = TRUE)
 #>   Fixed:      2
 #>   Clean:      1
 #> # A tibble: 3 × 3
-#>   original                               preprocessed                     status
-#>   <chr>                                  <chr>                            <chr> 
-#> 1 .46,XX,del(5)(q13)[10]                 46,XX,del(5)(q13)[10]            fixed 
-#> 2 46,XX,t(9;22)(q34;q11)[15] &lt;AML&gt; 46,XX,t(9;22)(q34;q11)[15] <AML> fixed 
-#> 3 46,XX[cp 20]                           46,XX[cp20]                      clean
+#>   original                               preprocessed               status
+#>   <chr>                                  <chr>                      <chr> 
+#> 1 .46,XX,del(5)(q13)[10]                 46,XX,del(5)(q13)[10]      fixed 
+#> 2 46,XX,t(9;22)(q34;q11)[15] &lt;AML&gt; 46,XX,t(9;22)(q34;q11)[15] fixed 
+#> 3 46,XX[cp 20]                           46,XX[cp20]                clean
 ```
 
 [`preprocess_karyo()`](https://lucalanino.github.io/karyoparser/reference/preprocess_karyo.md)

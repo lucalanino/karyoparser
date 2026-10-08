@@ -23,7 +23,14 @@ A rules table needs exactly two columns:
 - `regex`: the pattern matched against each token. Rules fire
   independently – there’s no priority ranking between them, so if two
   patterns can match the same flag, combine them into one `regex` with
-  `|` rather than using two rows.
+  `|` rather than using two rows. Tokens are matched in a canonical
+  form, so write patterns against that: sub-bands are dropped (`q13.1`
+  -\> `q13`), a `?` before a breakpoint is dropped (`(?q13q31)` -\>
+  `(q13q31)`), and a `;` between the breakpoints of a single-chromosome
+  rearrangement is dropped (`inv(16)(p13.1;q22)` -\> `inv(16)(p13q22)`).
+  The same form is used to count distinct aberrations and derive
+  translocation losses, so spelling variants of one aberration count
+  once. The reported karyotype strings are never changed.
 
 ``` r
 

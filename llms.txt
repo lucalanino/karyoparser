@@ -68,6 +68,9 @@ reference.
 - Sub-band breakpoints: bands are stripped before matching.
 - Copy number \> 1: gain/loss is binary; `+8,+8` still just gives
   `tris8 = 1`.
+- Clone-aware copy number: gains/losses are read per token, not netted
+  against the parent clone, so `47,XX,+8[10]/46,idem,-8[5]` sets both
+  `tris8` and `mono8`.
 - Partial gain from unbalanced der’s: only the partial loss is flagged
   (`unbal_partial_loss_*`).
 - Three-way translocations: only trip the generic
@@ -75,6 +78,10 @@ reference.
   two-partner `der(a)t(a;b)`.
 - Non-ISCN inputs: array CGH/SNP `seq[GRCh38]` notation and standalone
   FISH results aren’t parsed.
+- Constitutional heteromorphisms (`9qh+`, `inv(9)(p12q13)`): treated
+  like any other aberration, so they count toward `distinct_aberrations`
+  and `complex_karyotype`. Input is expected to be leukemia-oriented
+  karyotypes that leave normal variants out.
 
 ## Learn More
 

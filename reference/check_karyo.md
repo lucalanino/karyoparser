@@ -60,8 +60,10 @@ check_karyo(
 A `karyo_check` tibble with `length(karyotypes)` rows (or
 `nrow(karyotypes)` when input is a data frame). Columns: optional id
 column (first, when given), `karyotype` (full input string), `fixable`,
-`unfixable`, then one integer column per unfixable issue type
-(alphabetical). The tibble can be passed directly to
+`unfixable`, `unfixable_reason` (each unfixable issue with the offending
+token or detail, `;`-separated; `NA` when the row has none), then one
+integer column per unfixable issue type (alphabetical). The tibble can
+be passed directly to
 [`preprocess_karyo()`](https://lucalanino.github.io/karyoparser/reference/preprocess_karyo.md),
 which will reuse the cached assessment and propagate the id column
 without re-scanning.
@@ -72,18 +74,21 @@ Fixable issue types (resolvable by
 [`parse_karyo()`](https://lucalanino.github.io/karyoparser/reference/parse_karyo.md)
 under `on_issues = "preprocess"`): `unicode_notation`,
 `non_ascii_homoglyph`, `fullwidth_punctuation`, `embedded_newline`,
-`html_entities`, `leading_dot`, `count_sex_separator`, `fish_notation`,
+`html_entities`, `leading_dot`, `underscore_prefix`, `case_notation`,
+`iso_indicator`, `count_sex_separator`, `fish_notation`,
 `trailing_narrative`, `midstring_linewrap`, `missing_sex_comma`,
-`mar_space`, `non_clonal_sca`, `chimeric_separator`,
-`zero_host_chimera`.
+`mar_space`, `non_clonal_sca`, `paren_comma`, `colon_separator`,
+`breakpoint_semicolon`, `dot_separator`, `star_multiplier`,
+`gain_loss_comma`, `chimeric_separator`, `zero_host_chimera`.
 
 Unfixable issue types (always returned as NA by
 [`parse_karyo()`](https://lucalanino.github.io/karyoparser/reference/parse_karyo.md)):
-`multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
-`updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
-`no_sex_complement`, `single_token`, `constitutional_sex_complement`,
-`mosaic_karyotype`, `invalid_idem`, `unparseable_bracket`,
-`stray_non_ascii`.
+`multiple_chimeric_separator`, `chimeric_no_count`, `empty`,
+`no_chromosome_count`, `updated_iscn`, `unbalanced_parentheses`,
+`unbalanced_brackets`, `no_sex_complement`, `single_token`,
+`constitutional_sex_complement`, `mosaic_karyotype`, `invalid_idem`,
+`unparseable_bracket`, `unrecognized_gain_loss`, `unrecognized_token`,
+`invalid_breakpoint`, `stray_non_ascii`.
 
 See
 [`vignette("data-cleaning")`](https://lucalanino.github.io/karyoparser/articles/data-cleaning.md)
