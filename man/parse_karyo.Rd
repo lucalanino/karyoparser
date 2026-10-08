@@ -183,7 +183,11 @@ full reciprocal set is present (every partner appears as a der).
 \code{unbal_partial_loss_22q}, \code{unbal_partial_loss_Xp},
 \code{unbal_partial_loss_Xq}, \code{unbal_partial_loss_Yp},
 \code{unbal_partial_loss_Yq}), set to 1 when an unbalanced der
-translocation implies partial loss of that arm. Kept SEPARATE from
+translocation implies partial loss of that arm. Per ISCN, a lone
+\verb{der(a)t(a;b)} replaces one normal \code{a} while both normal \code{b} homologs
+remain, so only \code{a}'s arm beyond its breakpoint is lost
+(\verb{der(1)t(1;3)(p22;q13)} sets \code{unbal_partial_loss_1p}); the partner
+contributes a gain, which is not flagged. Kept SEPARATE from
 \code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q loss does not
 set \code{del_5q}. Derivation needs explicit breakpoints and is limited to
 simple single-junction two-partner \verb{der(a)t(a;b)}; multi-junction chains

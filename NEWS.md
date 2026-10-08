@@ -17,6 +17,12 @@
   `inv(3)(q21;q26)` sets `inv_3_q21q26`) and an uncertain breakpoint
   (`del(5)(?q13q31)` sets `del_5q`). Only matching is affected; the reported
   karyotype strings are unchanged.
+* `unbal_partial_loss_*` no longer marks an arm of the translocation partner
+  as lost. Per ISCN, a lone `der(a)t(a;b)` replaces one normal `a` while both
+  normal `b` homologs remain, so only `a`'s arm beyond its breakpoint is lost:
+  `der(5)t(5;17)(q12;q12)` now sets `unbal_partial_loss_5q` only, not
+  `unbal_partial_loss_17p`. If you combined `unbal_partial_loss_17p` into
+  abn(17p) for risk scoring, affected rows were wrongly scored adverse.
 
 ## New features
 

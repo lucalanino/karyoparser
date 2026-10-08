@@ -163,7 +163,7 @@ status columns are always included regardless.
 | Summary | `distinct_aberrations` | integer | Distinct aberration tokens pooled across clones; the count `complex_karyotype` thresholds at 3 |
 | Summary | `chromosome_count` | integer | Count from the most abnormal clone that clears `min_metaphases` (see below); NA if none does |
 | Summary | `total_metaphases` | integer | Sum of bracket counts; NA if no brackets |
-| Derived loss | `unbal_partial_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation |
+| Derived loss | `unbal_partial_loss_<arm>` (one per chromosome arm), `unbal_partial_loss` | integer 0/1 | Partial arm loss implied by an unbalanced der translocation: the der chromosome's own arm beyond its breakpoint (`der(1)t(1;3)(p22;q13)` -> `1p`). The partner contributes a gain, which is not flagged. |
 | Status | `fixable_error`, `unfixable_error` | integer 0/1 | Row had a fixable / unfixable issue (unfixable rows are all NA) |
 | Status | `chimeric_karyotype` | integer 0/1 | 1 if input contained a `//` chimeric separator |
 | Status | `chimeric_clone` | character | Which clone was parsed for a chimeric row (`"host"`, `"donor"`, or NA) -- see `vignette("chimeric-karyotypes")` |

@@ -202,12 +202,36 @@ test_that("balanced: two homologous der of same signature form a reciprocal pair
   expect_equal(r$unbalanced_translocation, 0L)
 })
 
-test_that("partial loss: der(5)t(5;17) implies unbal_partial_loss_5q + unbal_partial_loss_17p", {
-  r <- pk("46,XY,der(5)t(5;17)(q11;q11)")
-  expect_equal(r$unbal_partial_loss_5q, 1L)
-  expect_equal(r$unbal_partial_loss_17p, 1L)
-  expect_equal(r$unbal_partial_loss, 1L)
-  expect_equal(r$del_5q, 0L)
+test_that("partial loss: der(5)t(5;17) implies 5q loss only, never a partner arm", {
+  r <- pk(c("46,XY,der(5)t(5;17)(q11;q11)", "46,XY,der(5)t(17;5)(q11;q11)"))
+  expect_equal(r$unbal_partial_loss_5q, c(1L, 1L))
+  expect_equal(r$unbal_partial_loss_17p, c(0L, 0L))
+  expect_equal(r$unbal_partial_loss_17q, c(0L, 0L))
+  expect_equal(r$unbal_partial_loss, c(1L, 1L))
+  expect_equal(r$del_5q, c(0L, 0L))
+})
+
+# ISCN worked example: '46,XX,der(1)t(1;3)(p22;q13)' -- "The der(1) replaces a
+# normal chromosome 1 ... There are obviously two normal chromosomes 3. The
+# karyotype is unbalanced with loss of the segment 1p22-pter and gain of
+# 3q13-qter." With '-3' the missing 3 is explicit and must not be inferred.
+test_that("partial loss: ISCN der(1)t(1;3)(p22;q13) example", {
+  r <- pk(c(
+    "46,XX,der(1)t(1;3)(p22;q13)",
+    "45,XY,der(1)t(1;3)(p22;q13),-3"
+  ))
+  arms <- grep("^unbal_partial_loss_.+$", names(r), value = TRUE)
+  fired <- apply(r[arms], 1, \(v) arms[v == 1L])
+  expect_equal(fired[[1]], "unbal_partial_loss_1p")
+  expect_equal(fired[[2]], "unbal_partial_loss_1p")
+  expect_equal(r$mono3, c(0L, 1L))
+})
+
+test_that("partial loss: the der chromosome supplies the centromere", {
+  r <- pk("46,XY,der(17)t(5;17)(q12;q12)")
+  expect_equal(r$unbal_partial_loss_17q, 1L)
+  expect_equal(r$unbal_partial_loss_5q, 0L)
+  expect_equal(r$unbal_partial_loss_5p, 0L)
 })
 
 test_that("partial loss: real del(5q) does not set any unbal_partial_loss column", {
@@ -228,14 +252,14 @@ test_that("partial loss: all arms exposed, including non-myeloid ones", {
   r <- pk("45,XX,der(9)t(9;22)(q34;q11)")
   expect_equal(r$unbal_partial_loss, 1L)
   expect_equal(r$unbal_partial_loss_9q, 1L)
-  expect_equal(r$unbal_partial_loss_22p, 1L)
+  expect_equal(r$unbal_partial_loss_22p, 0L)
   expect_equal(r$unbal_partial_loss_5q, 0L)
 })
 
 test_that("partial loss: sex-chromosome arms are exposed", {
   r <- pk("46,Y,der(X)t(X;5)(q21;q31)")
   expect_equal(r$unbal_partial_loss_Xq, 1L)
-  expect_equal(r$unbal_partial_loss_5p, 1L)
+  expect_equal(r$unbal_partial_loss_5p, 0L)
   expect_equal(r$unbal_partial_loss, 1L)
 })
 
