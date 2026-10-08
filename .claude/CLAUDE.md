@@ -75,16 +75,33 @@ air format .
 ### Versioning
 
 - Follow the scheme: `major.minor.patch`
+- Bump once per release cycle, not per commit. No `.9000` dev versions.
 - No bump needed for: formatting-only commits, CI/tooling changes, README-only edits.
+- `NEWS.md`: add a bullet for each user-visible change under the top
+  `# karyoparser x.y.z` heading, in the same commit as the change. The heading
+  must match `Version:` in `DESCRIPTION`. Releases before 1.0.1 have no entry.
 
 ### Git
 
 - Always check the current branch before committing.
-- All changes live on `dev`. If `dev` does not exist yet, create it from
-  `main` (`git switch -c dev`) rather than committing to `main`.
-- `main` only advances via a PR from `dev`, merged once `R-CMD-check` is
-  green. Never commit directly to `main` unless explicitly told otherwise.
-- Releases are annotated tags (`vX.Y.Z`) on `main`.
+- `dev` is a throwaway branch, one per release cycle. All changes live on it,
+  never directly on `main`.
+- Start a cycle from an up-to-date `main`:
+  `git switch main && git pull && git switch -c dev`.
+- Release steps, once the work on `dev` is done:
+  1. Bump `Version:` and check the top `NEWS.md` heading matches.
+  2. `gh pr create --base main --fill`; wait for green checks
+     (`gh pr checks --watch`).
+  3. `gh pr merge --merge --delete-branch` (merge commit only, so the
+     individual commits stay on `main`; squash and rebase are disabled).
+  4. `git switch main && git pull && git branch -d dev`.
+  5. `git tag -a vX.Y.Z -m "karyoparser X.Y.Z" && git push origin vX.Y.Z`.
+  6. `gh release create vX.Y.Z --title "karyoparser X.Y.Z"` with that
+     version's `NEWS.md` section as the notes.
+- `main` is protected by a ruleset: PR required, `R-CMD-check` and
+  `format-check` must pass, no force-push or deletion.
+- Tags are annotated, on `main`, and match `DESCRIPTION`. Never move or reuse a
+  pushed tag; release a new patch instead.
 
 ### TODOs
 

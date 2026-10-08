@@ -147,7 +147,9 @@ clone in the row qualifies, which can happen even though
 \item One column per aberration flag (0/1 binary); rule-based columns are
 named after a sanitized \code{flag_name} (see \code{rules} above)
 \item monoX, monoY, mono1-22: Monosomy flags for each chromosome
-\item trisX, trisY, tris1-22: Trisomy flags for each chromosome
+\item trisX, trisY, tris1-22: Trisomy flags for each chromosome. Mono/tris
+flags are set only by a whole gain/loss token (\code{+8}, \code{-7}, \code{-Xx2});
+constitutional (\verb{+21c}) and uncertain (\code{+?8}) gains are not counted
 \item normal_karyotype: 1 if 46,XX or 46,XY, else 0
 \item total_metaphases: Count from bracket notation
 \item comma_count_aberrations: Number of comma-separated aberrations
@@ -181,7 +183,11 @@ full reciprocal set is present (every partner appears as a der).
 \code{unbal_partial_loss_22q}, \code{unbal_partial_loss_Xp},
 \code{unbal_partial_loss_Xq}, \code{unbal_partial_loss_Yp},
 \code{unbal_partial_loss_Yq}), set to 1 when an unbalanced der
-translocation implies partial loss of that arm. Kept SEPARATE from
+translocation implies partial loss of that arm. Per ISCN, a lone
+\verb{der(a)t(a;b)} replaces one normal \code{a} while both normal \code{b} homologs
+remain, so only \code{a}'s arm beyond its breakpoint is lost
+(\verb{der(1)t(1;3)(p22;q13)} sets \code{unbal_partial_loss_1p}); the partner
+contributes a gain, which is not flagged. Kept SEPARATE from
 \code{del(...)}/\verb{mono*} -- an unbalanced-derived 5q loss does not
 set \code{del_5q}. Derivation needs explicit breakpoints and is limited to
 simple single-junction two-partner \verb{der(a)t(a;b)}; multi-junction chains

@@ -5,7 +5,7 @@ test_that("check_karyo: clean input returns one row per string, all zeros", {
   expect_equal(result$unfixable, c(0L, 0L))
 })
 
-test_that("check_karyo: column schema -- fixable/unfixable first, then sorted unfixable issue cols", {
+test_that("check_karyo: column schema -- fixable/unfixable/reason first, then sorted unfixable issue cols", {
   result <- suppressMessages(check_karyo("46,XX"))
   unfixable_cols <- sort(setdiff(
     karyoparser:::.all_issue_types,
@@ -15,9 +15,32 @@ test_that("check_karyo: column schema -- fixable/unfixable first, then sorted un
     "karyotype",
     "fixable",
     "unfixable",
+    "unfixable_reason",
     unfixable_cols
   )
   expect_named(result, expected_cols)
+})
+
+test_that("check_karyo: unfixable_reason names the offending token", {
+  result <- check_karyo(c(
+    "46,XX,t(3;21)(q26;q22)[23+6]",
+    "88,XX,idem*2[2]",
+    "45,XY,+dert(3;17)(q26;q12),+marl1[17]",
+    "46,XX,del(5)(q13q33)[10]"
+  ))
+  expect_equal(
+    result$unfixable_reason,
+    c(
+      "unparseable_bracket: Cannot parse '[23+6]' as metaphase count",
+      "unrecognized_token: Cannot classify 'idem*2' as an ISCN token",
+      paste0(
+        "unrecognized_gain_loss: Cannot classify '+marl1' as a gain/loss ",
+        "token; unrecognized_token: Cannot classify '+dert(3;17)(q26;q12)' ",
+        "as an ISCN token"
+      ),
+      NA
+    )
+  )
 })
 
 test_that("check_karyo: empty/NA detected as unfixable", {
@@ -128,6 +151,101 @@ test_that("check_karyo detects unparseable_bracket for non-numeric bracket conte
   result <- suppressMessages(check_karyo("46,XX[abc]"))
   expect_equal(result$unparseable_bracket, 1L)
   expect_equal(result$unfixable, 1L)
+})
+
+test_that("check_karyo detects unrecognized_gain_loss in any clone", {
+  result <- suppressMessages(check_karyo(c(
+    "47,XY,+8q[10]",
+    "46,XY[5]/47,XY,+23[5]",
+    "47,XY,+8[10]"
+  )))
+  expect_equal(result$unrecognized_gain_loss, c(1L, 1L, 0L))
+  expect_equal(result$unfixable, c(1L, 1L, 0L))
+})
+
+test_that("unrecognized_gain_loss accepts every recognized +/- token shape", {
+  result <- suppressMessages(check_karyo(paste0(
+    "49,XX,",
+    c(
+      "+8,-Xx2,+21c,+?8",
+      "+1~3r,+r,-1mar,+mar1,+2dmin,+mar1x2",
+      "+der(1)t(1;3)(p36;q21),+i(17)(q10),+r(7)(p22q36)"
+    ),
+    "[10]"
+  )))
+  expect_equal(result$unrecognized_gain_loss, c(0L, 0L, 0L))
+})
+
+test_that("check_karyo: every clone must start with a chromosome count", {
+  ck <- check_karyo(c(
+    "46,XY[20]/einzelaberrationen:46,idem,del(11)(q23)[1]",
+    "46,XX,del(5)(q14q34)[4]/46;idem,del(12)(p12p13)[2]",
+    "46,XX,del(5)(q14q34)[4]/93<4n>,idem[2]"
+  ))
+  expect_equal(ck$no_chromosome_count, c(1L, 1L, 0L))
+  expect_match(ck$unfixable_reason[1], "Clone 2 .*einzelaberrationen:46")
+})
+
+test_that("invalid_breakpoint flags malformed parentheses contents", {
+  ck <- check_karyo(paste0(
+    "46,XY,",
+    c(
+      "t(5;2)(q11)",
+      "der(5)t(5;17)(q12;21)",
+      "del(12)()",
+      "der(1)t(1;2)(p35;;p24)",
+      "der(+)t(?;4)",
+      "inv(1198q15q22)",
+      "t(3;8)(q267;q34)"
+    )
+  ))
+  expect_equal(ck$invalid_breakpoint, rep(1L, 7))
+})
+
+test_that("invalid_breakpoint accepts ISCN uncertainty and shorthand", {
+  ck <- check_karyo(paste0(
+    "46,XY,",
+    c(
+      "t(3;?)(p21;?),der(5)ins(5;17)(p11;??)",
+      "del(5)(q13-14q34),del(5)(q13q33~34),del(20)(q11.2~13.1)",
+      "add(19)(p13 or q13),del(5)(q14q21orq21q23),der(20)t(?19;20)(q13;q1?)",
+      "del(5q),del(20q11.2),t(14;18),r(7)(p22q36),psu dic(15;22)(p11;q11)",
+      "t(2;5)(2pter->2q21::5q31->5qter),inv(3)(q21;q26)"
+    )
+  ))
+  expect_equal(ck$invalid_breakpoint, rep(0L, 5))
+})
+
+test_that("check_karyo detects unrecognized_token in any clone", {
+  result <- suppressMessages(check_karyo(c(
+    "46,XY,del(5)(q13q33),asxl1mutation[10]",
+    "46,XY,del(5)(q13q33),5q31[10]",
+    "46,XY[5]/47,XY,+8,nl[5]",
+    "46,XY,del(5)(q13q33),10[10]",
+    "46,XY,dic(5;17)(q11;p11)order(5)t(5;17)(q13;q11)[10]"
+  )))
+  expect_equal(result$unrecognized_token, rep(1L, 5))
+  expect_equal(result$unfixable, rep(1L, 5))
+})
+
+test_that("unrecognized_token accepts every recognized ISCN token shape", {
+  result <- suppressMessages(check_karyo(paste0(
+    "47,XX,",
+    c(
+      "der(7)t(2;7)(q13;q11)del(7)(q31),der(1;7)(q10;p10),ider(20)(q10)",
+      "psu dic(15;22),idic(X)(q13),del(5)(?q13q31),i(17)(q10)x2,t(9;22)c",
+      "hsr(11)(q22),fra(16)(q22),9qh+,10~>50dmin,+mar1,inc",
+      "+8[5]/48,XX,idem,+21[3]/47,XX,sl,del(7)(q22)[2]/48,XX,sdl1,+9"
+    ),
+    "[10]"
+  )))
+  expect_equal(result$unrecognized_token, rep(0L, 4))
+})
+
+test_that("unrecognized_token does not double-report a gain/loss token", {
+  result <- suppressMessages(check_karyo("47,XY,+8q[10]"))
+  expect_equal(result$unrecognized_gain_loss, 1L)
+  expect_equal(result$unrecognized_token, 0L)
 })
 
 test_that("XXYY and XXXY are valid sex complements (no no_sex_complement fired)", {

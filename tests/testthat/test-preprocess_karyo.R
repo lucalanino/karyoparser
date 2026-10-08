@@ -39,6 +39,77 @@ test_that("idem and sl case normalization via preprocess_karyo", {
   expect_equal(r$comma_count_aberrations, 2L)
 })
 
+test_that("case_notation: lowercase sex chromosomes uppercased", {
+  x <- c(
+    "46,xy,del(5)(q13q33)",
+    "46xy[20]",
+    "46-48,xy,+8[12]",
+    "45,x,-y[10]/46,xy[10]",
+    "46,xx,t(x;5)(p11;q13)",
+    "46,xy,del(xq)",
+    "46,Xy,-7"
+  )
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c(
+      "46,XY,del(5)(q13q33)",
+      "46,XY[20]",
+      "46~48,XY,+8[12]",
+      "45,X,-Y[10]/46,XY[10]",
+      "46,XX,t(X;5)(p11;q13)",
+      "46,XY,del(Xq)",
+      "46,XY,-7"
+    )
+  )
+  expect_equal(unique(result$status), "fixed")
+  expect_equal(has_issue(x, "case_notation"), rep(1L, length(x)))
+})
+
+test_that("case_notation: uppercase ISCN keywords lowercased", {
+  x <- c(
+    "46,XY,Del(5)(Q13Q33)",
+    "46,XY,T(8;21)(Q22;Q22)",
+    "47,XY,+MAR[CP20]",
+    "46,XY,I(17)(Q10)",
+    "46,XY,del(5Q)"
+  )
+  expect_equal(
+    preprocess_karyo(x)$preprocessed,
+    c(
+      "46,XY,del(5)(q13q33)",
+      "46,XY,t(8;21)(q22;q22)",
+      "47,XY,+mar[cp20]",
+      "46,XY,i(17)(q10)",
+      "46,XY,del(5q)"
+    )
+  )
+  r <- parse_karyo("46,xy,Del(5)(q15q33)", on_issues = "preprocess")
+  expect_equal(r$del_5q, 1L)
+})
+
+test_that("case_notation: canonical strings and lowercase multiplier untouched", {
+  x <- c(
+    "47,XX,+Xx2",
+    "46,XY,der(21)t(19;21)(p12;q22)x2",
+    "46,XX,del(X)(q13)",
+    "46,XY,PSU DIC(15;22)",
+    "46,XX,del(5)(q13)[10]/46,IDEM,+8[5]"
+  )
+  expect_equal(has_issue(x, "case_notation"), rep(0L, length(x)))
+  expect_equal(
+    preprocess_karyo("46,xy,der(21)t(19;21)(p12;q22)x2")$preprocessed,
+    "46,XY,der(21)t(19;21)(p12;q22)x2"
+  )
+})
+
+test_that("case_notation: capitalised narrative still stripped", {
+  expect_equal(
+    preprocess_karyo("46,xy[20] Normal male")$preprocessed,
+    "46,XY[20]"
+  )
+})
+
 test_that("duplicate commas and leading/trailing delimiters: normalize_iscn in preprocess", {
   result <- suppressMessages(preprocess_karyo(",46,,XX,"))
   expect_equal(result$preprocessed, "46,XX")
@@ -154,7 +225,7 @@ test_that("preprocess_karyo: decodes HTML lt/gt entities", {
     suppressMessages(preprocess_karyo(
       "46,XX,t(9;22)(q34;q11) &lt;AML&gt;"
     ))$preprocessed,
-    "46,XX,t(9;22)(q34;q11)<AML>"
+    "46,XX,t(9;22)(q34;q11)"
   )
 })
 
@@ -191,6 +262,18 @@ test_that("preprocess_karyo: two or more // are unfixable", {
   expect_equal(result$status, "unfixable")
 })
 
+test_that("preprocess_karyo: '//' without a chromosome count is unfixable", {
+  x <- c("46,XX[10]//XY[5]", "46,XX[10]//idem,+8[5]", "46,XX[10]//")
+  for (oc in c("default", "host", "donor")) {
+    expect_equal(
+      preprocess_karyo(x, on_chimeric = oc)$status,
+      rep("unfixable", 3)
+    )
+  }
+  expect_equal(check_karyo(x)$chimeric_no_count, rep(1L, 3))
+  expect_equal(preprocess_karyo("46,XX[10]//46,XY[5]")$status, "fixed")
+})
+
 test_that("preprocess_karyo: ncSCA token stripped (leading clone)", {
   result <- suppressMessages(preprocess_karyo("ncSCA[4]/46,XY[11]"))
   expect_equal(result$preprocessed, "46,XY[11]")
@@ -201,6 +284,127 @@ test_that("preprocess_karyo: ncSCA token stripped (parenthesized, chimeric host 
   result <- suppressMessages(preprocess_karyo("46,XX(ncSCA)[1]//46,XY[19]"))
   expect_equal(result$preprocessed, "46,XX[1]")
   expect_equal(result$status, "fixed")
+})
+
+test_that("iso_indicator: 'iso(' rewritten to 'i(' and flagged", {
+  x <- c("47,XX,iso(17q),+19[5]", "46,XY,iso(8)(q10)[8]")
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c("47,XX,i(17q),+19[5]", "46,XY,i(8)(q10)[8]")
+  )
+  expect_equal(result$status, c("fixed", "fixed"))
+  expect_equal(parse_karyo(result)$i_17q, c(1L, 0L))
+})
+
+test_that("paren_comma: comma inside parentheses replaced with ';'", {
+  x <- c("46,XY,del(5)(q11,q33)[10]", "46,XY,+1,der(1;7)(q10,p10)[6]")
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c("46,XY,del(5)(q11;q33)[10]", "46,XY,+1,der(1;7)(q10;p10)[6]")
+  )
+  expect_equal(parse_karyo(result)$del_5q, c(1L, 0L))
+})
+
+test_that("colon_separator: ':' replaced with ';' outside the detailed system", {
+  result <- preprocess_karyo(c(
+    "46,XY,t(2:11)(p21:q23)",
+    "46,XX,t(2;5)(2pter->2q21::5q31->5qter)"
+  ))
+  expect_equal(
+    result$preprocessed,
+    c("46,XY,t(2;11)(p21;q23)", "46,XX,t(2;5)(2pter->2q21::5q31->5qter)")
+  )
+  expect_equal(result$status, c("fixed", "clean"))
+  expect_equal(parse_karyo(result[1, ])$t_v_11q23, 1L)
+})
+
+test_that("paren_comma: comma between band digits read as a decimal comma", {
+  expect_equal(
+    preprocess_karyo("46,XY,del(17)(p11,2,p13)")$preprocessed,
+    "46,XY,del(17)(p11.2;p13)"
+  )
+})
+
+test_that("underscore_prefix: underscore token prefixes stripped", {
+  result <- preprocess_karyo("46,_xy,_del(5)(q14q34),_-7,_t(5;_12)(q14;q14)")
+  expect_equal(result$preprocessed, "46,XY,del(5)(q14q34),-7,t(5;12)(q14;q14)")
+  expect_equal(result$status, "fixed")
+})
+
+test_that("star_multiplier: '*N' replaced with 'xN', idem*2 left unfixable", {
+  result <- preprocess_karyo(c(
+    "46,XX,del(5)(q13q31)*2,+mar*2,+mar1*2",
+    "92,XXYY,-4*2[1]",
+    "47,XX,idem*2"
+  ))
+  expect_equal(
+    result$preprocessed,
+    c("46,XX,del(5)(q13q31)x2,+marx2,+mar1x2", "92,XXYY,-4x2[1]", NA)
+  )
+  expect_equal(result$status, c("fixed", "fixed", "unfixable"))
+  expect_equal(parse_karyo(result[1, ])$general_marker, 1L)
+})
+
+test_that("gain_loss_comma: missing comma before a '+'/'-' token inserted", {
+  x <- c(
+    "46,XY,-7+mar[2]",
+    "45,XY,-18+der(3;18)(q10;q10)",
+    "46,XY,del(5)(q13q33)-7",
+    "47,XY,+2-4mar",
+    "46~48,XY,del(5)(q23-31q33)"
+  )
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c(
+      "46,XY,-7,+mar[2]",
+      "45,XY,-18,+der(3;18)(q10;q10)",
+      "46,XY,del(5)(q13q33),-7",
+      "47,XY,+2-4mar",
+      "46~48,XY,del(5)(q23-31q33)"
+    )
+  )
+  expect_equal(result$status, c("fixed", "fixed", "fixed", "clean", "clean"))
+})
+
+test_that("breakpoint_semicolon: ';' inserted between two chromosomes' bands", {
+  result <- preprocess_karyo(c(
+    "46,XY,t(9;16)(q34p13)",
+    "46,XY,der(5)t(5;17)(q13q12)",
+    "46,XY,r(7)(p22q36)"
+  ))
+  expect_equal(
+    result$preprocessed,
+    c(
+      "46,XY,t(9;16)(q34;p13)",
+      "46,XY,der(5)t(5;17)(q13;q12)",
+      "46,XY,r(7)(p22q36)"
+    )
+  )
+  expect_equal(result$status, c("fixed", "fixed", "clean"))
+})
+
+test_that("dot_separator: '.' between tokens replaced with ','", {
+  x <- c(
+    "46,XY,del(5)(q13q33).-7",
+    "45,XY,-17.add(21)(q22)",
+    "46,XY,del(5)(q13)[10]/45.idem,-7[5]",
+    "46,XY,del(20)(q11.2)"
+  )
+  result <- preprocess_karyo(x)
+  expect_equal(
+    result$preprocessed,
+    c(
+      "46,XY,del(5)(q13q33),-7",
+      "45,XY,-17,add(21)(q22)",
+      "46,XY,del(5)(q13)[10]/45,idem,-7[5]",
+      "46,XY,del(20)(q11.2)"
+    )
+  )
+  expect_equal(result$status, c("fixed", "fixed", "fixed", "clean"))
+  expect_equal(parse_karyo(result[1, ])$mono7, 1L)
 })
 
 test_that("preprocess_karyo: strips leading dot before digit", {
@@ -229,9 +433,12 @@ test_that("preprocess_karyo: idempotent on preprocessed column", {
   expect_equal(once$preprocessed, twice$preprocessed)
 })
 
-test_that("preprocess_karyo: does not corrupt mid-string .add() tokens", {
+test_that("preprocess_karyo: strips the dot of a mid-string ',.add()' token", {
   x <- "46,XX,.add(1)(q21)"
-  expect_equal(suppressMessages(preprocess_karyo(x))$preprocessed, x)
+  expect_equal(
+    suppressMessages(preprocess_karyo(x))$preprocessed,
+    "46,XX,add(1)(q21)"
+  )
 })
 
 test_that("preprocess_karyo: handles empty vector", {

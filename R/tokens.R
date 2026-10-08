@@ -2,10 +2,31 @@ strip_bands <- function(band_str) {
   stringr::str_replace_all(band_str, "([pq]\\d+)\\.\\d+", "\\1")
 }
 
+# Text that rules and general_* patterns match against. Only affects which
+# flags fire; the reported karyotype strings are never rewritten. Tolerates two
+# common variants: an uncertain breakpoint ('del(5)(?q13q31)') and a ';'
+# between the breakpoints of a single-chromosome rearrangement
+# ('inv(16)(p13.1;q22)'), which ISCN writes without one.
+rule_match_text <- function(x) {
+  x <- strip_bands(x)
+  x <- stringr::str_replace_all(x, "(?<=[(;])\\?(?=[pq])", "")
+  stringr::str_replace_all(
+    x,
+    paste0(
+      "(\\((?:",
+      .chrom_loose_alt,
+      ")\\)\\([^();]*);([^();]*\\))"
+    ),
+    "\\1\\2"
+  )
+}
+
 normalize_token <- function(x) {
   x <- stringr::str_trim(x)
   x <- stringr::str_replace_all(x, "(^\\?|\\?$|~)", "")
-  x <- strip_bands(x)
+  # Same canonical form as rule matching, so spelling variants of one
+  # aberration ('del(5)(q13;q33)' vs 'del(5)(q13q33)') count once.
+  x <- rule_match_text(x)
   out <- x
   is_marker <- tidyr::replace_na(stringr::str_detect(x, "^[+-]?\\d*mar"), FALSE)
   out[is_marker] <- "marker_chromosomes"
@@ -166,7 +187,7 @@ build_clone_tokens <- function(sample_meta) {
 # Rules fire independently; mutual exclusivity, where wanted, is encoded in
 # the regex itself.
 match_rules <- function(tokens_tbl, rules, rule_flag_names) {
-  match_text <- strip_bands(tokens_tbl$aberr_raw)
+  match_text <- rule_match_text(tokens_tbl$aberr_raw)
   ids <- tokens_tbl$.pk_row_id
   out <- tibble::tibble(.pk_row_id = unique(ids))
   for (nm in .sanitize_flag_name(rule_flag_names)) {

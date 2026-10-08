@@ -123,7 +123,9 @@
 #'   - One column per aberration flag (0/1 binary); rule-based columns are
 #'     named after a sanitized `flag_name` (see `rules` above)
 #'   - monoX, monoY, mono1-22: Monosomy flags for each chromosome
-#'   - trisX, trisY, tris1-22: Trisomy flags for each chromosome
+#'   - trisX, trisY, tris1-22: Trisomy flags for each chromosome. Mono/tris
+#'     flags are set only by a whole gain/loss token (`+8`, `-7`, `-Xx2`);
+#'     constitutional (`+21c`) and uncertain (`+?8`) gains are not counted
 #'   - normal_karyotype: 1 if 46,XX or 46,XY, else 0
 #'   - total_metaphases: Count from bracket notation
 #'   - comma_count_aberrations: Number of comma-separated aberrations
@@ -157,7 +159,11 @@
 #'     `unbal_partial_loss_22q`, `unbal_partial_loss_Xp`,
 #'     `unbal_partial_loss_Xq`, `unbal_partial_loss_Yp`,
 #'     `unbal_partial_loss_Yq`), set to 1 when an unbalanced der
-#'     translocation implies partial loss of that arm. Kept SEPARATE from
+#'     translocation implies partial loss of that arm. Per ISCN, a lone
+#'     `der(a)t(a;b)` replaces one normal `a` while both normal `b` homologs
+#'     remain, so only `a`'s arm beyond its breakpoint is lost
+#'     (`der(1)t(1;3)(p22;q13)` sets `unbal_partial_loss_1p`); the partner
+#'     contributes a gain, which is not flagged. Kept SEPARATE from
 #'     `del(...)`/`mono*` -- an unbalanced-derived 5q loss does not
 #'     set `del_5q`. Derivation needs explicit breakpoints and is limited to
 #'     simple single-junction two-partner `der(a)t(a;b)`; multi-junction chains
@@ -459,7 +465,8 @@ parse_karyo <- function(
       chimeric_all_indices <- unique(c(
         assessment$chimeric_row_indices,
         assessment$zhc_row_indices,
-        assessment$multi_row_indices
+        assessment$multi_row_indices,
+        assessment$no_count_row_indices
       ))
       chimeric_clone_vec <- assessment$chimeric_clone
       proc <- assessment$processed

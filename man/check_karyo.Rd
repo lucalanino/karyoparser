@@ -36,10 +36,11 @@ per-unfixable-issue-type breakdown. Default \code{FALSE}.}
 A \code{karyo_check} tibble with \code{length(karyotypes)} rows (or
 \code{nrow(karyotypes)} when input is a data frame). Columns: optional id column
 (first, when given), \code{karyotype} (full input string), \code{fixable},
-\code{unfixable}, then one integer column per unfixable issue type
-(alphabetical). The tibble can be passed directly to
-\code{preprocess_karyo()}, which will reuse the cached assessment and
-propagate the id column without re-scanning.
+\code{unfixable}, \code{unfixable_reason} (each unfixable issue with the offending
+token or detail, \verb{;}-separated; \code{NA} when the row has none), then one
+integer column per unfixable issue type (alphabetical). The tibble can be
+passed directly to \code{preprocess_karyo()}, which will reuse the cached
+assessment and propagate the id column without re-scanning.
 }
 \description{
 Checks raw karyotype strings for formatting artifacts and structural errors.
@@ -55,16 +56,20 @@ count summary and a per-unfixable-issue-type breakdown.
 \details{
 Fixable issue types (resolvable by \code{parse_karyo()} under \code{on_issues = "preprocess"}): \code{unicode_notation}, \code{non_ascii_homoglyph},
 \code{fullwidth_punctuation}, \code{embedded_newline}, \code{html_entities},
-\code{leading_dot}, \code{count_sex_separator}, \code{fish_notation},
-\code{trailing_narrative}, \code{midstring_linewrap}, \code{missing_sex_comma},
-\code{mar_space}, \code{non_clonal_sca}, \code{chimeric_separator}, \code{zero_host_chimera}.
+\code{leading_dot}, \code{underscore_prefix}, \code{case_notation}, \code{iso_indicator},
+\code{count_sex_separator}, \code{fish_notation}, \code{trailing_narrative},
+\code{midstring_linewrap}, \code{missing_sex_comma}, \code{mar_space}, \code{non_clonal_sca},
+\code{paren_comma}, \code{colon_separator}, \code{breakpoint_semicolon}, \code{dot_separator},
+\code{star_multiplier}, \code{gain_loss_comma}, \code{chimeric_separator},
+\code{zero_host_chimera}.
 
 Unfixable issue types (always returned as NA by \code{parse_karyo()}):
-\code{multiple_chimeric_separator}, \code{empty}, \code{no_chromosome_count},
-\code{updated_iscn}, \code{unbalanced_parentheses}, \code{unbalanced_brackets},
-\code{no_sex_complement}, \code{single_token}, \code{constitutional_sex_complement},
-\code{mosaic_karyotype}, \code{invalid_idem}, \code{unparseable_bracket},
-\code{stray_non_ascii}.
+\code{multiple_chimeric_separator}, \code{chimeric_no_count}, \code{empty},
+\code{no_chromosome_count}, \code{updated_iscn}, \code{unbalanced_parentheses},
+\code{unbalanced_brackets}, \code{no_sex_complement}, \code{single_token},
+\code{constitutional_sex_complement}, \code{mosaic_karyotype}, \code{invalid_idem},
+\code{unparseable_bracket}, \code{unrecognized_gain_loss}, \code{unrecognized_token},
+\code{invalid_breakpoint}, \code{stray_non_ascii}.
 
 See \code{vignette("data-cleaning")} for what each issue type means, worked
 examples, and how to resolve the unfixable ones.

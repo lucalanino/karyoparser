@@ -37,7 +37,6 @@ utils::globalVariables(c(
   "is_composite",
   "is_cp",
   "is_der",
-  "is_mono_tri",
   "is_range_karyotype",
   "fixable_error",
   "unfixable_error",
@@ -52,7 +51,6 @@ utils::globalVariables(c(
   "partners",
   "preprocessed_karyotype",
   "original_karyotype",
-  "prefix",
   "raw",
   "raw_comma_count",
   "row_index",
@@ -110,3 +108,32 @@ utils::globalVariables(c(
 # Bare indicators: no breakpoint list, and both can carry a leading count
 # ('2mar'), so their flag patterns must not require a left word boundary.
 .aberr_indicators_bare <- c(mar = "mar", dmin = "dmin")
+
+.chrom_alt <- "X|Y|[1-9]|1[0-9]|2[0-2]"
+# Any one- or two-digit number in a chromosome slot. Used by the dirty-pattern
+# fixes and rule_match_text(), so a repair still applies to an impossible
+# chromosome ('t(5:27)') and invalid_breakpoint then reports it.
+.chrom_loose_alt <- "\\d{1,2}|X|Y"
+
+# Whole-chromosome gain or loss: the entire token, optionally with a copy
+# multiplier ('-Xx2'). Anchored at both ends so a leading copy count on an
+# unidentified element ('+2mar', '+1~3r') is never read as a chromosome.
+# Constitutional ('+21c') and uncertain ('+?8') forms deliberately don't
+# match, so they set no mono/tris flag.
+.aneuploidy_re <- paste0("^([+-])(", .chrom_alt, ")(?:x\\d+)?$")
+
+# Optional sign, '?' and copy count (single or range) that can lead an
+# unidentified ring, marker or double minute ('+1~3r', '+2mar', '-1mar').
+# Prefix only: callers append the element and any copy multiplier ('x2').
+.unidentified_count_re <- "^[+-]?\\??(?:\\d+(?:[~-]\\d+)?)?"
+# The element itself, numbered ('mar1'), multiplied ('marx2') or uncertain.
+.unidentified_element_re <- "(?:r|mar|dmin)\\d*(?:x\\d+)?\\??$"
+
+# Every recognized shape of a '+'/'-' led token. Anything else is reported as
+# unrecognized_gain_loss rather than silently ignored by the strict
+# .aneuploidy_re.
+.recognized_gain_loss_re <- c(
+  aneuploidy = paste0("^\\??[+-]\\??(?:", .chrom_alt, ")(?:c|x\\d+)?\\??$"),
+  unidentified = paste0(.unidentified_count_re, .unidentified_element_re),
+  structural = "^\\??[+-]\\??[a-z][a-z ]*\\("
+)

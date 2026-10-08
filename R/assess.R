@@ -26,6 +26,235 @@ empty_issues_tibble <- function() {
   collapse = "|"
 )
 
+# Every recognized shape of an aberration token (anything after the count and
+# sex complement). Checks token structure only -- indicator, paren groups,
+# suffixes -- never band contents. ISCN indicators with no flag of their own
+# ('hsr', 'fra', ...) are accepted so valid ISCN is never rejected.
+.iscn_extra_indicators <- c(
+  "hsr",
+  "fra",
+  "tas",
+  "rob",
+  "trc",
+  "qdp",
+  "tan",
+  "rcp",
+  "rec",
+  "neo",
+  "upd"
+)
+.recognized_token_re <- c(
+  structural = paste0(
+    "^\\??[+-]?\\??(?:(?:",
+    .aberr_alt,
+    "|",
+    paste(.iscn_extra_indicators, collapse = "|"),
+    ")(?:\\([^()]*\\))+)+(?:x\\d+(?:~\\d+)?|c|\\?)*(?: cp)?$"
+  ),
+  .recognized_gain_loss_re["aneuploidy"],
+  # As in .unidentified_count_re, plus an open-ended range ('10~>50dmin').
+  unidentified = paste0(
+    "^[+-]?\\??(?:\\d+(?:[~-]>?\\d+)?|>\\d+)?",
+    .unidentified_element_re
+  ),
+  inherited = "^(?:idem|sl|sdl\\d*)$",
+  incomplete = "^inc$",
+  heteromorphism = "^\\d{1,2}[pq](?:h|s|stk)[+-]?$"
+)
+
+# A clone's leading chromosome count ('46', '46~48', '93<4n>').
+.clone_count_re <- "^\\d+(?:~\\d+)?(?:<\\dn>)?$"
+
+# Breakpoint grammar for invalid_breakpoint. Accepts ISCN uncertainty ('?',
+# 'q1?'), terminal and centromere bands, 'or' alternatives, and uncertain
+# ranges whose second end omits the arm ('q13-14', 'q33~34'). Every band
+# needs an arm.
+.band_num <- "\\d{1,2}(?:\\.\\d{1,2})?"
+.band_one <- paste0(
+  "\\??(?:[pq](?:",
+  .band_num,
+  "(?:[-~][pq]?",
+  .band_num,
+  ")?)?|pter|qter|cen)\\??"
+)
+.band_entry_re <- paste0(
+  "^(?:\\?+|",
+  .band_one,
+  "(?:(?:[-~]|\\s*or\\s*)?",
+  .band_one,
+  ")*)$"
+)
+.chrom_slot_re <- paste0("^\\??(?:", .chrom_alt, "|\\?)$")
+# Arm shorthand in the chromosome slot ('del(5q)', 'del(20q11.2)').
+.chrom_arm_slot_re <- paste0("^(?:", .chrom_loose_alt, ")[pq](?:\\d|ter|$)")
+
+# Validates each indicator(chromosomes)(breakpoints) pair of one token.
+# Returns NA when valid, else a short reason.
+.invalid_breakpoint <- function(token) {
+  if (grepl("->|::", token)) {
+    return(NA_character_)
+  }
+  pairs <- regmatches(
+    token,
+    gregexpr(
+      "(?:psu dic|[a-z]+)\\([^()]*\\)(?:\\([^()]*\\))?",
+      token,
+      perl = TRUE
+    )
+  )[[1]]
+  for (pr in pairs) {
+    groups <- gsub(
+      "[()]",
+      "",
+      regmatches(pr, gregexpr("\\([^()]*\\)", pr))[[1]]
+    )
+    chroms <- strsplit(groups[1], ";", fixed = TRUE)[[1]]
+    arm_slot <- length(chroms) == 1L &&
+      grepl(.chrom_arm_slot_re, groups[1], perl = TRUE)
+    if (
+      !arm_slot &&
+        (length(chroms) == 0L ||
+          !all(grepl(.chrom_slot_re, chroms, perl = TRUE)))
+    ) {
+      return(sprintf("invalid chromosome '(%s)'", groups[1]))
+    }
+    if (length(groups) < 2L) {
+      next
+    }
+    bands <- strsplit(groups[2], ";", fixed = TRUE)[[1]]
+    if (groups[2] == "" || grepl(";;|^;|;$", groups[2])) {
+      return(sprintf("empty breakpoint in '(%s)'", groups[2]))
+    }
+    if (!all(grepl(.band_entry_re, bands, perl = TRUE))) {
+      return(sprintf("invalid breakpoint '(%s)'", groups[2]))
+    }
+    if (length(chroms) > 1L && length(bands) != length(chroms)) {
+      return(sprintf(
+        "%d chromosomes but %d breakpoints in '(%s)'",
+        length(chroms),
+        length(bands),
+        groups[2]
+      ))
+    }
+  }
+  NA_character_
+}
+
+# Two-chromosome breakpoints written without ';' ('t(9;16)(q34p13)'): two
+# armed bands have exactly one reading, so the ';' is inserted.
+.chrom_pair <- paste0(
+  "\\((?:",
+  .chrom_loose_alt,
+  "|\\?);(?:",
+  .chrom_loose_alt,
+  "|\\?)\\)"
+)
+.armed_band <- "\\??[pq]\\d{1,2}(?:\\.\\d{1,2})?\\??"
+.breakpoint_semicolon_re <- paste0(
+  "(?<=",
+  .chrom_pair,
+  "\\(",
+  .armed_band,
+  ")(?=",
+  .armed_band,
+  "\\))"
+)
+
+# One parenthesized group containing `sep`, skipping groups written in the
+# detailed ISCN system, where ':' and '::' are legitimate.
+.paren_group_with <- function(sep) {
+  paste0(
+    "\\((?![^()]*(?:::|->|pter|qter|\u2192))[^()]*",
+    sep,
+    "[^()]*\\)"
+  )
+}
+
+# A '.' standing in for ',' between tokens: after ')', after a whole-chromosome
+# gain/loss, or between a clone count and idem/sl/sdl. A band decimal
+# ('q11.2') is digit-dot-digit inside parentheses and never matches.
+.dot_separator_re <- paste0(
+  "(?<=\\))\\.(?=[+?a-z-])(?!ish\\b|nuc\\b)",
+  "|(?<=(?:^|,)\\??[+-](?:",
+  .chrom_loose_alt,
+  "))\\.(?=[+?a-z-])",
+  "|(?<=(?:^|/)\\d{1,3}(?:~\\d{1,3})?)\\.(?=idem|sl|sdl)"
+)
+
+# Non-ISCN 'iso(' isochromosome indicator before a chromosome ('iso(17q)').
+.iso_indicator_re <- paste0(
+  "(?<![a-z])iso\\((?=(?:",
+  .chrom_loose_alt,
+  ")[)pq])"
+)
+
+# '*N' after a token that can carry a copy multiplier. 'idem*2' is left alone:
+# it reads as a doubled clone, not a multiplier.
+.star_multiplier_re <- "(?<=\\)|\\d|\\?|mar|dmin)\\*(?=\\d)"
+
+# Zero-width position between a whole gain/loss or a closing ')' and a glued
+# '+'/'-' token ('-7+mar'). A marker count range ('+2-4mar') is not split.
+.gain_loss_comma_re <- paste0(
+  "(?<=(?:^|,)\\??[+-]\\??(?:",
+  .chrom_loose_alt,
+  ")c?|\\))",
+  "(?=[+-]\\??(?:",
+  .chrom_loose_alt,
+  "|mar|r|dmin|[a-z]+\\())",
+  "(?![+-]\\??\\d+(?:[~-]\\d+)?(?:mar|r|dmin))"
+)
+
+# Case canonicalization for case_notation. Each regex only matches a known
+# ISCN element in its own context, so canonical strings never match and free
+# text (e.g. 'Normal', which trailing_narrative relies on) is left alone. A
+# lowercase 'x' after ')', a digit or a chromosome is the copy multiplier
+# ('der(1)x2', '+Xx2') and must stay lowercase.
+# 'psu dic', 'idem' and 'sl' are left to normalize_iscn(), which already folds
+# their case silently; reporting them here would turn clean rows into fixable.
+.case_ind_alt <- paste(
+  setdiff(strsplit(.aberr_alt, "|", fixed = TRUE)[[1]], "psu dic"),
+  collapse = "|"
+)
+.case_kw_alt <- paste(
+  c(.case_ind_alt, .aberr_indicators_bare, "sdl", "cp"),
+  collapse = "|"
+)
+.case_upper_re <- c(
+  # Sex complement right after the count: '46,xy', '46xy', '46-48,xx'.
+  sex = paste0(
+    "(?<=(?:^|/)\\d{1,3}(?:[~-]\\d{1,3})?(?:<\\dn>)?[.,]?)",
+    "(?=[XY]{0,4}[xy])(?i:[xy]{1,5})",
+    "(?=c?\\??(?:[,\\[/+\\s-]|$)|(?:",
+    .aberr_alt,
+    ")\\(|mar\\b)"
+  ),
+  # Whole-chromosome gain/loss: '-y', '+x', '+xx2'.
+  gain_loss = "(?<=(?:^|[,\\s])\\??[+-]\\??)[xy](?=c?\\??(?:x\\d|[,\\[/]|$))",
+  # Chromosome list in parentheses: 't(x;5)', 'der(x)', 'del(xq)'.
+  paren = "(?<=[(;])[xy](?=[;)]|(?i:[pq])(?:\\d|[;)?]))"
+)
+.case_lower_re <- c(
+  # Aberration indicator or keyword: 'Del(', 'T(', 'MAR', 'SDL1', '[CP20]'.
+  # The negative lookahead skips forms that are already lowercase.
+  keyword = paste0(
+    "(?<![A-Za-z])(?<!(?i:psu) )(?!(?:",
+    .case_kw_alt,
+    ")(?![a-z]))(?i:",
+    paste0("(?:", .case_ind_alt, ")(?=\\()"),
+    "|(?:",
+    paste(.aberr_indicators_bare, collapse = "|"),
+    ")(?![A-Za-z])",
+    "|sdl(?=\\d*(?:[,/\\[]|$))",
+    "|(?<=\\[)cp(?=\\d)",
+    ")"
+  ),
+  # Arm letter in a band list: 'del(5)(Q13Q33)', 't(8;21)(Q22;Q22)'.
+  band_arm = "(?<=\\)\\(|\\)\\([^()]{0,60}[\\d;?.~-])[PQ](?=[\\d?;)]|ter|TER)",
+  band_ter = "(?<=[pq])TER(?=[;)~-])",
+  # Arm shorthand: 'del(5Q)', 'i(17Q)'.
+  arm_short = "(?<=[(;](?:\\d{1,2}|[XY]))[PQ](?=[);])"
+)
+
 # detect/fix/detail entries; empty fix list means detected-only (unfixable).
 .dirty_patterns <- list(
   # Non-overlapping, so all entries collapse into one named-vector fix step.
@@ -83,6 +312,30 @@ empty_issues_tibble <- function() {
     ),
     detail = "String starts with dot(s) (and any stray whitespace) before chromosome count"
   ),
+  # Before case_notation, which expects the sex complement right after ','.
+  underscore_prefix = list(
+    detect = "(?<=[,(;])_+",
+    use_trimmed = FALSE,
+    fix = list(list(pattern = "(?<=[,(;])_+", replacement = "")),
+    detail = "Underscore token prefix, likely an export artifact (e.g. '46,_XY,_del(5)(q13q33)'); stripped"
+  ),
+  # Runs before count_sex_separator and missing_sex_comma, whose regexes
+  # expect canonical case ('46xy' -> '46XY' -> '46,XY').
+  case_notation = list(
+    detect = c(.case_upper_re, .case_lower_re),
+    use_trimmed = FALSE,
+    fix = c(
+      lapply(.case_upper_re, \(re) list(pattern = re, replacement = toupper)),
+      lapply(.case_lower_re, \(re) list(pattern = re, replacement = tolower))
+    ),
+    detail = "Non-canonical letter case: lowercase sex chromosome (e.g. '46,xy', '-y', 't(x;5)') or uppercase ISCN keyword (e.g. 'Del(5)', 'MAR', '(Q13Q33)')"
+  ),
+  iso_indicator = list(
+    detect = .iso_indicator_re,
+    use_trimmed = FALSE,
+    fix = list(list(pattern = .iso_indicator_re, replacement = "i(")),
+    detail = "Non-ISCN 'iso' isochromosome indicator (e.g. 'iso(17q)' should be 'i(17q)')"
+  ),
   # Runs after leading_dot; repairs a missing/dotted count-sex separator, e.g.
   # '46XY,...' or '45.XY,...' -> '46,XY,...'. The lookahead includes +/- so a
   # count glued to a sex complement that is also glued to the first aberration
@@ -131,10 +384,14 @@ empty_issues_tibble <- function() {
       "\\s+\\.\\s*[A-Z]",
       "\\)\\s+[A-Z][a-z]",
       # Narrative after a count+sex normal karyotype with no bracket/paren.
-      paste0("^\\d+(?:~\\d+)?,(?:", .sex_alt, ")\\s+[A-Z][a-z]")
+      paste0("^\\d+(?:~\\d+)?,(?:", .sex_alt, ")\\s+[A-Z][a-z]"),
+      # Angle-bracket annotation at the end, e.g. '<AML>'. Ploidy ('<4n>')
+      # starts with a digit and never matches.
+      "<[A-Za-z][^<>]*>\\s*$"
     ),
     use_trimmed = FALSE,
     fix = list(
+      list(pattern = "\\s*<[A-Za-z][^<>]*>\\s*$", replacement = ""),
       # Strip everything after the last count bracket ([n]/[cpN]/[n~m]).
       list(
         pattern = "^(.*\\[(?:cp)?\\d+(?:[~-]\\d+)?\\]).*$",
@@ -169,15 +426,15 @@ empty_issues_tibble <- function() {
     detail = "Trailing narrative text after last metaphase-count bracket, closing parenthesis, or count+sex normal karyotype"
   ),
   midstring_linewrap = list(
-    detect = ",\\s+\\.[a-z(+]",
+    detect = ",\\s*\\.[a-z(+]",
     use_trimmed = FALSE,
     fix = list(
       list(
-        pattern = ",\\s+\\.?(?=[a-z(+])",
+        pattern = ",\\s+\\.?(?=[a-z(+])|,\\.(?=[a-z(+])",
         replacement = ","
       )
     ),
-    detail = "Mid-string line-wrap artifact (e.g. ', .der(...)' or bare ', +8' without dot)"
+    detail = "Mid-string line-wrap artifact (e.g. ', .der(...)', ',.add(...)' or bare ', +8' without dot)"
   ),
   missing_sex_comma = list(
     detect = c(
@@ -246,6 +503,58 @@ empty_issues_tibble <- function() {
     ),
     detail = "Non-clonal single-cell abnormality ('ncSCA' token); stripped, remaining clone parsed"
   ),
+  # The three separator fixes run after fish_notation and trailing_narrative,
+  # which rely on '.' and own FISH probe lists such as '(D7S486,CEP7)'.
+  paren_comma = list(
+    detect = .paren_group_with(","),
+    use_trimmed = FALSE,
+    fix = list(
+      list(
+        pattern = .paren_group_with(","),
+        # A comma between band digits is a decimal comma ('q11,2' = 'q11.2').
+        replacement = function(m) {
+          m <- gsub("(?<=[pq]\\d)(\\d?),(?=\\d)", "\\1.", m, perl = TRUE)
+          gsub(",", ";", m, fixed = TRUE)
+        }
+      )
+    ),
+    detail = "Comma inside parentheses (e.g. 'del(5)(q11,q33)' or 'der(1;7)(q10,p10)'); replaced with ';', or with '.' as a decimal comma ('q11,2')"
+  ),
+  colon_separator = list(
+    detect = .paren_group_with(":"),
+    use_trimmed = FALSE,
+    fix = list(
+      list(
+        pattern = .paren_group_with(":"),
+        replacement = \(m) gsub(":", ";", m, fixed = TRUE)
+      )
+    ),
+    detail = "Colon used for ';' inside parentheses (e.g. 't(5:17)(q13:q11)'); groups in the detailed ISCN system ('::', '->', 'pter') are left alone"
+  ),
+  breakpoint_semicolon = list(
+    detect = .breakpoint_semicolon_re,
+    use_trimmed = FALSE,
+    fix = list(list(pattern = .breakpoint_semicolon_re, replacement = ";")),
+    detail = "Missing ';' between the breakpoints of two chromosomes (e.g. 't(9;16)(q34p13)' should be 't(9;16)(q34;p13)'); inserted"
+  ),
+  dot_separator = list(
+    detect = .dot_separator_re,
+    use_trimmed = FALSE,
+    fix = list(list(pattern = .dot_separator_re, replacement = ",")),
+    detail = "Dot used as a token separator (e.g. 'del(5)(q13q33).-7', '-17.add(21)', '45.idem'); replaced with ','"
+  ),
+  star_multiplier = list(
+    detect = .star_multiplier_re,
+    use_trimmed = FALSE,
+    fix = list(list(pattern = .star_multiplier_re, replacement = "x")),
+    detail = "'*N' written for the ISCN copy multiplier 'xN' (e.g. '+mar*2', 'del(5)(q13q31)*2'); replaced with 'x'"
+  ),
+  gain_loss_comma = list(
+    detect = .gain_loss_comma_re,
+    use_trimmed = FALSE,
+    fix = list(list(pattern = .gain_loss_comma_re, replacement = ",")),
+    detail = "Missing comma before a '+'/'-' token (e.g. '-7+mar' should be '-7,+mar'); inserted"
+  ),
   # Last, so it only sees what survives every earlier fix and does not fire
   # on non-ASCII that trailing_narrative already discarded.
   stray_non_ascii = list(
@@ -276,7 +585,11 @@ empty_issues_tibble <- function() {
   "constitutional_sex_complement",
   "mosaic_karyotype",
   "invalid_idem",
-  "unparseable_bracket"
+  "unparseable_bracket",
+  "unrecognized_gain_loss",
+  "unrecognized_token",
+  "chimeric_no_count",
+  "invalid_breakpoint"
 )
 
 # Single ordered walk: each pattern detects against the state left by every
@@ -537,6 +850,84 @@ validate_karyotypes <- function(karyotypes) {
       "idem found in clone 1 (nothing to inherit from)"
     )
 
+    # Every token of every clone, with its row and position in its clone.
+    clones <- stringr::str_split(
+      stringr::str_replace_all(kk, "\\[[^\\]]+\\]", ""),
+      "/"
+    )
+    clone_row <- rem_idx[rep(seq_along(rem_idx), lengths(clones))]
+    clone_tokens <- stringr::str_split(unlist(clones), ",")
+    tok <- stringr::str_trim(unlist(clone_tokens))
+    tok_row <- clone_row[rep(seq_along(clone_tokens), lengths(clone_tokens))]
+    tok_pos <- sequence(lengths(clone_tokens))
+
+    # All clones, not just the first: a gain/loss token of unforeseen shape
+    # would otherwise just fail .aneuploidy_re and drop out silently.
+    gain_loss_reported <- stringr::str_detect(tok, "^\\??[+-]") &
+      !Reduce(
+        `|`,
+        lapply(.recognized_gain_loss_re, \(re) stringr::str_detect(tok, re))
+      )
+    add_batch(
+      tok_row[gain_loss_reported],
+      disp[tok_row[gain_loss_reported]],
+      "unrecognized_gain_loss",
+      sprintf(
+        "Cannot classify '%s' as a gain/loss token",
+        tok[gain_loss_reported]
+      )
+    )
+
+    # Any other aberration token of no recognized ISCN shape (free text, a
+    # bare number, an indicator with no breakpoints) would otherwise be
+    # counted as an aberration. Gain/loss tokens already reported above are
+    # skipped.
+    sex_slot <- tok_pos == 2L &
+      stringr::str_detect(tok, paste0("^(?:", .sex_alt, ")c?\\??$"))
+    token_ok <- Reduce(
+      `|`,
+      lapply(.recognized_token_re, \(re) stringr::str_detect(tok, re))
+    )
+    unrecognized <- tok_pos > 1L &
+      tok != "" &
+      !sex_slot &
+      !gain_loss_reported &
+      !token_ok
+    add_batch(
+      tok_row[unrecognized],
+      disp[tok_row[unrecognized]],
+      "unrecognized_token",
+      sprintf("Cannot classify '%s' as an ISCN token", tok[unrecognized])
+    )
+
+    # Every clone, not just the first, must open with its chromosome count.
+    clone_pos <- sequence(lengths(clones))
+    tok_clone_pos <- rep(clone_pos, lengths(clone_tokens))
+    no_count <- tok_pos == 1L &
+      tok_clone_pos > 1L &
+      !stringr::str_detect(tok, .clone_count_re)
+    add_batch(
+      tok_row[no_count],
+      disp[tok_row[no_count]],
+      "no_chromosome_count",
+      sprintf(
+        "Clone %d doesn't start with a chromosome count: '%s'",
+        tok_clone_pos[no_count],
+        tok[no_count]
+      )
+    )
+
+    # Token shape passed, so check what is inside the parentheses.
+    bp_check <- which(tok_pos > 1L & token_ok & !sex_slot)
+    bp_detail <- vapply(tok[bp_check], .invalid_breakpoint, character(1))
+    bad <- bp_check[!is.na(bp_detail)]
+    add_batch(
+      tok_row[bad],
+      disp[tok_row[bad]],
+      "invalid_breakpoint",
+      sprintf("'%s': %s", tok[bad], bp_detail[!is.na(bp_detail)])
+    )
+
     brackets_list <- stringr::str_extract_all(kk, "\\[[^\\]]+\\]")
     br_lengths <- lengths(brackets_list)
     if (sum(br_lengths) > 0L) {
@@ -592,6 +983,15 @@ validate_karyotypes <- function(karyotypes) {
   chimeric_row_indices <- setdiff(
     which(has_count & n_sep == 1L),
     zhc_row_indices
+  )
+
+  # Every population after '//' must start with its own chromosome count.
+  # Checked before normalize_iscn(), which would strip a trailing '//'. Never
+  # repaired: a '//' with no count after it is not guessed to mean '/'.
+  no_count_row_indices <- which(
+    has_count &
+      !is.na(partially_fixed) &
+      stringr::str_detect(partially_fixed, "//(?!\\s*\\d)")
   )
 
   selected <- norm_partial
@@ -669,10 +1069,25 @@ validate_karyotypes <- function(karyotypes) {
     empty_issues_tibble()
   }
 
+  no_count_issues <- if (length(no_count_row_indices) > 0) {
+    tibble::tibble(
+      row_index = no_count_row_indices,
+      karyotype = truncate_str(as.character(partially_fixed[
+        no_count_row_indices
+      ])),
+      issue_type = "chimeric_no_count",
+      issue_detail = "'//' not followed by a chromosome count (no ploidy for the donor population)"
+    )
+  } else {
+    empty_issues_tibble()
+  }
+  chimeric_clone[no_count_row_indices] <- NA_character_
+
   reported_issues <- dplyr::bind_rows(
     dirty_issues,
     chimeric_issues,
     multi_issues,
+    no_count_issues,
     struct_issues
   ) |>
     dplyr::arrange(row_index)
@@ -695,6 +1110,7 @@ validate_karyotypes <- function(karyotypes) {
     chimeric_row_indices = chimeric_row_indices,
     zhc_row_indices = zhc_row_indices,
     multi_row_indices = multi_row_indices,
+    no_count_row_indices = no_count_row_indices,
     chimeric_clone = chimeric_clone,
     on_chimeric = on_chimeric
   )

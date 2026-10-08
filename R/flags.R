@@ -2,25 +2,14 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   mono_cols <- paste0("mono", chroms)
   tris_cols <- paste0("tris", chroms)
 
-  aneuploidy_tbl <- tokens_tbl |>
-    dplyr::filter(aberr_raw != "") |>
-    dplyr::transmute(
-      .pk_row_id,
-      sign = dplyr::case_when(
-        stringr::str_detect(aberr_raw, "^-") ~ "-",
-        stringr::str_detect(aberr_raw, "^\\+") ~ "+",
-        TRUE ~ ""
-      ),
-      chrom = stringr::str_extract(aberr_raw, "(?<=^[-+])[0-9XY]+"),
-      is_mono_tri = sign %in% c("-", "+") & !is.na(chrom),
-      prefix = dplyr::case_when(
-        sign == "-" ~ "mono",
-        sign == "+" ~ "tris",
-        TRUE ~ NA_character_
-      )
-    ) |>
-    dplyr::filter(is_mono_tri) |>
-    dplyr::mutate(flag = paste0(prefix, chrom), value = 1L) |>
+  m <- stringr::str_match(tokens_tbl$aberr_raw, .aneuploidy_re)
+  hit <- !is.na(m[, 1])
+
+  aneuploidy_tbl <- tibble::tibble(
+    .pk_row_id = tokens_tbl$.pk_row_id[hit],
+    flag = paste0(ifelse(m[hit, 2] == "-", "mono", "tris"), m[hit, 3]),
+    value = 1L
+  ) |>
     dplyr::distinct(.pk_row_id, flag, .keep_all = TRUE) |>
     dplyr::select(.pk_row_id, flag, value) |>
     tidyr::pivot_wider(names_from = flag, values_from = value, values_fill = 0L)
@@ -35,11 +24,25 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
 # token. Built from the indicator tokens in karyoparser-package.R rather than
 # retyping them; each flag adds only the anchoring it needs.
 .general_flag_patterns <- c(
-  general_dicentric = paste0(.aberr_indicators_paren[["dic"]], "\\("),
+  # Exclusive of 'idic(' and 'psu dic(', which have their own flags, as
+  # general_isochromosome is exclusive of 'idic('.
+  general_dicentric = paste0(
+    "(?<![a-z])(?<!psu )",
+    .aberr_indicators_paren[["dic"]],
+    "\\("
+  ),
   general_isodicentric = paste0(.aberr_indicators_paren[["idic"]], "\\("),
   general_isochromosome = paste0(.aberr_indicators_paren[["i"]], "\\("),
   general_pseudodicentric = paste0(.aberr_indicators_paren[["psu_dic"]], "\\("),
-  general_ring = paste0("\\b", .aberr_indicators_paren[["r"]], "\\("),
+  # Either a ring with breakpoints ('r(7)') or an unidentified one ('+1~3r').
+  general_ring = paste0(
+    "\\b",
+    .aberr_indicators_paren[["r"]],
+    "\\(|",
+    .unidentified_count_re,
+    .aberr_indicators_paren[["r"]],
+    "\\d*(?:x\\d+)?\\??$"
+  ),
   general_insertion = paste0(.aberr_indicators_paren[["ins"]], "\\("),
   general_duplication = paste0(.aberr_indicators_paren[["dup"]], "\\("),
   general_triplication = paste0(.aberr_indicators_paren[["trp"]], "\\("),
@@ -53,15 +56,16 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
   general_deletion = paste0(.aberr_indicators_paren[["del"]], "\\("),
   # A leading count makes the left \\b vanish ('+2mar'), so anchor on "not
   # preceded by a letter", which still rejects word tails like 'marker'.
+  # Markers may be numbered ('+mar1') and carry a copy multiplier ('+mar1x2').
   general_marker = paste0(
     "(?<![A-Za-z])",
     .aberr_indicators_bare[["mar"]],
-    "\\b"
+    "\\d*(?:x\\d+)?\\b"
   ),
   general_dmin = paste0(
     "(?<![A-Za-z])",
     .aberr_indicators_bare[["dmin"]],
-    "\\b"
+    "(?:x\\d+)?\\b"
   ),
   general_derivative = paste0(
     "^\\+?i?",
@@ -79,7 +83,7 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
 )
 
 compute_general_flags <- function(tokens_tbl) {
-  match_text <- strip_bands(tokens_tbl$aberr_raw)
+  match_text <- rule_match_text(tokens_tbl$aberr_raw)
   ids <- tokens_tbl$.pk_row_id
   out <- tibble::tibble(.pk_row_id = unique(ids))
   for (nm in names(.general_flag_patterns)) {
@@ -101,7 +105,8 @@ compute_comma_counts <- function(tokens_tbl) {
     dplyr::filter(!is.na(clone_id)) |>
     dplyr::group_by(.pk_row_id, clone_id) |>
     dplyr::summarise(
-      tokens_nonempty = sum(aberr_raw != ""),
+      # 'inc' marks an incomplete karyotype, not an aberration.
+      tokens_nonempty = sum(!aberr_raw %in% c("", "inc")),
       first_token = dplyr::first(aberr_raw[aberr_raw != ""]),
       first_is_sex = !is.na(first_token) &
         stringr::str_detect(first_token, sex_first_regex),
@@ -144,7 +149,7 @@ compute_unique_counts <- function(tokens_tbl) {
   tokens_tbl |>
     dplyr::filter(
       !(aberr_norm %in%
-        c("", "chromosome_count_range", "idem", "sl", .sex_complements))
+        c("", "chromosome_count_range", "idem", "sl", "inc", .sex_complements))
     ) |>
     dplyr::group_by(.pk_row_id) |>
     dplyr::summarise(

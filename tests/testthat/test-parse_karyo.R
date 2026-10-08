@@ -14,6 +14,25 @@ test_that("-X and +Y detected", {
   expect_equal(r$trisY, 1L)
 })
 
+test_that("copy multiplier counts as monosomy/trisomy", {
+  r <- pk("45,-Xx2,t(7;15)(p13;q11.2),-9")
+  expect_equal(r$monoX, 1L)
+  expect_equal(r$mono9, 1L)
+})
+
+test_that("counted rings, markers and dmin do not trigger tris/mono", {
+  r <- pk(c("47,XX,+2mar", "48,XX,+1~4mar", "47,XX,+2dmin", "47,XX,+1~3r"))
+  expect_equal(r$tris1, c(0L, 0L, 0L, 0L))
+  expect_equal(r$tris2, c(0L, 0L, 0L, 0L))
+})
+
+test_that("constitutional and uncertain gains do not trigger tris", {
+  r <- pk(c("47,XY,+21c", "47,XY,+?8"))
+  expect_equal(r$tris21, c(0L, 0L))
+  expect_equal(r$tris8, c(0L, 0L))
+  expect_equal(r$unfixable_error, c(0L, 0L))
+})
+
 test_that("del(7) does NOT trigger mono7", {
   r <- pk("46,XY,del(7)(q22)")
   expect_equal(r$mono7, 0L)
@@ -183,12 +202,42 @@ test_that("balanced: two homologous der of same signature form a reciprocal pair
   expect_equal(r$unbalanced_translocation, 0L)
 })
 
-test_that("partial loss: der(5)t(5;17) implies unbal_partial_loss_5q + unbal_partial_loss_17p", {
-  r <- pk("46,XY,der(5)t(5;17)(q11;q11)")
-  expect_equal(r$unbal_partial_loss_5q, 1L)
-  expect_equal(r$unbal_partial_loss_17p, 1L)
+test_that("partial loss: der(5)t(5;17) implies 5q loss only, never a partner arm", {
+  r <- pk(c("46,XY,der(5)t(5;17)(q11;q11)", "46,XY,der(5)t(17;5)(q11;q11)"))
+  expect_equal(r$unbal_partial_loss_5q, c(1L, 1L))
+  expect_equal(r$unbal_partial_loss_17p, c(0L, 0L))
+  expect_equal(r$unbal_partial_loss_17q, c(0L, 0L))
+  expect_equal(r$unbal_partial_loss, c(1L, 1L))
+  expect_equal(r$del_5q, c(0L, 0L))
+})
+
+# ISCN worked example: '46,XX,der(1)t(1;3)(p22;q13)' -- "The der(1) replaces a
+# normal chromosome 1 ... There are obviously two normal chromosomes 3. The
+# karyotype is unbalanced with loss of the segment 1p22-pter and gain of
+# 3q13-qter." With '-3' the missing 3 is explicit and must not be inferred.
+test_that("partial loss: ISCN der(1)t(1;3)(p22;q13) example", {
+  r <- pk(c(
+    "46,XX,der(1)t(1;3)(p22;q13)",
+    "45,XY,der(1)t(1;3)(p22;q13),-3"
+  ))
+  arms <- grep("^unbal_partial_loss_.+$", names(r), value = TRUE)
+  fired <- apply(r[arms], 1, \(v) arms[v == 1L])
+  expect_equal(fired[[1]], "unbal_partial_loss_1p")
+  expect_equal(fired[[2]], "unbal_partial_loss_1p")
+  expect_equal(r$mono3, c(0L, 1L))
+})
+
+test_that("partial loss: derived from an uncertain '?' breakpoint", {
+  r <- pk("46,XX,der(3)t(3;5)(?p13;q31)")
+  expect_equal(r$unbal_partial_loss_3p, 1L)
   expect_equal(r$unbal_partial_loss, 1L)
-  expect_equal(r$del_5q, 0L)
+})
+
+test_that("partial loss: the der chromosome supplies the centromere", {
+  r <- pk("46,XY,der(17)t(5;17)(q12;q12)")
+  expect_equal(r$unbal_partial_loss_17q, 1L)
+  expect_equal(r$unbal_partial_loss_5q, 0L)
+  expect_equal(r$unbal_partial_loss_5p, 0L)
 })
 
 test_that("partial loss: real del(5q) does not set any unbal_partial_loss column", {
@@ -209,14 +258,14 @@ test_that("partial loss: all arms exposed, including non-myeloid ones", {
   r <- pk("45,XX,der(9)t(9;22)(q34;q11)")
   expect_equal(r$unbal_partial_loss, 1L)
   expect_equal(r$unbal_partial_loss_9q, 1L)
-  expect_equal(r$unbal_partial_loss_22p, 1L)
+  expect_equal(r$unbal_partial_loss_22p, 0L)
   expect_equal(r$unbal_partial_loss_5q, 0L)
 })
 
 test_that("partial loss: sex-chromosome arms are exposed", {
   r <- pk("46,Y,der(X)t(X;5)(q21;q31)")
   expect_equal(r$unbal_partial_loss_Xq, 1L)
-  expect_equal(r$unbal_partial_loss_5p, 1L)
+  expect_equal(r$unbal_partial_loss_5p, 0L)
   expect_equal(r$unbal_partial_loss, 1L)
 })
 
@@ -240,15 +289,10 @@ test_that("three-way: lone der of a three-way t() is unbalanced, no loss", {
   expect_equal(r$general_derivative, 1L)
 })
 
-test_that("three-way: fewer bands than partners is handled, not an error", {
-  # 3 partner chromosomes but only 2 breakpoints: .canonical_der_t() drops the
-  # bands rather than mis-pairing them, so the der still classifies but derives
-  # no loss.
-  r <- pk("46,XX,der(1)t(1;2;3)(p11;q22)")
-  expect_equal(r$unbalanced_translocation, 1L)
-  expect_equal(r$balanced_translocation, 0L)
-  expect_equal(r$unbal_partial_loss, 0L)
-  expect_equal(r$general_derivative, 1L)
+test_that("three-way: fewer bands than partners is invalid_breakpoint", {
+  ck <- check_karyo("46,XX,der(1)t(1;2;3)(p11;q22)")
+  expect_equal(ck$invalid_breakpoint, 1L)
+  expect_match(ck$unfixable_reason, "3 chromosomes but 2 breakpoints")
 })
 
 test_that("three-way: complete bare t(a;b;c) is balanced", {
@@ -531,6 +575,26 @@ test_that("full pipeline: composite karyotype with metaphases", {
   expect_equal(r$tris8, 1L)
 })
 
+test_that("rules fire on ';' between single-chromosome breakpoints", {
+  x <- c(
+    "46,XX,inv(16)(p13.1;q22)",
+    "46,XX,inv(3)(q21.3;q26.2)",
+    "46,XX,t(16;16)(p13.1;q22)"
+  )
+  r <- pk(x)
+  expect_equal(r$inv_16_p13q22, c(1L, 0L, 0L))
+  expect_equal(r$inv_3_q21q26, c(0L, 1L, 0L))
+  expect_equal(r$t_16_16_p13_q22, c(0L, 0L, 1L))
+  expect_equal(r$preprocessed_karyotype, x)
+})
+
+test_that("rules fire on an uncertain breakpoint", {
+  r <- pk(c("46,XX,del(5)(?q13q31)", "46,XX,t(3;7)(?q26;q21)"))
+  expect_equal(r$del_5q, c(1L, 0L))
+  expect_equal(r$t_3q26_v, c(0L, 1L))
+  expect_equal(r$preprocessed_karyotype[1], "46,XX,del(5)(?q13q31)")
+})
+
 test_that("full pipeline: hyperdiploid karyotype", {
   r <- pk("51,XY,+8,+11,+13,+19,+21")
   expect_equal(r$chromosome_count, 51L)
@@ -664,6 +728,21 @@ test_that("parse_karyo() always returns a tibble", {
 test_that("comma_count_aberrations for simple karyotype", {
   r <- pk("46,XX")
   expect_equal(r$comma_count_aberrations, 0L)
+})
+
+test_that("spelling variants of one aberration count once", {
+  r <- pk(c(
+    "46,XX,del(2)(p21p25)[2]/46,XX,del(2)(p21;p25),del(5)(q22q23)[15]",
+    "46,XY,del(5)(q13q33)[6]/47,XY,del(5)(?q13q33)[12]"
+  ))
+  expect_equal(r$distinct_aberrations, c(2L, 1L))
+  expect_equal(r$complex_karyotype, c(0L, 0L))
+})
+
+test_that("inc is not counted as an aberration", {
+  r <- pk("45,XX,-7,del(5)(q13q33),inc[10]")
+  expect_equal(r$comma_count_aberrations, 2L)
+  expect_equal(r$distinct_aberrations, 2L)
 })
 
 test_that("min_metaphases: default 2 keeps a 3-metaphase clone", {
@@ -820,6 +899,15 @@ test_that(".dirty_patterns contains all expected keys", {
       "embedded_newline",
       "html_entities",
       "leading_dot",
+      "underscore_prefix",
+      "case_notation",
+      "iso_indicator",
+      "paren_comma",
+      "colon_separator",
+      "breakpoint_semicolon",
+      "dot_separator",
+      "star_multiplier",
+      "gain_loss_comma",
       "count_sex_separator",
       "fish_notation",
       "trailing_narrative",
@@ -2189,6 +2277,15 @@ test_that("general_marker fires on a counted marker, not just a bare one", {
     suppressMessages(preprocess_karyo("47,XX,+1~4 mar"))$preprocessed,
     "47,XX,+1~4mar"
   )
+})
+
+test_that("general_marker fires on a numbered marker", {
+  expect_equal(pk("48,XX,+mar1,+mar2")$general_marker, 1L)
+})
+
+test_that("general_ring fires on unidentified rings, with or without a count", {
+  r <- pk(c("47,XX,+r", "48,XX,+1~3r", "47,XX,+r(7)(p22q36)", "47,XX,+8"))
+  expect_equal(r$general_ring, c(1L, 1L, 1L, 0L))
 })
 
 test_that("general_dmin detects double minutes, with or without a count", {

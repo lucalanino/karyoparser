@@ -52,7 +52,8 @@
   der_t <- tokens_tbl |>
     dplyr::filter(!is.na(clone_id), aberr_raw != "") |>
     dplyr::mutate(
-      raw = strip_bands(aberr_raw),
+      # Canonical form, so a '?' breakpoint ('?q21') still yields an arm.
+      raw = rule_match_text(aberr_raw),
       is_der = stringr::str_detect(raw, "^\\+?i?der\\("),
       der_inner = stringr::str_match(raw, "^\\+?i?der\\(([^)]+)\\)")[, 2],
       t_chroms = stringr::str_match(
@@ -119,7 +120,8 @@ classify_translocation_balance <- function(
   toks <- tokens_tbl |>
     dplyr::filter(!is.na(clone_id), aberr_raw != "") |>
     dplyr::mutate(
-      raw = strip_bands(aberr_raw),
+      # Canonical form, so a '?' breakpoint ('?q21') still yields an arm.
+      raw = rule_match_text(aberr_raw),
       is_der = stringr::str_detect(raw, "^\\+?i?der\\("),
       der_inner = stringr::str_match(raw, "^\\+?i?der\\(([^)]+)\\)")[, 2],
       is_bare_t = stringr::str_detect(raw, "^[?~]?t\\([0-9XY]")
@@ -160,6 +162,11 @@ classify_translocation_balance <- function(
 
 # Derives implied arm loss from a lone der(a)t(a;b)(bp_a;bp_b), kept separate
 # from del()/mono* signals. Only simple single-junction ders are resolved.
+# Per ISCN, der(a) replaces one normal a and both normal b homologs remain:
+# '46,XX,der(1)t(1;3)(p22;q13)' is "loss of the segment 1p22-pter and gain of
+# 3q13-qter". So only a's arm beyond bp_a is lost; b contributes a gain, which
+# is not flagged. The centromere comes from 'a' in der(a), not from the order
+# of the chromosomes in t().
 derive_unbalanced_loss <- function(der_t) {
   cols <- paste0("unbal_partial_loss_", .unbal_partial_loss_arms)
   empty <- tibble::tibble(.pk_row_id = integer())
@@ -178,20 +185,12 @@ derive_unbalanced_loss <- function(der_t) {
     return(empty)
   }
 
-  segs <- dt |>
-    dplyr::mutate(
-      donor_is_p1 = donor == p1,
-      bp_a = dplyr::if_else(donor_is_p1, bb1, bb2),
-      bp_b = dplyr::if_else(donor_is_p1, bb2, bb1),
-      b_chrom = dplyr::if_else(donor_is_p1, p2, p1),
-      a_seg = .arm_segment(donor, .arm_of(bp_a)),
-      b_seg = .arm_segment(b_chrom, .opp_arm(.arm_of(bp_b)))
-    )
-
-  long <- dplyr::bind_rows(
-    segs |> dplyr::transmute(.pk_row_id, seg = a_seg),
-    segs |> dplyr::transmute(.pk_row_id, seg = b_seg)
-  ) |>
+  long <- dt |>
+    dplyr::transmute(
+      .pk_row_id,
+      bp_a = dplyr::if_else(donor == p1, bb1, bb2),
+      seg = .arm_segment(donor, .arm_of(bp_a))
+    ) |>
     dplyr::filter(!is.na(seg))
 
   if (nrow(long) == 0) {
@@ -234,10 +233,6 @@ derive_unbalanced_loss <- function(der_t) {
 
 .arm_of <- function(band) {
   stringr::str_extract(band, "^[pq]")
-}
-
-.opp_arm <- function(arm) {
-  dplyr::case_when(arm == "p" ~ "q", arm == "q" ~ "p", TRUE ~ NA_character_)
 }
 
 .arm_segment <- function(chrom, arm) {
