@@ -176,6 +176,46 @@ test_that("unrecognized_gain_loss accepts every recognized +/- token shape", {
   expect_equal(result$unrecognized_gain_loss, c(0L, 0L, 0L))
 })
 
+test_that("check_karyo: every clone must start with a chromosome count", {
+  ck <- check_karyo(c(
+    "46,XY[20]/einzelaberrationen:46,idem,del(11)(q23)[1]",
+    "46,XX,del(5)(q14q34)[4]/46;idem,del(12)(p12p13)[2]",
+    "46,XX,del(5)(q14q34)[4]/93<4n>,idem[2]"
+  ))
+  expect_equal(ck$no_chromosome_count, c(1L, 1L, 0L))
+  expect_match(ck$unfixable_reason[1], "Clone 2 .*einzelaberrationen:46")
+})
+
+test_that("invalid_breakpoint flags malformed parentheses contents", {
+  ck <- check_karyo(paste0(
+    "46,XY,",
+    c(
+      "t(5;2)(q11)",
+      "der(5)t(5;17)(q12;21)",
+      "del(12)()",
+      "der(1)t(1;2)(p35;;p24)",
+      "der(+)t(?;4)",
+      "inv(1198q15q22)",
+      "t(3;8)(q267;q34)"
+    )
+  ))
+  expect_equal(ck$invalid_breakpoint, rep(1L, 7))
+})
+
+test_that("invalid_breakpoint accepts ISCN uncertainty and shorthand", {
+  ck <- check_karyo(paste0(
+    "46,XY,",
+    c(
+      "t(3;?)(p21;?),der(5)ins(5;17)(p11;??)",
+      "del(5)(q13-14q34),del(5)(q13q33~34),del(20)(q11.2~13.1)",
+      "add(19)(p13 or q13),del(5)(q14q21orq21q23),der(20)t(?19;20)(q13;q1?)",
+      "del(5q),del(20q11.2),t(14;18),r(7)(p22q36),psu dic(15;22)(p11;q11)",
+      "t(2;5)(2pter->2q21::5q31->5qter),inv(3)(q21;q26)"
+    )
+  ))
+  expect_equal(ck$invalid_breakpoint, rep(0L, 5))
+})
+
 test_that("check_karyo detects unrecognized_token in any clone", {
   result <- suppressMessages(check_karyo(c(
     "46,XY,del(5)(q13q33),asxl1mutation[10]",

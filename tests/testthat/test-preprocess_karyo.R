@@ -369,6 +369,23 @@ test_that("gain_loss_comma: missing comma before a '+'/'-' token inserted", {
   expect_equal(result$status, c("fixed", "fixed", "fixed", "clean", "clean"))
 })
 
+test_that("breakpoint_semicolon: ';' inserted between two chromosomes' bands", {
+  result <- preprocess_karyo(c(
+    "46,XY,t(9;16)(q34p13)",
+    "46,XY,der(5)t(5;17)(q13q12)",
+    "46,XY,r(7)(p22q36)"
+  ))
+  expect_equal(
+    result$preprocessed,
+    c(
+      "46,XY,t(9;16)(q34;p13)",
+      "46,XY,der(5)t(5;17)(q13;q12)",
+      "46,XY,r(7)(p22q36)"
+    )
+  )
+  expect_equal(result$status, c("fixed", "fixed", "clean"))
+})
+
 test_that("dot_separator: '.' between tokens replaced with ','", {
   x <- c(
     "46,XY,del(5)(q13q33).-7",

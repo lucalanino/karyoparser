@@ -73,3 +73,14 @@
 * `check_karyo()` reports a new unfixable issue, `chimeric_no_count`, for a
   `//` that is not followed by a chromosome count (`46,XX[10]//XY[5]`, a
   trailing `//`). These rows were previously parsed as their host clone.
+* `check_karyo()` reports a new unfixable issue, `invalid_breakpoint`, for a
+  recognized token whose parentheses hold an impossible chromosome
+  (`der(+)`) or breakpoint: an empty entry (`del(12)()`), a band without an
+  arm (`t(5;17)(q12;21)`), or a breakpoint count that doesn't match the
+  chromosomes (`t(5;2)(q11)`). ISCN uncertainty, `or` alternatives and
+  uncertain ranges (`q13-14`) are accepted. `no_chromosome_count` now also
+  fires when a later clone doesn't start with a chromosome count. These rows
+  were previously parsed with partial or wrong flags.
+* New fixable issue, `breakpoint_semicolon`: a missing `;` between two
+  chromosomes' breakpoints is inserted (`t(9;16)(q34p13)` ->
+  `t(9;16)(q34;p13)`).

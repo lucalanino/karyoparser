@@ -17,7 +17,8 @@
 #' `fish_notation`, `trailing_narrative`, `midstring_linewrap`,
 #' `missing_sex_comma`, `mar_space`, `non_clonal_sca`, `paren_comma`,
 #' `colon_separator`, `dot_separator`, `underscore_prefix`, `star_multiplier`,
-#' `gain_loss_comma`, `chimeric_separator`, `zero_host_chimera`.
+#' `gain_loss_comma`, `breakpoint_semicolon`, `chimeric_separator`,
+#' `zero_host_chimera`.
 #'
 #' Unfixable issue types (always returned as NA by `parse_karyo()`):
 #' `multiple_chimeric_separator`, `chimeric_no_count`, `empty`,
@@ -25,7 +26,8 @@
 #' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
 #' `no_sex_complement`, `single_token`, `constitutional_sex_complement`,
 #' `mosaic_karyotype`, `invalid_idem`, `unparseable_bracket`,
-#' `unrecognized_gain_loss`, `unrecognized_token`, `stray_non_ascii`.
+#' `unrecognized_gain_loss`, `unrecognized_token`, `invalid_breakpoint`,
+#' `stray_non_ascii`.
 #'
 #' See `vignette("data-cleaning")` for what each issue type means, worked
 #' examples, and how to resolve the unfixable ones.

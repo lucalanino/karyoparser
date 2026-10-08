@@ -57,7 +57,8 @@ a column:
   equivalents), `html_entities`, `leading_dot`, `mar_space`,
   `midstring_linewrap`, `paren_comma` (`del(5)(q11,q33)`; a decimal comma
   `q11,2` becomes `q11.2`), `gain_loss_comma` (`-7+mar`),
-  `star_multiplier` (`+mar*2` for `+marx2`), `underscore_prefix`
+  `star_multiplier` (`+mar*2` for `+marx2`), `breakpoint_semicolon`
+  (`t(9;16)(q34p13)` for `t(9;16)(q34;p13)`), `underscore_prefix`
   (`46,_XY,_del(5)...`),
   `missing_sex_comma` (e.g. `46,XX der(...)` or
   `46,XY+8` missing the comma after the sex complement -- a letter-glued form
@@ -68,7 +69,7 @@ a column:
   parenthesized), `trailing_narrative`, `unicode_notation`,
   `zero_host_chimera`.
 - **Unfixable**: `chimeric_no_count`, `constitutional_sex_complement`,
-  `empty`, `invalid_idem`,
+  `empty`, `invalid_breakpoint`, `invalid_idem`,
   `mosaic_karyotype`, `multiple_chimeric_separator`, `no_chromosome_count`,
   `no_sex_complement`, `single_token`, `stray_non_ascii`,
   `unbalanced_brackets`, `unbalanced_parentheses`, `unparseable_bracket`,
@@ -83,7 +84,7 @@ constructs the package deliberately doesn't handle.
 | Issue type | What it usually means | What to do |
 |---|---|---|
 | `empty` | Input was `NA` or `""` | Confirm the source column doesn't have missing/blank karyotype values before parsing, or filter them out upstream. |
-| `no_chromosome_count` | String doesn't start with a digit | Check whether a leading chromosome count was stripped upstream (e.g. spreadsheet auto-formatting), or whether the string is karyotype notation at all. |
+| `no_chromosome_count` | String, or any later clone, doesn't start with a chromosome count (e.g. `46,XY[20]/text:46,idem,...`) | Check whether a leading chromosome count was stripped upstream (e.g. spreadsheet auto-formatting), or whether the string is karyotype notation at all. |
 | `no_sex_complement` | First clone has no sex chromosome complement (`XX`/`XY`/etc.) | Check whether the string was truncated before the complement, uses non-standard complement notation, or (if `missing_sex_comma` is also flagged) has the complement glued directly to an unrecognized or garbled aberration token with no comma, e.g. `47,XY(inv)(9)`. A glued *recognized* aberration indicator, e.g. `46,XYdel(5q)`, is auto-fixed and won't reach this check. |
 | `single_token` | Bare comma-less string, e.g. `"8"` | Ambiguous between a chromosome count and an abnormality whose leading `+`/`-` sign was stripped -- a common artifact of opening ISCN strings in Excel. Check the original cell format/source. |
 | `invalid_idem` | `idem` appears in the first clone | `idem` means "same as the previous clone", but there is no previous clone here. Check whether an earlier clone was dropped from the string. |
@@ -91,6 +92,7 @@ constructs the package deliberately doesn't handle.
 | `unparseable_bracket` | Bracket content isn't a valid metaphase count (`[n]`, `[cpN]`, `[n~m]`) | Look for stray text inside the brackets, e.g. a note or annotation that ended up bracketed. |
 | `unrecognized_gain_loss` | A `+`/`-` token that is neither a whole-chromosome gain/loss (`+8`, `-Xx2`), an unidentified ring/marker/double minute (`+1~3r`, `+2mar`), nor a structural aberration (`+der(1)...`), e.g. `+8q` or `+23` | Monosomy/trisomy flags only fire on whole tokens, so an unforeseen shape would otherwise be silently skipped. Correct the token in the source record. |
 | `unrecognized_token` | Any other aberration token with no recognized ISCN shape, e.g. free text (`asxl1mutation`), a bare number, or the fragments of a comma inside parentheses (`del(5)(q11,q33)`) | Unrecognized tokens would otherwise be counted as aberrations and inflate `complex_karyotype`. Only token structure is checked (indicator, parenthesized groups, suffixes), never band contents. Correct the token in the source record. |
+| `invalid_breakpoint` | A recognized token whose parentheses hold an impossible chromosome (`der(+)`, `inv(1198q15q22)`) or breakpoint: an empty entry (`()`, `(p35;;p24)`), a band without an arm (`(q12;21)`), or a breakpoint count that doesn't match the chromosomes (`t(5;2)(q11)`) | ISCN uncertainty (`?`, `q1?`), `pter`/`qter`/`cen`, `or` alternatives and uncertain ranges (`q13-14`, `q33~34`) are accepted. Correct the breakpoints in the source record. |
 | `multiple_chimeric_separator` | Two or more `//` separators | The parser can't auto-resolve more than one chimeric boundary. Decide manually which clone population to keep. |
 | `chimeric_no_count` | A `//` not followed by a chromosome count, e.g. `46,XX[10]//XY[5]` | Every population after `//` needs its own ploidy. A missing count is never guessed to be a `/` typo; check the source record. |
 | `updated_iscn` | Contains an `"Updated ISCN"` marker | The string may have been superseded by a later correction. Check the source record for the corrected karyotype. |
@@ -170,7 +172,8 @@ fixes in a fixed order, then a final `normalize_iscn()` pass:
     (`del(5)(q11,q33)`); a colon used for `;` (`t(5:17)(q13:q11)`), leaving
     the detailed ISCN system (`::`, `->`) alone; a dot used for `,` between
     tokens (`del(5)(q13q33).-7`, `45.idem`); `*N` -> `xN`; a missing comma
-    before a `+`/`-` token (`-7+mar` -> `-7,+mar`)
+    before a `+`/`-` token (`-7+mar` -> `-7,+mar`); a missing `;` between two
+    chromosomes' breakpoints (`t(9;16)(q34p13)` -> `t(9;16)(q34;p13)`)
 19. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
     idem/sl/cp normalization
 

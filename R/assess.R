@@ -59,6 +59,98 @@ empty_issues_tibble <- function() {
   heteromorphism = "^\\d{1,2}[pq](?:h|s|stk)[+-]?$"
 )
 
+# A clone's leading chromosome count ('46', '46~48', '93<4n>').
+.clone_count_re <- "^\\d+(?:~\\d+)?(?:<\\dn>)?$"
+
+# Breakpoint grammar for invalid_breakpoint. Accepts ISCN uncertainty ('?',
+# 'q1?'), terminal and centromere bands, 'or' alternatives, and uncertain
+# ranges whose second end omits the arm ('q13-14', 'q33~34'). Every band
+# needs an arm.
+.band_num <- "\\d{1,2}(?:\\.\\d{1,2})?"
+.band_one <- paste0(
+  "\\??(?:[pq](?:",
+  .band_num,
+  "(?:[-~][pq]?",
+  .band_num,
+  ")?)?|pter|qter|cen)\\??"
+)
+.band_entry_re <- paste0(
+  "^(?:\\?+|",
+  .band_one,
+  "(?:(?:[-~]|\\s*or\\s*)?",
+  .band_one,
+  ")*)$"
+)
+.chrom_slot_re <- "^\\??(?:[1-9]|1\\d|2[0-2]|X|Y|\\?)$"
+# Arm shorthand in the chromosome slot ('del(5q)', 'del(20q11.2)').
+.chrom_arm_slot_re <- "^(?:\\d{1,2}|X|Y)[pq](?:\\d|ter|$)"
+
+# Validates each indicator(chromosomes)(breakpoints) pair of one token.
+# Returns NA when valid, else a short reason.
+.invalid_breakpoint <- function(token) {
+  if (grepl("->|::", token)) {
+    return(NA_character_)
+  }
+  pairs <- regmatches(
+    token,
+    gregexpr(
+      "(?:psu dic|[a-z]+)\\([^()]*\\)(?:\\([^()]*\\))?",
+      token,
+      perl = TRUE
+    )
+  )[[1]]
+  for (pr in pairs) {
+    groups <- gsub(
+      "[()]",
+      "",
+      regmatches(pr, gregexpr("\\([^()]*\\)", pr))[[1]]
+    )
+    chroms <- strsplit(groups[1], ";", fixed = TRUE)[[1]]
+    arm_slot <- length(chroms) == 1L &&
+      grepl(.chrom_arm_slot_re, groups[1], perl = TRUE)
+    if (
+      !arm_slot &&
+        (length(chroms) == 0L ||
+          !all(grepl(.chrom_slot_re, chroms, perl = TRUE)))
+    ) {
+      return(sprintf("invalid chromosome '(%s)'", groups[1]))
+    }
+    if (length(groups) < 2L) {
+      next
+    }
+    bands <- strsplit(groups[2], ";", fixed = TRUE)[[1]]
+    if (groups[2] == "" || grepl(";;|^;|;$", groups[2])) {
+      return(sprintf("empty breakpoint in '(%s)'", groups[2]))
+    }
+    if (!all(grepl(.band_entry_re, bands, perl = TRUE))) {
+      return(sprintf("invalid breakpoint '(%s)'", groups[2]))
+    }
+    if (length(chroms) > 1L && length(bands) != length(chroms)) {
+      return(sprintf(
+        "%d chromosomes but %d breakpoints in '(%s)'",
+        length(chroms),
+        length(bands),
+        groups[2]
+      ))
+    }
+  }
+  NA_character_
+}
+
+# Two-chromosome breakpoints written without ';' ('t(9;16)(q34p13)'): two
+# armed bands have exactly one reading, so the ';' is inserted.
+.chrom_pair <- "\\((?:\\d{1,2}|X|Y|\\?);(?:\\d{1,2}|X|Y|\\?)\\)"
+.armed_band <- "\\??[pq]\\d{1,2}(?:\\.\\d{1,2})?\\??"
+.breakpoint_semicolon_re <- paste0(
+  "(?<=",
+  .chrom_pair,
+  "\\(",
+  .armed_band,
+  ")(?=",
+  .armed_band,
+  "\\))"
+)
+
 # One parenthesized group containing `sep`, skipping groups written in the
 # detailed ISCN system, where ':' and '::' are legitimate.
 .paren_group_with <- function(sep) {
@@ -422,6 +514,12 @@ empty_issues_tibble <- function() {
     ),
     detail = "Colon used for ';' inside parentheses (e.g. 't(5:17)(q13:q11)'); groups in the detailed ISCN system ('::', '->', 'pter') are left alone"
   ),
+  breakpoint_semicolon = list(
+    detect = .breakpoint_semicolon_re,
+    use_trimmed = FALSE,
+    fix = list(list(pattern = .breakpoint_semicolon_re, replacement = ";")),
+    detail = "Missing ';' between the breakpoints of two chromosomes (e.g. 't(9;16)(q34p13)' should be 't(9;16)(q34;p13)'); inserted"
+  ),
   dot_separator = list(
     detect = .dot_separator_re,
     use_trimmed = FALSE,
@@ -473,7 +571,8 @@ empty_issues_tibble <- function() {
   "unparseable_bracket",
   "unrecognized_gain_loss",
   "unrecognized_token",
-  "chimeric_no_count"
+  "chimeric_no_count",
+  "invalid_breakpoint"
 )
 
 # Single ordered walk: each pattern detects against the state left by every
@@ -790,6 +889,34 @@ validate_karyotypes <- function(karyotypes) {
       disp[tok_row[unrecognized]],
       "unrecognized_token",
       sprintf("Cannot classify '%s' as an ISCN token", tok[unrecognized])
+    )
+
+    # Every clone, not just the first, must open with its chromosome count.
+    clone_pos <- sequence(lengths(clones))
+    tok_clone_pos <- rep(clone_pos, lengths(clone_tokens))
+    no_count <- tok_pos == 1L &
+      tok_clone_pos > 1L &
+      !stringr::str_detect(tok, .clone_count_re)
+    add_batch(
+      tok_row[no_count],
+      disp[tok_row[no_count]],
+      "no_chromosome_count",
+      sprintf(
+        "Clone %d doesn't start with a chromosome count: '%s'",
+        tok_clone_pos[no_count],
+        tok[no_count]
+      )
+    )
+
+    # Token shape passed, so check what is inside the parentheses.
+    bp_check <- which(tok_pos > 1L & token_ok & !sex_slot)
+    bp_detail <- vapply(tok[bp_check], .invalid_breakpoint, character(1))
+    bad <- bp_check[!is.na(bp_detail)]
+    add_batch(
+      tok_row[bad],
+      disp[tok_row[bad]],
+      "invalid_breakpoint",
+      sprintf("'%s': %s", tok[bad], bp_detail[!is.na(bp_detail)])
     )
 
     brackets_list <- stringr::str_extract_all(kk, "\\[[^\\]]+\\]")

@@ -60,7 +60,8 @@ Fixable issue types (resolvable by \code{parse_karyo()} under \code{on_issues = 
 \code{fish_notation}, \code{trailing_narrative}, \code{midstring_linewrap},
 \code{missing_sex_comma}, \code{mar_space}, \code{non_clonal_sca}, \code{paren_comma},
 \code{colon_separator}, \code{dot_separator}, \code{underscore_prefix}, \code{star_multiplier},
-\code{gain_loss_comma}, \code{chimeric_separator}, \code{zero_host_chimera}.
+\code{gain_loss_comma}, \code{breakpoint_semicolon}, \code{chimeric_separator},
+\code{zero_host_chimera}.
 
 Unfixable issue types (always returned as NA by \code{parse_karyo()}):
 \code{multiple_chimeric_separator}, \code{chimeric_no_count}, \code{empty},
@@ -68,7 +69,8 @@ Unfixable issue types (always returned as NA by \code{parse_karyo()}):
 \code{updated_iscn}, \code{unbalanced_parentheses}, \code{unbalanced_brackets},
 \code{no_sex_complement}, \code{single_token}, \code{constitutional_sex_complement},
 \code{mosaic_karyotype}, \code{invalid_idem}, \code{unparseable_bracket},
-\code{unrecognized_gain_loss}, \code{unrecognized_token}, \code{stray_non_ascii}.
+\code{unrecognized_gain_loss}, \code{unrecognized_token}, \code{invalid_breakpoint},
+\code{stray_non_ascii}.
 
 See \code{vignette("data-cleaning")} for what each issue type means, worked
 examples, and how to resolve the unfixable ones.
