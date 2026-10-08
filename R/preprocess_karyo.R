@@ -190,7 +190,8 @@ preprocess_karyo <- function(
   attr(out, ".kp_chimeric_all_rows") <- unique(c(
     assessment$chimeric_row_indices,
     assessment$zhc_row_indices,
-    assessment$multi_row_indices
+    assessment$multi_row_indices,
+    assessment$no_count_row_indices
   ))
   attr(out, ".kp_chimeric_clone") <- assessment$chimeric_clone
   attr(out, ".kp_on_chimeric") <- on_chimeric

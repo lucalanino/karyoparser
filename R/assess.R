@@ -472,7 +472,8 @@ empty_issues_tibble <- function() {
   "invalid_idem",
   "unparseable_bracket",
   "unrecognized_gain_loss",
-  "unrecognized_token"
+  "unrecognized_token",
+  "chimeric_no_count"
 )
 
 # Single ordered walk: each pattern detects against the state left by every
@@ -848,6 +849,15 @@ validate_karyotypes <- function(karyotypes) {
     zhc_row_indices
   )
 
+  # Every population after '//' must start with its own chromosome count.
+  # Checked before normalize_iscn(), which would strip a trailing '//'. Never
+  # repaired: a '//' with no count after it is not guessed to mean '/'.
+  no_count_row_indices <- which(
+    has_count &
+      !is.na(partially_fixed) &
+      stringr::str_detect(partially_fixed, "//(?!\\s*\\d)")
+  )
+
   selected <- norm_partial
   chimeric_clone <- rep(NA_character_, n)
 
@@ -923,10 +933,25 @@ validate_karyotypes <- function(karyotypes) {
     empty_issues_tibble()
   }
 
+  no_count_issues <- if (length(no_count_row_indices) > 0) {
+    tibble::tibble(
+      row_index = no_count_row_indices,
+      karyotype = truncate_str(as.character(partially_fixed[
+        no_count_row_indices
+      ])),
+      issue_type = "chimeric_no_count",
+      issue_detail = "'//' not followed by a chromosome count (no ploidy for the donor population)"
+    )
+  } else {
+    empty_issues_tibble()
+  }
+  chimeric_clone[no_count_row_indices] <- NA_character_
+
   reported_issues <- dplyr::bind_rows(
     dirty_issues,
     chimeric_issues,
     multi_issues,
+    no_count_issues,
     struct_issues
   ) |>
     dplyr::arrange(row_index)
@@ -949,6 +974,7 @@ validate_karyotypes <- function(karyotypes) {
     chimeric_row_indices = chimeric_row_indices,
     zhc_row_indices = zhc_row_indices,
     multi_row_indices = multi_row_indices,
+    no_count_row_indices = no_count_row_indices,
     chimeric_clone = chimeric_clone,
     on_chimeric = on_chimeric
   )

@@ -20,7 +20,8 @@
 #' `gain_loss_comma`, `chimeric_separator`, `zero_host_chimera`.
 #'
 #' Unfixable issue types (always returned as NA by `parse_karyo()`):
-#' `multiple_chimeric_separator`, `empty`, `no_chromosome_count`,
+#' `multiple_chimeric_separator`, `chimeric_no_count`, `empty`,
+#' `no_chromosome_count`,
 #' `updated_iscn`, `unbalanced_parentheses`, `unbalanced_brackets`,
 #' `no_sex_complement`, `single_token`, `constitutional_sex_complement`,
 #' `mosaic_karyotype`, `invalid_idem`, `unparseable_bracket`,

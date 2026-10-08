@@ -63,7 +63,8 @@ Fixable issue types (resolvable by \code{parse_karyo()} under \code{on_issues = 
 \code{gain_loss_comma}, \code{chimeric_separator}, \code{zero_host_chimera}.
 
 Unfixable issue types (always returned as NA by \code{parse_karyo()}):
-\code{multiple_chimeric_separator}, \code{empty}, \code{no_chromosome_count},
+\code{multiple_chimeric_separator}, \code{chimeric_no_count}, \code{empty},
+\code{no_chromosome_count},
 \code{updated_iscn}, \code{unbalanced_parentheses}, \code{unbalanced_brackets},
 \code{no_sex_complement}, \code{single_token}, \code{constitutional_sex_complement},
 \code{mosaic_karyotype}, \code{invalid_idem}, \code{unparseable_bracket},

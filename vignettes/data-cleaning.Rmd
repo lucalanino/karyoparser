@@ -67,7 +67,8 @@ a column:
   the sex complement), `non_clonal_sca` (an `ncSCA` token, standalone or
   parenthesized), `trailing_narrative`, `unicode_notation`,
   `zero_host_chimera`.
-- **Unfixable**: `constitutional_sex_complement`, `empty`, `invalid_idem`,
+- **Unfixable**: `chimeric_no_count`, `constitutional_sex_complement`,
+  `empty`, `invalid_idem`,
   `mosaic_karyotype`, `multiple_chimeric_separator`, `no_chromosome_count`,
   `no_sex_complement`, `single_token`, `stray_non_ascii`,
   `unbalanced_brackets`, `unbalanced_parentheses`, `unparseable_bracket`,
@@ -91,6 +92,7 @@ constructs the package deliberately doesn't handle.
 | `unrecognized_gain_loss` | A `+`/`-` token that is neither a whole-chromosome gain/loss (`+8`, `-Xx2`), an unidentified ring/marker/double minute (`+1~3r`, `+2mar`), nor a structural aberration (`+der(1)...`), e.g. `+8q` or `+23` | Monosomy/trisomy flags only fire on whole tokens, so an unforeseen shape would otherwise be silently skipped. Correct the token in the source record. |
 | `unrecognized_token` | Any other aberration token with no recognized ISCN shape, e.g. free text (`asxl1mutation`), a bare number, or the fragments of a comma inside parentheses (`del(5)(q11,q33)`) | Unrecognized tokens would otherwise be counted as aberrations and inflate `complex_karyotype`. Only token structure is checked (indicator, parenthesized groups, suffixes), never band contents. Correct the token in the source record. |
 | `multiple_chimeric_separator` | Two or more `//` separators | The parser can't auto-resolve more than one chimeric boundary. Decide manually which clone population to keep. |
+| `chimeric_no_count` | A `//` not followed by a chromosome count, e.g. `46,XX[10]//XY[5]` | Every population after `//` needs its own ploidy. A missing count is never guessed to be a `/` typo; check the source record. |
 | `updated_iscn` | Contains an `"Updated ISCN"` marker | The string may have been superseded by a later correction. Check the source record for the corrected karyotype. |
 | `constitutional_sex_complement` | Sex complement has a `c` suffix, e.g. `47,XXYc` | Out of scope by design, not a data-quality issue -- see [Out-of-scope constructs](#out-of-scope-constructs-take-precedence) below. |
 | `mosaic_karyotype` | Leading `mos` prefix | Out of scope by design, not a data-quality issue -- see [Out-of-scope constructs](#out-of-scope-constructs-take-precedence) below. |

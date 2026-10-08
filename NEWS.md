@@ -55,3 +55,6 @@
   offending token for each unfixable row (e.g. `unparseable_bracket: Cannot
   parse '[23+6]' as metaphase count`), so the reason is visible without
   inspecting internals.
+* `check_karyo()` reports a new unfixable issue, `chimeric_no_count`, for a
+  `//` that is not followed by a chromosome count (`46,XX[10]//XY[5]`, a
+  trailing `//`). These rows were previously parsed as their host clone.

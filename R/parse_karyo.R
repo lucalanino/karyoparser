@@ -461,7 +461,8 @@ parse_karyo <- function(
       chimeric_all_indices <- unique(c(
         assessment$chimeric_row_indices,
         assessment$zhc_row_indices,
-        assessment$multi_row_indices
+        assessment$multi_row_indices,
+        assessment$no_count_row_indices
       ))
       chimeric_clone_vec <- assessment$chimeric_clone
       proc <- assessment$processed

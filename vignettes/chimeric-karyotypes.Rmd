@@ -82,6 +82,13 @@ parse_karyo("46,XX//47//48", on_issues = "preprocess", verbose = FALSE) |>
   dplyr::select(original_karyotype, preprocessed_karyotype, unfixable_error)
 ```
 
+## A separator must be followed by a chromosome count
+
+Each population after `//` starts with its own chromosome count. A `//`
+followed by anything else (`46,XX[10]//XY[5]`, `46,XX[10]//idem,+8[5]`, or a
+trailing `//`) is unfixable (`chimeric_no_count`) under every `on_chimeric`
+policy. It is never guessed to be a typo for `/`.
+
 ## `on_issues` is orthogonal to chimeric handling
 
 Chimeric rows are always clone-selected and parsed, in every `on_issues`

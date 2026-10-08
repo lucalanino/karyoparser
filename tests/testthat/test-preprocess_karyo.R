@@ -262,6 +262,18 @@ test_that("preprocess_karyo: two or more // are unfixable", {
   expect_equal(result$status, "unfixable")
 })
 
+test_that("preprocess_karyo: '//' without a chromosome count is unfixable", {
+  x <- c("46,XX[10]//XY[5]", "46,XX[10]//idem,+8[5]", "46,XX[10]//")
+  for (oc in c("default", "host", "donor")) {
+    expect_equal(
+      preprocess_karyo(x, on_chimeric = oc)$status,
+      rep("unfixable", 3)
+    )
+  }
+  expect_equal(check_karyo(x)$chimeric_no_count, rep(1L, 3))
+  expect_equal(preprocess_karyo("46,XX[10]//46,XY[5]")$status, "fixed")
+})
+
 test_that("preprocess_karyo: ncSCA token stripped (leading clone)", {
   result <- suppressMessages(preprocess_karyo("ncSCA[4]/46,XY[11]"))
   expect_equal(result$preprocessed, "46,XY[11]")
