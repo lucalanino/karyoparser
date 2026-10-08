@@ -53,7 +53,10 @@ empty_issues_tibble <- function() {
   ),
   .recognized_gain_loss_re["aneuploidy"],
   # As in .unidentified_count_re, plus an open-ended range ('10~>50dmin').
-  unidentified = "^[+-]?\\??(?:\\d+(?:[~-]>?\\d+)?|>\\d+)?(?:r|mar|dmin)\\d*(?:x\\d+)?\\??$",
+  unidentified = paste0(
+    "^[+-]?\\??(?:\\d+(?:[~-]>?\\d+)?|>\\d+)?",
+    .unidentified_element_re
+  ),
   inherited = "^(?:idem|sl|sdl\\d*)$",
   incomplete = "^inc$",
   heteromorphism = "^\\d{1,2}[pq](?:h|s|stk)[+-]?$"
@@ -81,9 +84,9 @@ empty_issues_tibble <- function() {
   .band_one,
   ")*)$"
 )
-.chrom_slot_re <- "^\\??(?:[1-9]|1\\d|2[0-2]|X|Y|\\?)$"
+.chrom_slot_re <- paste0("^\\??(?:", .chrom_alt, "|\\?)$")
 # Arm shorthand in the chromosome slot ('del(5q)', 'del(20q11.2)').
-.chrom_arm_slot_re <- "^(?:\\d{1,2}|X|Y)[pq](?:\\d|ter|$)"
+.chrom_arm_slot_re <- paste0("^(?:", .chrom_loose_alt, ")[pq](?:\\d|ter|$)")
 
 # Validates each indicator(chromosomes)(breakpoints) pair of one token.
 # Returns NA when valid, else a short reason.
@@ -139,7 +142,13 @@ empty_issues_tibble <- function() {
 
 # Two-chromosome breakpoints written without ';' ('t(9;16)(q34p13)'): two
 # armed bands have exactly one reading, so the ';' is inserted.
-.chrom_pair <- "\\((?:\\d{1,2}|X|Y|\\?);(?:\\d{1,2}|X|Y|\\?)\\)"
+.chrom_pair <- paste0(
+  "\\((?:",
+  .chrom_loose_alt,
+  "|\\?);(?:",
+  .chrom_loose_alt,
+  "|\\?)\\)"
+)
 .armed_band <- "\\??[pq]\\d{1,2}(?:\\.\\d{1,2})?\\??"
 .breakpoint_semicolon_re <- paste0(
   "(?<=",
@@ -166,8 +175,17 @@ empty_issues_tibble <- function() {
 # ('q11.2') is digit-dot-digit inside parentheses and never matches.
 .dot_separator_re <- paste0(
   "(?<=\\))\\.(?=[+?a-z-])(?!ish\\b|nuc\\b)",
-  "|(?<=(?:^|,)\\??[+-](?:\\d{1,2}|X|Y))\\.(?=[+?a-z-])",
+  "|(?<=(?:^|,)\\??[+-](?:",
+  .chrom_loose_alt,
+  "))\\.(?=[+?a-z-])",
   "|(?<=(?:^|/)\\d{1,3}(?:~\\d{1,3})?)\\.(?=idem|sl|sdl)"
+)
+
+# Non-ISCN 'iso(' isochromosome indicator before a chromosome ('iso(17q)').
+.iso_indicator_re <- paste0(
+  "(?<![a-z])iso\\((?=(?:",
+  .chrom_loose_alt,
+  ")[)pq])"
 )
 
 # '*N' after a token that can carry a copy multiplier. 'idem*2' is left alone:
@@ -177,8 +195,12 @@ empty_issues_tibble <- function() {
 # Zero-width position between a whole gain/loss or a closing ')' and a glued
 # '+'/'-' token ('-7+mar'). A marker count range ('+2-4mar') is not split.
 .gain_loss_comma_re <- paste0(
-  "(?<=(?:^|,)\\??[+-]\\??(?:\\d{1,2}|X|Y)c?|\\))",
-  "(?=[+-]\\??(?:\\d{1,2}|X|Y|mar|r|dmin|[a-z]+\\())",
+  "(?<=(?:^|,)\\??[+-]\\??(?:",
+  .chrom_loose_alt,
+  ")c?|\\))",
+  "(?=[+-]\\??(?:",
+  .chrom_loose_alt,
+  "|mar|r|dmin|[a-z]+\\())",
   "(?![+-]\\??\\d+(?:[~-]\\d+)?(?:mar|r|dmin))"
 )
 
@@ -309,14 +331,9 @@ empty_issues_tibble <- function() {
     detail = "Non-canonical letter case: lowercase sex chromosome (e.g. '46,xy', '-y', 't(x;5)') or uppercase ISCN keyword (e.g. 'Del(5)', 'MAR', '(Q13Q33)')"
   ),
   iso_indicator = list(
-    detect = "(?<![a-z])iso\\((?=(?:\\d{1,2}|X|Y)[)pq])",
+    detect = .iso_indicator_re,
     use_trimmed = FALSE,
-    fix = list(
-      list(
-        pattern = "(?<![a-z])iso\\((?=(?:\\d{1,2}|X|Y)[)pq])",
-        replacement = "i("
-      )
-    ),
+    fix = list(list(pattern = .iso_indicator_re, replacement = "i(")),
     detail = "Non-ISCN 'iso' isochromosome indicator (e.g. 'iso(17q)' should be 'i(17q)')"
   ),
   # Runs after leading_dot; repairs a missing/dotted count-sex separator, e.g.
@@ -833,33 +850,7 @@ validate_karyotypes <- function(karyotypes) {
       "idem found in clone 1 (nothing to inherit from)"
     )
 
-    # All clones, not just the first: a gain/loss token of unforeseen shape
-    # would otherwise just fail .aneuploidy_re and drop out silently.
-    all_tokens_list <- stringr::str_split(
-      stringr::str_replace_all(kk, "\\[[^\\]]+\\]", ""),
-      "[,/]"
-    )
-    flat_all <- stringr::str_trim(unlist(all_tokens_list))
-    flat_all_row <- rem_idx[rep(seq_along(rem_idx), lengths(all_tokens_list))]
-    recognized <- Reduce(
-      `|`,
-      lapply(.recognized_gain_loss_re, \(re) stringr::str_detect(flat_all, re))
-    )
-    unrecognized <- stringr::str_detect(flat_all, "^\\??[+-]") & !recognized
-    add_batch(
-      flat_all_row[unrecognized],
-      disp[flat_all_row[unrecognized]],
-      "unrecognized_gain_loss",
-      sprintf(
-        "Cannot classify '%s' as a gain/loss token",
-        flat_all[unrecognized]
-      )
-    )
-
-    # Any other aberration token of no recognized ISCN shape (free text, a
-    # bare number, an indicator with no breakpoints) would otherwise be
-    # counted as an aberration. Gain/loss tokens already reported above are
-    # skipped.
+    # Every token of every clone, with its row and position in its clone.
     clones <- stringr::str_split(
       stringr::str_replace_all(kk, "\\[[^\\]]+\\]", ""),
       "/"
@@ -869,13 +860,30 @@ validate_karyotypes <- function(karyotypes) {
     tok <- stringr::str_trim(unlist(clone_tokens))
     tok_row <- clone_row[rep(seq_along(clone_tokens), lengths(clone_tokens))]
     tok_pos <- sequence(lengths(clone_tokens))
-    sex_slot <- tok_pos == 2L &
-      stringr::str_detect(tok, paste0("^(?:", .sex_alt, ")c?\\??$"))
+
+    # All clones, not just the first: a gain/loss token of unforeseen shape
+    # would otherwise just fail .aneuploidy_re and drop out silently.
     gain_loss_reported <- stringr::str_detect(tok, "^\\??[+-]") &
       !Reduce(
         `|`,
         lapply(.recognized_gain_loss_re, \(re) stringr::str_detect(tok, re))
       )
+    add_batch(
+      tok_row[gain_loss_reported],
+      disp[tok_row[gain_loss_reported]],
+      "unrecognized_gain_loss",
+      sprintf(
+        "Cannot classify '%s' as a gain/loss token",
+        tok[gain_loss_reported]
+      )
+    )
+
+    # Any other aberration token of no recognized ISCN shape (free text, a
+    # bare number, an indicator with no breakpoints) would otherwise be
+    # counted as an aberration. Gain/loss tokens already reported above are
+    # skipped.
+    sex_slot <- tok_pos == 2L &
+      stringr::str_detect(tok, paste0("^(?:", .sex_alt, ")c?\\??$"))
     token_ok <- Reduce(
       `|`,
       lapply(.recognized_token_re, \(re) stringr::str_detect(tok, re))

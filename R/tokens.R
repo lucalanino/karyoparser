@@ -12,7 +12,11 @@ rule_match_text <- function(x) {
   x <- stringr::str_replace_all(x, "(?<=[(;])\\?(?=[pq])", "")
   stringr::str_replace_all(
     x,
-    "(\\((?:\\d{1,2}|X|Y)\\)\\([^();]*);([^();]*\\))",
+    paste0(
+      "(\\((?:",
+      .chrom_loose_alt,
+      ")\\)\\([^();]*);([^();]*\\))"
+    ),
     "\\1\\2"
   )
 }
