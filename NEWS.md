@@ -47,8 +47,9 @@
   to `preprocess_karyo()`. The lowercase `x` copy multiplier (`der(1)x2`) is
   left untouched.
 * `check_karyo()` reports a new unfixable issue, `unrecognized_token`, for any
-  aberration token with no recognized ISCN shape (free text, bare numbers,
-  fragments of a comma inside parentheses). Such tokens were previously
+  aberration token with no recognized ISCN shape (free text, a bare number as
+  in `46,XY,8,del(5)(q13q33)[20]`, an indicator with no breakpoints as in
+  `47,XY,+8,del[20]`). Such tokens were previously
   counted as aberrations and could set `complex_karyotype`. Only token
   structure is checked, never band contents.
 * `preprocess_karyo()` now strips a trailing angle-bracket annotation

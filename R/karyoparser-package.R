@@ -119,8 +119,8 @@ utils::globalVariables(c(
 .aneuploidy_re <- paste0("^([+-])(", .chrom_alt, ")(?:x\\d+)?$")
 
 # Optional sign, '?' and copy count (single or range) that can lead an
-# unidentified ring, marker or double minute ('+1~3r', '+2mar', '-1mar'),
-# optionally with a copy multiplier ('+mar1x2').
+# unidentified ring, marker or double minute ('+1~3r', '+2mar', '-1mar').
+# Prefix only: callers append the element and any copy multiplier ('x2').
 .unidentified_count_re <- "^[+-]?\\??(?:\\d+(?:[~-]\\d+)?)?"
 
 # Every recognized shape of a '+'/'-' led token. Anything else is reported as

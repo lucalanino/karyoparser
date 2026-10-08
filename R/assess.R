@@ -856,9 +856,10 @@ validate_karyotypes <- function(karyotypes) {
       )
     )
 
-    # Any other aberration token of no recognized ISCN shape (free text,
-    # fragments of a comma inside parentheses) would otherwise be counted as
-    # an aberration. Gain/loss tokens already reported above are skipped.
+    # Any other aberration token of no recognized ISCN shape (free text, a
+    # bare number, an indicator with no breakpoints) would otherwise be
+    # counted as an aberration. Gain/loss tokens already reported above are
+    # skipped.
     clones <- stringr::str_split(
       stringr::str_replace_all(kk, "\\[[^\\]]+\\]", ""),
       "/"

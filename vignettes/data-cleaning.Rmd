@@ -45,29 +45,27 @@ simply flagged `fixable`, without needing to know which specific fixable
 pattern fired. The full catalog of issue types, whether or not they surface as
 a column:
 
-- **Fixable**: `case_notation` (a lowercase sex chromosome such as `46,xy`,
-  `-y` or `t(x;5)`, or an uppercase ISCN keyword such as `Del(5)`, `MAR` or
-  `(Q13Q33)`; a lowercase `x` copy multiplier like `der(1)x2` is left alone),
-  `chimeric_separator`, `count_sex_separator` (e.g. `46XY` or
-  `45.XY` missing the comma before the sex complement), `embedded_newline`,
-  `colon_separator` (`t(5:17)(q13:q11)`), `dot_separator`
-  (`del(5)(q13q33).-7`), `fish_notation`, `iso_indicator` (non-ISCN `iso(17q)` written for
-  `i(17q)`), `fullwidth_punctuation` (fullwidth brackets, tilde,
+- **Fixable**: `breakpoint_semicolon` (`t(9;16)(q34p13)` for
+  `t(9;16)(q34;p13)`), `case_notation` (a lowercase sex chromosome such as
+  `46,xy`, `-y` or `t(x;5)`, or an uppercase ISCN keyword such as `Del(5)`,
+  `MAR` or `(Q13Q33)`; a lowercase `x` copy multiplier like `der(1)x2` is left
+  alone), `chimeric_separator`, `colon_separator` (`t(5:17)(q13:q11)`),
+  `count_sex_separator` (e.g. `46XY` or `45.XY` missing the comma before the
+  sex complement), `dot_separator` (`del(5)(q13q33).-7`), `embedded_newline`,
+  `fish_notation`, `fullwidth_punctuation` (fullwidth brackets, tilde,
   parentheses, comma, semicolon, or equals sign standing in for their ASCII
-  equivalents), `html_entities`, `leading_dot`, `mar_space`,
-  `midstring_linewrap`, `paren_comma` (`del(5)(q11,q33)`; a decimal comma
-  `q11,2` becomes `q11.2`), `gain_loss_comma` (`-7+mar`),
-  `star_multiplier` (`+mar*2` for `+marx2`), `breakpoint_semicolon`
-  (`t(9;16)(q34p13)` for `t(9;16)(q34;p13)`), `underscore_prefix`
-  (`46,_XY,_del(5)...`),
-  `missing_sex_comma` (e.g. `46,XX der(...)` or
-  `46,XY+8` missing the comma after the sex complement -- a letter-glued form
-  like `46,XYdel(5q)` is auto-fixed when the glued token is a recognized
-  aberration indicator, otherwise it's detected but comes back `NA`),
-  `non_ascii_homoglyph` (a Greek Chi/Upsilon standing in for Latin `X`/`Y` in
-  the sex complement), `non_clonal_sca` (an `ncSCA` token, standalone or
-  parenthesized), `trailing_narrative`, `unicode_notation`,
-  `zero_host_chimera`.
+  equivalents), `gain_loss_comma` (`-7+mar`), `html_entities`,
+  `iso_indicator` (non-ISCN `iso(17q)` written for `i(17q)`), `leading_dot`,
+  `mar_space`, `midstring_linewrap`, `missing_sex_comma` (e.g.
+  `46,XX der(...)` or `46,XY+8` missing the comma after the sex complement --
+  a letter-glued form like `46,XYdel(5q)` is auto-fixed when the glued token
+  is a recognized aberration indicator, otherwise it's detected but comes back
+  `NA`), `non_ascii_homoglyph` (a Greek Chi/Upsilon standing in for Latin
+  `X`/`Y` in the sex complement), `non_clonal_sca` (an `ncSCA` token,
+  standalone or parenthesized), `paren_comma` (`del(5)(q11,q33)`; a decimal
+  comma `q11,2` becomes `q11.2`), `star_multiplier` (`+mar*2` for `+marx2`),
+  `trailing_narrative`, `underscore_prefix` (`46,_XY,_del(5)...`),
+  `unicode_notation`, `zero_host_chimera`.
 - **Unfixable**: `chimeric_no_count`, `constitutional_sex_complement`,
   `empty`, `invalid_breakpoint`, `invalid_idem`,
   `mosaic_karyotype`, `multiple_chimeric_separator`, `no_chromosome_count`,
@@ -91,7 +89,7 @@ constructs the package deliberately doesn't handle.
 | `unbalanced_parentheses` / `unbalanced_brackets` | Mismatched `(`/`)` or `[`/`]` counts | Usually a truncation or copy-paste error. Inspect the original source record. |
 | `unparseable_bracket` | Bracket content isn't a valid metaphase count (`[n]`, `[cpN]`, `[n~m]`) | Look for stray text inside the brackets, e.g. a note or annotation that ended up bracketed. |
 | `unrecognized_gain_loss` | A `+`/`-` token that is neither a whole-chromosome gain/loss (`+8`, `-Xx2`), an unidentified ring/marker/double minute (`+1~3r`, `+2mar`), nor a structural aberration (`+der(1)...`), e.g. `+8q` or `+23` | Monosomy/trisomy flags only fire on whole tokens, so an unforeseen shape would otherwise be silently skipped. Correct the token in the source record. |
-| `unrecognized_token` | Any other aberration token with no recognized ISCN shape, e.g. free text (`asxl1mutation`), a bare number, or the fragments of a comma inside parentheses (`del(5)(q11,q33)`) | Unrecognized tokens would otherwise be counted as aberrations and inflate `complex_karyotype`. Only token structure is checked (indicator, parenthesized groups, suffixes), never band contents. Correct the token in the source record. |
+| `unrecognized_token` | Any other aberration token with no recognized ISCN shape, e.g. free text, a bare number (`46,XY,8,del(5)(q13q33)[20]`), or an indicator with no breakpoints (`47,XY,+8,del[20]`) | Unrecognized tokens would otherwise be counted as aberrations and inflate `complex_karyotype`. Only token structure is checked (indicator, parenthesized groups, suffixes), never band contents. Correct the token in the source record. |
 | `invalid_breakpoint` | A recognized token whose parentheses hold an impossible chromosome (`der(+)`, `inv(1198q15q22)`) or breakpoint: an empty entry (`()`, `(p35;;p24)`), a band without an arm (`(q12;21)`), or a breakpoint count that doesn't match the chromosomes (`t(5;2)(q11)`) | ISCN uncertainty (`?`, `q1?`), `pter`/`qter`/`cen`, `or` alternatives and uncertain ranges (`q13-14`, `q33~34`) are accepted. Correct the breakpoints in the source record. |
 | `multiple_chimeric_separator` | Two or more `//` separators | The parser can't auto-resolve more than one chimeric boundary. Decide manually which clone population to keep. |
 | `chimeric_no_count` | A `//` not followed by a chromosome count, e.g. `46,XX[10]//XY[5]` | Every population after `//` needs its own ploidy. A missing count is never guessed to be a `/` typo; check the source record. |
@@ -170,10 +168,10 @@ fixes in a fixed order, then a final `normalize_iscn()` pass:
     parenthesized
 18. Repair separators: a comma inside parentheses -> `;`
     (`del(5)(q11,q33)`); a colon used for `;` (`t(5:17)(q13:q11)`), leaving
-    the detailed ISCN system (`::`, `->`) alone; a dot used for `,` between
-    tokens (`del(5)(q13q33).-7`, `45.idem`); `*N` -> `xN`; a missing comma
-    before a `+`/`-` token (`-7+mar` -> `-7,+mar`); a missing `;` between two
-    chromosomes' breakpoints (`t(9;16)(q34p13)` -> `t(9;16)(q34;p13)`)
+    the detailed ISCN system (`::`, `->`) alone; a missing `;` between two
+    chromosomes' breakpoints (`t(9;16)(q34p13)` -> `t(9;16)(q34;p13)`); a dot
+    used for `,` between tokens (`del(5)(q13q33).-7`, `45.idem`); `*N` ->
+    `xN`; a missing comma before a `+`/`-` token (`-7+mar` -> `-7,+mar`)
 19. `normalize_iscn()`: whitespace collapsing, delimiter tightening,
     idem/sl/cp normalization
 
