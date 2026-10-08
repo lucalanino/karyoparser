@@ -20,7 +20,9 @@ rule_match_text <- function(x) {
 normalize_token <- function(x) {
   x <- stringr::str_trim(x)
   x <- stringr::str_replace_all(x, "(^\\?|\\?$|~)", "")
-  x <- strip_bands(x)
+  # Same canonical form as rule matching, so spelling variants of one
+  # aberration ('del(5)(q13;q33)' vs 'del(5)(q13q33)') count once.
+  x <- rule_match_text(x)
   out <- x
   is_marker <- tidyr::replace_na(stringr::str_detect(x, "^[+-]?\\d*mar"), FALSE)
   out[is_marker] <- "marker_chromosomes"

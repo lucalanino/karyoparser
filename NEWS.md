@@ -26,6 +26,12 @@
 * `general_dicentric` no longer fires on `idic(...)` or `psu dic(...)`, which
   set only `general_isodicentric` and `general_pseudodicentric`. Each dicentric
   form now sets exactly one flag, as `general_isochromosome` already did.
+* Spelling variants of one aberration (`del(5)(q13;q33)` and
+  `del(5)(q13q33)`, or an uncertain `?q13`) now count once in
+  `distinct_aberrations`, so they can no longer push a row into
+  `complex_karyotype`. Translocation loss derivation also reads arms from
+  uncertain breakpoints (`der(3)t(3;5)(?p13;q31)` sets
+  `unbal_partial_loss_3p`).
 
 ## New features
 

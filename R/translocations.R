@@ -52,7 +52,8 @@
   der_t <- tokens_tbl |>
     dplyr::filter(!is.na(clone_id), aberr_raw != "") |>
     dplyr::mutate(
-      raw = strip_bands(aberr_raw),
+      # Canonical form, so a '?' breakpoint ('?q21') still yields an arm.
+      raw = rule_match_text(aberr_raw),
       is_der = stringr::str_detect(raw, "^\\+?i?der\\("),
       der_inner = stringr::str_match(raw, "^\\+?i?der\\(([^)]+)\\)")[, 2],
       t_chroms = stringr::str_match(
@@ -119,7 +120,8 @@ classify_translocation_balance <- function(
   toks <- tokens_tbl |>
     dplyr::filter(!is.na(clone_id), aberr_raw != "") |>
     dplyr::mutate(
-      raw = strip_bands(aberr_raw),
+      # Canonical form, so a '?' breakpoint ('?q21') still yields an arm.
+      raw = rule_match_text(aberr_raw),
       is_der = stringr::str_detect(raw, "^\\+?i?der\\("),
       der_inner = stringr::str_match(raw, "^\\+?i?der\\(([^)]+)\\)")[, 2],
       is_bare_t = stringr::str_detect(raw, "^[?~]?t\\([0-9XY]")

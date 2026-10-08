@@ -227,6 +227,12 @@ test_that("partial loss: ISCN der(1)t(1;3)(p22;q13) example", {
   expect_equal(r$mono3, c(0L, 1L))
 })
 
+test_that("partial loss: derived from an uncertain '?' breakpoint", {
+  r <- pk("46,XX,der(3)t(3;5)(?p13;q31)")
+  expect_equal(r$unbal_partial_loss_3p, 1L)
+  expect_equal(r$unbal_partial_loss, 1L)
+})
+
 test_that("partial loss: the der chromosome supplies the centromere", {
   r <- pk("46,XY,der(17)t(5;17)(q12;q12)")
   expect_equal(r$unbal_partial_loss_17q, 1L)
@@ -727,6 +733,15 @@ test_that("parse_karyo() always returns a tibble", {
 test_that("comma_count_aberrations for simple karyotype", {
   r <- pk("46,XX")
   expect_equal(r$comma_count_aberrations, 0L)
+})
+
+test_that("spelling variants of one aberration count once", {
+  r <- pk(c(
+    "46,XX,del(2)(p21p25)[2]/46,XX,del(2)(p21;p25),del(5)(q22q23)[15]",
+    "46,XY,del(5)(q13q33)[6]/47,XY,del(5)(?q13q33)[12]"
+  ))
+  expect_equal(r$distinct_aberrations, c(2L, 1L))
+  expect_equal(r$complex_karyotype, c(0L, 0L))
 })
 
 test_that("inc is not counted as an aberration", {
