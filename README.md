@@ -74,6 +74,9 @@ reference.
 - Sub-band breakpoints: bands are stripped before matching.
 - Copy number \> 1: gain/loss is binary; `+8,+8` still just gives
   `tris8 = 1`.
+- Clone-aware copy number: gains/losses are read per token, not netted
+  against the parent clone, so `+8[1]/45,XX,idem,-8` sets both `tris8`
+  and `mono8`.
 - Partial gain from unbalanced der’s: only the partial loss is flagged
   (`unbal_partial_loss_*`).
 - Three-way translocations: only trip the generic

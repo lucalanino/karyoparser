@@ -23,6 +23,9 @@
   `der(5)t(5;17)(q12;q12)` now sets `unbal_partial_loss_5q` only, not
   `unbal_partial_loss_17p`. If you combined `unbal_partial_loss_17p` into
   abn(17p) for risk scoring, affected rows were wrongly scored adverse.
+* `general_dicentric` no longer fires on `idic(...)` or `psu dic(...)`, which
+  set only `general_isodicentric` and `general_pseudodicentric`. Each dicentric
+  form now sets exactly one flag, as `general_isochromosome` already did.
 
 ## New features
 

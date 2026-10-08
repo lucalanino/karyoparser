@@ -308,6 +308,18 @@ test_that("pseudodicentric detected", {
   expect_equal(r$general_pseudodicentric, 1L)
 })
 
+test_that("dicentric flags are exclusive: one flag per dicentric form", {
+  r <- pk(c(
+    "45,XY,dic(5;17)(q11;p11)",
+    "46,XX,idic(X)(q13)",
+    "46,XX,psu dic(15;22)(q11;p11)",
+    "46,XY,der(7)dic(3;7)(q10;q10)"
+  ))
+  expect_equal(r$general_dicentric, c(1L, 0L, 0L, 1L))
+  expect_equal(r$general_isodicentric, c(0L, 1L, 0L, 0L))
+  expect_equal(r$general_pseudodicentric, c(0L, 0L, 1L, 0L))
+})
+
 test_that("ring chromosome detected", {
   r <- pk("46,XX,r(7)(p22q36)")
   expect_equal(r$general_ring, 1L)

@@ -24,7 +24,13 @@ compute_aneuploidy <- function(tokens_tbl, chroms) {
 # token. Built from the indicator tokens in karyoparser-package.R rather than
 # retyping them; each flag adds only the anchoring it needs.
 .general_flag_patterns <- c(
-  general_dicentric = paste0(.aberr_indicators_paren[["dic"]], "\\("),
+  # Exclusive of 'idic(' and 'psu dic(', which have their own flags, as
+  # general_isochromosome is exclusive of 'idic('.
+  general_dicentric = paste0(
+    "(?<![a-z])(?<!psu )",
+    .aberr_indicators_paren[["dic"]],
+    "\\("
+  ),
   general_isodicentric = paste0(.aberr_indicators_paren[["idic"]], "\\("),
   general_isochromosome = paste0(.aberr_indicators_paren[["i"]], "\\("),
   general_pseudodicentric = paste0(.aberr_indicators_paren[["psu_dic"]], "\\("),
