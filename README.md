@@ -81,6 +81,10 @@ reference.
   two-partner `der(a)t(a;b)`.
 - Non-ISCN inputs: array CGH/SNP `seq[GRCh38]` notation and standalone
   FISH results aren’t parsed.
+- Constitutional heteromorphisms (`9qh+`, `inv(9)(p12q13)`): treated
+  like any other aberration, so they count toward `distinct_aberrations`
+  and `complex_karyotype`. Input is expected to be leukemia-oriented
+  karyotypes that leave normal variants out.
 
 ## Learn More
 
